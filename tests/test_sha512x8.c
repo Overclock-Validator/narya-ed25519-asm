@@ -247,6 +247,150 @@ check_random_compressions(void)
     return 1;
 }
 
+static void
+store64_be(uint8_t output[8], uint64_t value)
+{
+    for (size_t i = 0; i < 8; i++) {
+        output[7 - i] = (uint8_t)value;
+        value >>= 8;
+    }
+}
+
+static uint64_t
+load64_be(const uint8_t input[8])
+{
+    uint64_t value = 0;
+    for (size_t i = 0; i < 8; i++)
+        value = (value << 8) | input[i];
+    return value;
+}
+
+static void
+reference_hash_ra_message(
+    uint8_t digest[64],
+    const uint8_t r[32],
+    const uint8_t a[32],
+    const uint8_t *message,
+    size_t length)
+{
+    const size_t total = 64 + length;
+    size_t blocks = total / 128 + 1;
+    if (total % 128 >= 112)
+        blocks++;
+    uint64_t state[8];
+    memcpy(state, initial_state, sizeof(state));
+    for (size_t block_index = 0; block_index < blocks; block_index++) {
+        uint8_t raw[128] = {0};
+        const size_t start = block_index * 128;
+        for (size_t offset = 0; offset < 128; offset++) {
+            const size_t position = start + offset;
+            if (position < 32)
+                raw[offset] = r[position];
+            else if (position < 64)
+                raw[offset] = a[position - 32];
+            else if (position < total)
+                raw[offset] = message[position - 64];
+        }
+        if (total >= start && total < start + 128)
+            raw[total - start] = 0x80;
+        if (block_index + 1 == blocks) {
+            store64_be(&raw[112], (uint64_t)total >> 61);
+            store64_be(&raw[120], (uint64_t)total << 3);
+        }
+        uint64_t words[16];
+        for (size_t word = 0; word < 16; word++)
+            words[word] = load64_be(&raw[word * 8]);
+        reference_compress(state, words);
+    }
+    for (size_t word = 0; word < 8; word++)
+        store64_be(&digest[word * 8], state[word]);
+}
+
+static int
+hex_nibble(char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    return c - 'a' + 10;
+}
+
+static int
+check_segmented_hash(void)
+{
+    static const size_t lengths[8] = {0, 1, 47, 48, 64, 200, 1232, 4096};
+    static const char zero64_digest[] =
+        "7be9fda48f4179e611c698a73cff09faf72869431efee6eaad14de0cb44bbf66"
+        "503f752b7a8eb17083355f3ce6eb7d2806f236b25af96a24e22b887405c20081";
+    uint8_t r[8 * 32];
+    uint8_t a[8 * 32];
+    uint8_t messages[8][4096];
+    const uint8_t *message_ptrs[8];
+    for (size_t lane = 0; lane < 8; lane++) {
+        for (size_t i = 0; i < 32; i++) {
+            r[lane * 32 + i] = (uint8_t)random64();
+            a[lane * 32 + i] = (uint8_t)random64();
+        }
+        for (size_t i = 0; i < sizeof(messages[lane]); i++)
+            messages[lane][i] = (uint8_t)random64();
+        message_ptrs[lane] = messages[lane];
+    }
+
+    /* All 256 active masks verify independent lane completion/capture. */
+    for (unsigned int active = 0; active <= 0xff; active++) {
+        uint8_t got[8][64];
+        uint8_t want[8][64] = {{0}};
+        memset(got, 0xa5, sizeof(got));
+        for (size_t lane = 0; lane < 8; lane++) {
+            if ((active & (1u << lane)) != 0)
+                reference_hash_ra_message(
+                    want[lane], &r[lane * 32], &a[lane * 32],
+                    message_ptrs[lane], lengths[lane]);
+        }
+        if (narya_sha512_r_a_message_x8(
+                got, r, a, message_ptrs, lengths, (uint8_t)active) != NARYA_OK ||
+            memcmp(got, want, sizeof(got)) != 0) {
+            fprintf(stderr, "segmented SHA-512 mismatch for active mask=%02x\n", active);
+            return 0;
+        }
+    }
+
+    /* External known answer for SHA-512 over exactly 64 zero bytes. */
+    memset(r, 0, sizeof(r));
+    memset(a, 0, sizeof(a));
+    const size_t zero_lengths[8] = {0};
+    uint8_t got[8][64];
+    if (narya_sha512_r_a_message_x8(
+            got, r, a, message_ptrs, zero_lengths, UINT8_C(1)) != NARYA_OK)
+        return 0;
+    for (size_t i = 0; i < 64; i++) {
+        const uint8_t want = (uint8_t)((hex_nibble(zero64_digest[2 * i]) << 4) |
+                                       hex_nibble(zero64_digest[2 * i + 1]));
+        if (got[0][i] != want) {
+            fprintf(stderr, "64-zero-byte SHA-512 mismatch at byte %zu\n", i);
+            return 0;
+        }
+    }
+
+    /* Error paths are atomic and do not dereference a rejected message. */
+    memset(got, 0xa5, sizeof(got));
+    uint8_t unchanged[8][64];
+    memcpy(unchanged, got, sizeof(got));
+    const uint8_t *bad_ptrs[8] = {0};
+    size_t bad_lengths[8] = {1};
+    if (narya_sha512_r_a_message_x8(
+            got, r, a, bad_ptrs, bad_lengths, UINT8_C(1)) !=
+            NARYA_ERR_INVALID_ARGUMENT ||
+        memcmp(got, unchanged, sizeof(got)) != 0)
+        return 0;
+    bad_lengths[0] = SIZE_MAX;
+    if (narya_sha512_r_a_message_x8(
+            got, r, a, bad_ptrs, bad_lengths, UINT8_C(1)) !=
+            NARYA_ERR_RANGE ||
+        memcmp(got, unchanged, sizeof(got)) != 0)
+        return 0;
+    return 1;
+}
+
 int
 main(void)
 {
@@ -262,8 +406,9 @@ main(void)
         fputs("SHA-512 null argument was not rejected\n", stderr);
         return 1;
     }
-    if (!check_empty_digest() || !check_random_compressions())
+    if (!check_empty_digest() || !check_random_compressions() ||
+        !check_segmented_hash())
         return 1;
-    puts("PASS: x8 SHA-512 compression matches scalar and known-answer oracles");
+    puts("PASS: x8 SHA-512 compression and segmented hash match independent oracles");
     return 0;
 }

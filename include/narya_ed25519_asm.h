@@ -94,6 +94,22 @@ narya_status narya_sha512_compress_x8(
     narya_sha512_state_x8 *state,
     const narya_sha512_block_x8 *block);
 
+/*
+ * Computes SHA-512(original_R || original_A || message) independently in each
+ * active lane. R and A contain eight 32-byte rows; message/length select the
+ * third segment. Inactive digest rows are zero. A null message pointer is
+ * valid only for a zero-length lane. On error the entire digest output is
+ * unchanged. This ABI-zero scheduler currently uses the native assembly
+ * compression leaf with transparent C padding/transposition.
+ */
+narya_status narya_sha512_r_a_message_x8(
+    uint8_t digest[NARYA_X8_LANES][64],
+    const uint8_t r[NARYA_X8_LANES * 32],
+    const uint8_t a[NARYA_X8_LANES * 32],
+    const uint8_t *const message[NARYA_X8_LANES],
+    const size_t length[NARYA_X8_LANES],
+    uint8_t active);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
