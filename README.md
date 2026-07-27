@@ -8,8 +8,8 @@ validator clients that cannot embed the Go package.
 
 > [!WARNING]
 > This repository is alpha, incomplete, and unaudited. The current checkpoint
-> contains independently tested verifier components, not a complete signature
-> verifier. Do not use it to make security or consensus decisions.
+> contains a complete but not yet performance-final strict verifier. Do not
+> use it to make security or consensus decisions.
 
 The ABI version is currently zero and may change without compatibility shims.
 ABI stability starts only after the complete strict verifier and its audit
@@ -24,11 +24,12 @@ boundary are frozen.
   compression and exact segmented verifier hashing; x8 canonical scalar
   reduction and exact signed radix-32 recoding; pre-signed projective-Niels
   tables and the micro-AoS transpose selector; full-width x8 variable-base
-  scalar multiplication; alias, lane-independence, known-answer, and range
-  tests.
+  scalar multiplication; the complete x8 `DalekStrict` equation and public
+  workspace ABI; alias, lane-independence, known-answer, and range tests.
 - In progress: paired A/R decode scheduling, strict byte prechecks,
-  fixed-base multiplication, assembly of the complete Straus equation, strict
-  final predicate, and lane verdict mapping.
+  optimized fixed-base multiplication and broader external differential
+  corpora. The current complete verifier intentionally evaluates `[S]B` with
+  the variable-base engine until the radix-256 comb passes its own gate.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
@@ -62,6 +63,8 @@ The field proof obligations are collected in
 [`docs/proofs/R51_FIELD_CONTRACT.md`](docs/proofs/R51_FIELD_CONTRACT.md), and
 the signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
+The complete acceptance predicate and its equivalence obligations are in
+[`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).
 Candidate machine-checked work is recorded in
 [`docs/proofs/FORMALIZATION_BACKLOG.md`](docs/proofs/FORMALIZATION_BACKLOG.md).
 The implementation boundary is described in

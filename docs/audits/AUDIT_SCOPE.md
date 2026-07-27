@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-The current reviewable scope is intentionally narrower than Ed25519:
+The current reviewable scope contains a complete ABI-zero strict verifier:
 
 - CPUID/XCR0 gate for the complete r51 feature set;
 - checked r51×8 multiply/add/subtract/negate wrappers;
@@ -10,10 +10,16 @@ The current reviewable scope is intentionally narrower than Ed25519:
 - C point doubling and projective-Niels addition schedules over those leaves;
 - permissive compressed-point decoder with pinned scalar-Go fixtures;
 - SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
+- canonical scalar reduction and exact signed radix-32 recoding;
+- pre-signed projective-Niels table construction and assembly transpose;
+- variable-base scalar multiplication and complete `[S]B-[k]A` evaluation;
+- canonical-S, exact small-order A/R, canonical-R, projective equality, and
+  independent lane verdicts;
 - scalar differential oracles and native Zen 5 evidence.
 
-There is no complete signature-verification API. A review of this checkpoint
-must not be described as an audit of an Ed25519 verifier.
+The fixed-base term deliberately uses the variable-base engine in this
+checkpoint. That is slower but predicate-equivalent. Performance claims must
+wait for the radix-256 fixed-base replacement and dedicated benchmarks.
 
 ## High-priority review questions
 
@@ -27,10 +33,14 @@ must not be described as an audit of an Ed25519 verifier.
    lanes or mis-map a lane back to its caller index?
 6. Does the decoder exactly implement the pinned permissive byte semantics,
    especially `y >= p` and `x = 0` with sign bit one?
+7. Is explicit canonical-R plus decoded projective equality exactly equivalent
+   to dalek 2.x's terminal compressed-byte comparison?
+8. Does digit-level negation preserve exact signed-integer semantics for
+   mixed-order public keys?
 
-## Before a verifier audit
+## Before release
 
-The scope must expand to SHA-512, scalar reduction, canonical-S, the exact
-small-order classifier, canonical-R, table construction/selection, recoding,
-double-scalar multiplication, final projective comparison, public error
-semantics, corpus provenance, fuzzing, and release artifacts.
+The scope must expand to CCTV and Wycheproof ingestion, committed fuzz seeds,
+long native fuzz soaks, independent regeneration of all byte classifiers,
+fixed-base-comb evidence, ABI-version review, fault containment, benchmark
+artifacts, and at least one independent implementation audit.
