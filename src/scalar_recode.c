@@ -49,7 +49,12 @@ narya_scalar_recode_radix32_x8(
             valid |= lane_mask;
     }
 
-    int16_t carry[8] = {0};
+    /*
+     * These are ordinary C integers deliberately.  The recurrence proves
+     * carry is 0 or 1 and digit is in [-16, 15], so a narrow integer type
+     * adds no safety and forces implementation-noise narrowing conversions.
+     */
+    int carry[8] = {0};
     for (size_t round = 0; round < NARYA_RADIX32_ROUNDS; round++) {
         narya_radix32_round_x8 *record = &out->round[round];
         const size_t bit = round * NARYA_RADIX32_BITS;
@@ -57,8 +62,8 @@ narya_scalar_recode_radix32_x8(
             const uint8_t lane_mask = UINT8_C(1) << lane;
             if ((valid & lane_mask) == 0)
                 continue;
-            int16_t digit =
-                (int16_t)scalar_bits(&scalar[lane * 32], bit) + carry[lane];
+            int digit =
+                (int)scalar_bits(&scalar[lane * 32], bit) + carry[lane];
             carry[lane] = (digit + 16) / 32;
             digit -= carry[lane] * 32;
             if ((negative_mask & lane_mask) != 0)

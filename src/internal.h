@@ -107,6 +107,12 @@ void narya_projective_niels_table_select_x8(
     const narya_projective_niels_presigned_table_x8 *table,
     const narya_radix32_round_x8 *round,
     uint8_t active);
+uint8_t narya_variable_scalar_mult_x8(
+    narya_edwards_point_x8 *out,
+    const narya_projective_niels_presigned_table_x8 *table,
+    const uint8_t scalar[8 * 32],
+    uint8_t negative_mask,
+    uint8_t active);
 
 /* Unchecked: caller proves CPU support, u52 limbs, and a valid point. */
 void narya_edwards_double_x8(

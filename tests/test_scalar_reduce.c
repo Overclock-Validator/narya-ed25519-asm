@@ -113,9 +113,10 @@ subtract_one(uint8_t value[64])
 static void
 double_order(uint8_t value[64])
 {
-    uint16_t carry = 0;
+    unsigned int carry = 0;
     for (size_t i = 0; i < 32; i++) {
-        const uint16_t doubled = (uint16_t)scalar_order_bytes[i] * 2 + carry;
+        const unsigned int doubled =
+            (unsigned int)scalar_order_bytes[i] * 2U + carry;
         value[i] = (uint8_t)doubled;
         carry = doubled >> 8;
     }

@@ -41,3 +41,19 @@ The first encoding is the standard compressed Ed25519 basepoint. The native
 table gate places `[1]B` through `[8]B` in separate lanes and verifies all
 sixteen positive and negative table entries against the corresponding fixture
 multiple, comparing projective-Niels coordinates up to their common scale.
+
+## Full-width variable-base scalar multiplication
+
+`narya_variable_scalar_mult_v1.txt` contains 32 heterogeneous x8 groups. Each
+record provides a base `[1]B` through `[8]B`, a canonical scalar (including
+zero, one, `l-1`, and full-width deterministic random values), an exact
+integer sign, and the expected compressed point. Regenerate it with:
+
+```text
+python3 tools/generate_variable_scalar_vectors.py -groups 32
+```
+
+The generator uses affine big-integer double-and-add. It shares neither the
+native radix-32 recoder nor the projective-Niels table/point formulas. The C
+gate compares output projectively and separately sweeps all active masks plus
+a noncanonical scalar in one lane.
