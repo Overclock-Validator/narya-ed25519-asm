@@ -29,3 +29,4 @@ Each dated directory contains raw output, environment, commands, and a checksum
 manifest. A result applies only to the source commit and scope it names.
 
 - [Zen 5 field/point checkpoint, 2026-07-27](reproducibility/zen5-field-point-2026-07-27/README.md)
+- [Zen 5 point/decode checkpoint, 2026-07-27](reproducibility/zen5-decode-2026-07-27/README.md)
