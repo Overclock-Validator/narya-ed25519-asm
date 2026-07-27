@@ -11,6 +11,7 @@ passing differential corpus does not establish a universal theorem.
 - [Eight-lane SHA-512 compression](architecture/SHA512_X8.md)
 - [Exact signed scalar recoding](architecture/SCALAR_RECODING.md)
 - [Projective-Niels table and selector](architecture/PROJECTIVE_NIELS_TABLE.md)
+- [Variable-base scalar multiplication](architecture/VARIABLE_SCALAR_MULTIPLICATION.md)
 
 ## Proofs and assurance
 
@@ -35,3 +36,4 @@ manifest. A result applies only to the source commit and scope it names.
 - [Zen 5 field/point checkpoint, 2026-07-27](reproducibility/zen5-field-point-2026-07-27/README.md)
 - [Zen 5 point/decode checkpoint, 2026-07-27](reproducibility/zen5-decode-2026-07-27/README.md)
 - [Zen 5 hash/reduction checkpoint, 2026-07-27](reproducibility/zen5-hash-reduce-2026-07-27/README.md)
+- [Zen 5 variable-scalar checkpoint, 2026-07-27](reproducibility/zen5-variable-scalar-2026-07-27/README.md)

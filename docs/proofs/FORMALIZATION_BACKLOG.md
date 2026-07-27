@@ -19,3 +19,19 @@ The next self-contained arithmetic target is the signed radix-2^21 reduction
 of a 512-bit hash modulo the group order. Its exact statement and machine
 obligations are recorded in
 [`SCALAR_REDUCTION_CONTRACT.md`](SCALAR_REDUCTION_CONTRACT.md).
+
+After that arithmetic seam, formalize the variable-base scalar multiplier as
+a composition theorem rather than another instruction proof:
+
+1. the 51 balanced radix-32 digits reconstruct the exact signed integer, not
+   merely a residue modulo the scalar order;
+2. each positive/negative micro-AoS entry represents the requested signed
+   multiple of its lane's base point;
+3. the Horner schedule of five doublings between rounds returns `[k]P` or
+   `[-k]P` for every canonical scalar;
+4. lane masking replaces only inactive/invalid lanes with the identity and
+   cannot affect any active lane.
+
+This target can reuse an abstract Edwards group and does not need to model
+AVX-512 instructions. The instruction-refinement proof remains localized to
+the field and transpose leaves.
