@@ -1,0 +1,298 @@
+/*
+ * Copyright 2026 Overclock Validator
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Complete, audit-first DalekStrict verifier assembled from the independently
+ * gated x8 components.  The fixed-base term temporarily uses the same
+ * variable-base multiplier as A.  That is intentionally a performance issue,
+ * never a predicate shortcut: the later radix-256 comb replaces only [S]B.
+ *
+ * Predicate and proof map:
+ *   docs/architecture/STRICT_PREDICATE.md
+ *   docs/architecture/VARIABLE_SCALAR_MULTIPLICATION.md
+ *   docs/proofs/FORMALIZATION_BACKLOG.md
+ */
+#include "internal.h"
+
+#include <stdalign.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef struct narya_verify_strict_workspace_x8 {
+    narya_projective_niels_presigned_table_x8 public_table;
+    narya_projective_niels_presigned_table_x8 basepoint_table;
+} narya_verify_strict_workspace_x8;
+
+typedef union narya_digest_batch_x8 {
+    uint8_t lane[8][64];
+    uint8_t flat[8 * 64];
+} narya_digest_batch_x8;
+
+typedef union narya_scalar_batch_x8 {
+    uint8_t lane[8][32];
+    uint8_t flat[8 * 32];
+} narya_scalar_batch_x8;
+
+static const uint8_t scalar_order[32] = {
+    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+};
+
+static const uint8_t small_order_alpha[32] = {
+    0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f,
+    0xba, 0x3c, 0x0b, 0x76, 0x0d, 0x10, 0x67, 0x0f,
+    0x2a, 0x20, 0x53, 0xfa, 0x2c, 0x39, 0xcc, 0xc6,
+    0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0x7a,
+};
+
+static const uint8_t small_order_neg_alpha[32] = {
+    0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0,
+    0x45, 0xc3, 0xf4, 0x89, 0xf2, 0xef, 0x98, 0xf0,
+    0xd5, 0xdf, 0xac, 0x05, 0xd3, 0xc6, 0x33, 0x39,
+    0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x05,
+};
+
+static int
+bytes_less_than(const uint8_t value[32], const uint8_t limit[32])
+{
+    for (size_t index = 32; index-- > 0;) {
+        if (value[index] != limit[index])
+            return value[index] < limit[index];
+    }
+    return 0;
+}
+
+static int
+low255_tail_equal(const uint8_t value[32], uint8_t middle, uint8_t last)
+{
+    uint8_t difference = (value[31] & 0x7fU) ^ last;
+    for (size_t index = 1; index < 31; index++)
+        difference |= value[index] ^ middle;
+    return difference == 0;
+}
+
+static int
+low255_equal(const uint8_t value[32], const uint8_t expected[32])
+{
+    uint8_t difference = (value[31] & 0x7fU) ^ expected[31];
+    for (size_t index = 0; index < 31; index++)
+        difference |= value[index] ^ expected[index];
+    return difference == 0;
+}
+
+/* Exact classifier for all 14 encodings of the eight pure-torsion points. */
+static int
+small_order_encoding(const uint8_t value[32])
+{
+    switch (value[0]) {
+    case 0x00:
+    case 0x01:
+        return low255_tail_equal(value, 0x00, 0x00);
+    case 0x26:
+        return low255_equal(value, small_order_neg_alpha);
+    case 0xc7:
+        return low255_equal(value, small_order_alpha);
+    case 0xec:
+    case 0xed:
+    case 0xee:
+        return low255_tail_equal(value, 0xff, 0x7f);
+    default:
+        return 0;
+    }
+}
+
+static int
+low255_less_than_p(const uint8_t value[32])
+{
+    if ((value[31] & 0x7fU) != 0x7fU)
+        return 1;
+    for (size_t index = 31; index-- > 1;)
+        if (value[index] != 0xffU)
+            return 1;
+    return value[0] < 0xedU;
+}
+
+/* Canonicality is independent of the small-order gate by construction. */
+static int
+canonical_r_encoding(const uint8_t value[32])
+{
+    if (!low255_less_than_p(value))
+        return 0;
+    if ((value[31] & 0x80U) == 0)
+        return 1;
+    if (value[0] == 0x01U && low255_tail_equal(value, 0x00, 0x00))
+        return 0;
+    if (value[0] == 0xecU && low255_tail_equal(value, 0xff, 0x7f))
+        return 0;
+    return 1;
+}
+
+static uint8_t
+byte_precheck(
+    const uint8_t public_key[8 * 32],
+    const uint8_t signature[8 * 64],
+    uint8_t active)
+{
+    uint8_t live = 0;
+    for (size_t lane = 0; lane < 8; lane++) {
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
+        const uint8_t *a = &public_key[lane * 32];
+        const uint8_t *r = &signature[lane * 64];
+        const uint8_t *s = &signature[lane * 64 + 32];
+        if ((active & lane_mask) != 0 &&
+            bytes_less_than(s, scalar_order) &&
+            !small_order_encoding(a) &&
+            !small_order_encoding(r) &&
+            canonical_r_encoding(r))
+            live |= lane_mask;
+    }
+    return live;
+}
+
+static void
+canonical_lane(uint64_t output[5], const narya_r51x8 *input, size_t lane)
+{
+    const uint64_t mask = (UINT64_C(1) << 51) - 1;
+    for (size_t limb = 0; limb < 5; limb++)
+        output[limb] = input->limb[limb][lane];
+    for (size_t round = 0; round < 4; round++) {
+        for (size_t limb = 0; limb < 4; limb++) {
+            const uint64_t carry = output[limb] >> 51;
+            output[limb] &= mask;
+            output[limb + 1] += carry;
+        }
+        const uint64_t carry = output[4] >> 51;
+        output[4] &= mask;
+        output[0] += 19 * carry;
+    }
+    if (output[1] == mask && output[2] == mask && output[3] == mask &&
+        output[4] == mask && output[0] >= mask - 18) {
+        output[0] -= mask - 18;
+        output[1] = output[2] = output[3] = output[4] = 0;
+    }
+}
+
+static uint8_t
+field_equal_mask(const narya_r51x8 *a, const narya_r51x8 *b)
+{
+    uint8_t equal = 0;
+    for (size_t lane = 0; lane < 8; lane++) {
+        uint64_t left[5], right[5], difference = 0;
+        canonical_lane(left, a, lane);
+        canonical_lane(right, b, lane);
+        for (size_t limb = 0; limb < 5; limb++)
+            difference |= left[limb] ^ right[limb];
+        if (difference == 0)
+            equal |= (uint8_t)(UINT8_C(1) << lane);
+    }
+    return equal;
+}
+
+/* Equality of extended points without inversion or serialization. */
+static uint8_t
+point_equal_mask(
+    const narya_edwards_point_x8 *a,
+    const narya_edwards_point_x8 *b)
+{
+    narya_r51x8 axbz, bxaz, aybz, byaz;
+    narya_r51x8_mul_ifma(&axbz, &a->X, &b->Z);
+    narya_r51x8_mul_ifma(&bxaz, &b->X, &a->Z);
+    narya_r51x8_mul_ifma(&aybz, &a->Y, &b->Z);
+    narya_r51x8_mul_ifma(&byaz, &b->Y, &a->Z);
+    return field_equal_mask(&axbz, &bxaz) & field_equal_mask(&aybz, &byaz);
+}
+
+size_t
+narya_ed25519_verify_strict_x8_workspace_size(void)
+{
+    return sizeof(narya_verify_strict_workspace_x8);
+}
+
+size_t
+narya_ed25519_verify_strict_x8_workspace_alignment(void)
+{
+    return alignof(narya_verify_strict_workspace_x8);
+}
+
+narya_status
+narya_ed25519_verify_strict_x8(
+    uint8_t *verdict_mask,
+    const uint8_t public_key[8 * 32],
+    const uint8_t signature[8 * 64],
+    const uint8_t *const message[8],
+    const size_t message_length[8],
+    uint8_t active,
+    void *workspace,
+    size_t workspace_size)
+{
+    if (verdict_mask == NULL || public_key == NULL || signature == NULL ||
+        message == NULL || message_length == NULL || workspace == NULL ||
+        workspace_size < sizeof(narya_verify_strict_workspace_x8) ||
+        (uintptr_t)workspace % alignof(narya_verify_strict_workspace_x8) != 0)
+        return NARYA_ERR_INVALID_ARGUMENT;
+    for (size_t lane = 0; lane < 8; lane++)
+        if ((active & (UINT8_C(1) << lane)) != 0 &&
+            message[lane] == NULL && message_length[lane] != 0)
+            return NARYA_ERR_INVALID_ARGUMENT;
+    if (!narya_r51x8_available())
+        return NARYA_ERR_UNSUPPORTED_CPU;
+
+    uint8_t live = byte_precheck(public_key, signature, active);
+    if (live == 0) {
+        *verdict_mask = 0;
+        return NARYA_OK;
+    }
+
+    uint8_t r_bytes[8 * 32], s_bytes[8 * 32];
+    for (size_t lane = 0; lane < 8; lane++) {
+        memcpy(&r_bytes[lane * 32], &signature[lane * 64], 32);
+        memcpy(&s_bytes[lane * 32], &signature[lane * 64 + 32], 32);
+    }
+
+    narya_digest_batch_x8 digest;
+    narya_scalar_batch_x8 challenge;
+    narya_status status = narya_sha512_r_a_message_x8(
+        digest.lane, r_bytes, public_key, message, message_length, live);
+    if (status != NARYA_OK)
+        return status;
+    status = narya_scalar_reduce_x8(challenge.lane, digest.flat, live);
+    if (status != NARYA_OK)
+        return status;
+
+    narya_edwards_point_x8 public_point, r_point;
+    live &= narya_edwards_decode_x8(&public_point, public_key, live);
+    live &= narya_edwards_decode_x8(&r_point, r_bytes, live);
+    if (live == 0) {
+        *verdict_mask = 0;
+        return NARYA_OK;
+    }
+
+    uint8_t basepoint_bytes[8 * 32];
+    for (size_t lane = 0; lane < 8; lane++) {
+        basepoint_bytes[lane * 32] = 0x58;
+        memset(&basepoint_bytes[lane * 32 + 1], 0x66, 31);
+    }
+    narya_edwards_point_x8 basepoint;
+    if (narya_edwards_decode_x8(&basepoint, basepoint_bytes, live) != live)
+        return NARYA_ERR_RANGE; /* Internal constant/invariant failure. */
+
+    narya_verify_strict_workspace_x8 *scratch = workspace;
+    narya_projective_niels_table_build_x8(&scratch->public_table, &public_point);
+    narya_projective_niels_table_build_x8(&scratch->basepoint_table, &basepoint);
+
+    narya_edwards_point_x8 a_term, b_term;
+    const uint8_t a_mask = narya_variable_scalar_mult_x8(
+        &a_term, &scratch->public_table, challenge.flat, live, live);
+    const uint8_t b_mask = narya_variable_scalar_mult_x8(
+        &b_term, &scratch->basepoint_table, s_bytes, 0, live);
+    live &= a_mask & b_mask;
+
+    narya_projective_niels_x8 a_cached;
+    narya_edwards_to_projective_niels_x8(&a_cached, &a_term);
+    narya_edwards_point_x8 equation;
+    narya_edwards_add_projective_niels_x8(&equation, &b_term, &a_cached);
+    *verdict_mask = point_equal_mask(&equation, &r_point) & live;
+    return NARYA_OK;
+}

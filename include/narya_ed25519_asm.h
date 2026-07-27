@@ -122,6 +122,38 @@ narya_status narya_scalar_reduce_x8(
     const uint8_t in[NARYA_X8_LANES * 64],
     uint8_t active);
 
+/*
+ * Caller-owned scratch required by narya_ed25519_verify_strict_x8. The
+ * workspace contains public-key and basepoint tables and may be reused after
+ * a call returns. It needs ordinary uint64_t alignment and must not overlap
+ * any input or the verdict byte. The exact size is ABI-zero and deliberately
+ * queried rather than exposed as a public structure.
+ */
+size_t narya_ed25519_verify_strict_x8_workspace_size(void);
+size_t narya_ed25519_verify_strict_x8_workspace_alignment(void);
+
+/*
+ * Verifies up to eight independent Ed25519 signatures under Narya's exact
+ * DalekStrict predicate. Public keys are eight 32-byte rows; signatures are
+ * eight R||S 64-byte rows. Messages may have unrelated lengths. Inactive
+ * lanes are ignored and never appear in the verdict mask.
+ *
+ * Signature rejection is not an API error: NARYA_OK is returned and the
+ * corresponding verdict bit is clear. On an argument/CPU error, verdict_mask
+ * is unchanged. This ABI-zero implementation establishes the complete
+ * predicate boundary before the fixed-base comb is ported; it is not yet the
+ * intended performance implementation.
+ */
+narya_status narya_ed25519_verify_strict_x8(
+    uint8_t *verdict_mask,
+    const uint8_t public_key[NARYA_X8_LANES * 32],
+    const uint8_t signature[NARYA_X8_LANES * 64],
+    const uint8_t *const message[NARYA_X8_LANES],
+    const size_t message_length[NARYA_X8_LANES],
+    uint8_t active,
+    void *workspace,
+    size_t workspace_size);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

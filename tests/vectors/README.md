@@ -57,3 +57,20 @@ The generator uses affine big-integer double-and-add. It shares neither the
 native radix-32 recoder nor the projective-Niels table/point formulas. The C
 gate compares output projectively and separately sweeps all active masks plus
 a noncanonical scalar in one lane.
+
+## Complete strict verification
+
+`narya_strict_verify_v1.txt` contains eight independently signed Ed25519
+inputs with message lengths 0, 1, 17, 64, 200, 511, 1232, and 4096 bytes.
+Regenerate it with:
+
+```text
+python3 tools/generate_strict_verify_vectors.py \
+  --output tests/vectors/narya_strict_verify_v1.txt
+```
+
+The generator implements RFC 8032 key expansion and signing over the pure
+Python affine Edwards oracle. It shares no SHA-512 compression, scalar
+reduction, decoding, recoding, table, or point-operation code with the native
+library. The C gate verifies every active mask, late message failures, strict
+byte rejections in each lane, and API output atomicity.
