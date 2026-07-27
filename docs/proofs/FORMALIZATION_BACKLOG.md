@@ -14,3 +14,8 @@ predicate, projective compressed-point equality, and the complete strict
 verification equation. The broader question list and intended theorem
 boundaries live in the Go source repository's
 `docs/proofs/FORMALIZATION_BACKLOG.md`.
+
+The next self-contained arithmetic target is the signed radix-2^21 reduction
+of a 512-bit hash modulo the group order. Its exact statement and machine
+obligations are recorded in
+[`SCALAR_REDUCTION_CONTRACT.md`](SCALAR_REDUCTION_CONTRACT.md).

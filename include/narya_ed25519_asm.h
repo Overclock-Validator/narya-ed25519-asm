@@ -110,6 +110,18 @@ narya_status narya_sha512_r_a_message_x8(
     const size_t length[NARYA_X8_LANES],
     uint8_t active);
 
+/*
+ * Reduces eight lane-major 64-byte little-endian integers modulo the
+ * Ed25519 group order l. Active outputs are canonical 32-byte little-endian
+ * scalars in [0,l); inactive rows are zero. The output may start at the same
+ * address as the input because all source bytes are marshaled before stores.
+ * On an argument/CPU error the complete output remains unchanged.
+ */
+narya_status narya_scalar_reduce_x8(
+    uint8_t out[NARYA_X8_LANES][32],
+    const uint8_t in[NARYA_X8_LANES * 64],
+    uint8_t active);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

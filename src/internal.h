@@ -29,6 +29,13 @@ void narya_sha512_compress_x8_asm(
     narya_sha512_state_x8 *state,
     const narya_sha512_block_x8 *block);
 
+/*
+ * In-place signed radix-2^21 reducer. limbs[index][lane] contains 24 limbs
+ * produced by scalar_reduce.c. The assembly leaf leaves canonical limbs
+ * 0..11 in place. See docs/proofs/SCALAR_REDUCTION_CONTRACT.md.
+ */
+void narya_scalar_reduce_radix21_x8_asm(int64_t limbs[24][8]);
+
 /* Extended Edwards coordinates, internal until the complete verifier ABI. */
 typedef struct narya_edwards_point_x8 {
     narya_r51x8 X;

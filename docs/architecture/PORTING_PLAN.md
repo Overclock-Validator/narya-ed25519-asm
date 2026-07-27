@@ -18,7 +18,8 @@ The standalone port therefore proceeds by proof boundary:
 1. r51×8 field arithmetic, with a scalar independent oracle;
 2. Edwards extended/projective-Niels point operations;
 3. permissive A/R decompression and strict byte prechecks;
-4. SHA-512 and reduction modulo the scalar order;
+4. SHA-512 and reduction modulo the scalar order (implemented as independent
+   review seams; fused scheduling remains a performance follow-up);
 5. scalar recoding, table construction, and Straus DSM;
 6. projective final comparison and independent lane masks;
 7. a checked public C wrapper and fault-contained fallback policy.

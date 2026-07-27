@@ -14,6 +14,7 @@ passing differential corpus does not establish a universal theorem.
 
 - [Assurance model](proofs/ASSURANCE_MODEL.md)
 - [r51 field contract](proofs/R51_FIELD_CONTRACT.md)
+- [Scalar-reduction contract](proofs/SCALAR_REDUCTION_CONTRACT.md)
 - [Formalization backlog](proofs/FORMALIZATION_BACKLOG.md)
 
 ## Audits and security review

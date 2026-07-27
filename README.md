@@ -21,11 +21,11 @@ boundary are frozen.
   subtract, and negate; SysV AMD64 IFMA leaves; extended-point doubling and
   projective-Niels mixed addition; portable bit-exact differential oracles;
   permissive compressed-point decompression; x8 rolling-register SHA-512
-  compression; alias, lane-independence, known-answer, and range tests.
+  compression and exact segmented verifier hashing; x8 canonical scalar
+  reduction; alias, lane-independence, known-answer, and range tests.
 - In progress: paired A/R decode scheduling, strict byte prechecks,
-  segmented SHA-512 input scheduling, scalar reduction and recoding, Straus
-  double-scalar multiplication, strict final predicate, and lane verdict
-  mapping.
+  fused SHA-512 input scheduling, scalar recoding, Straus double-scalar
+  multiplication, strict final predicate, and lane verdict mapping.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
@@ -55,9 +55,11 @@ The assembly is intentionally heavily commented. Each leaf records:
 - which instructions preserve lane independence;
 - the source Narya commit whose representation it must match.
 
-The proof obligations are collected in
+The field proof obligations are collected in
 [`docs/proofs/R51_FIELD_CONTRACT.md`](docs/proofs/R51_FIELD_CONTRACT.md), and
-candidate machine-checked work is recorded in
+the signed scalar-reduction boundary is documented in
+[`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
+Candidate machine-checked work is recorded in
 [`docs/proofs/FORMALIZATION_BACKLOG.md`](docs/proofs/FORMALIZATION_BACKLOG.md).
 The implementation boundary is described in
 [`docs/architecture/PORTING_PLAN.md`](docs/architecture/PORTING_PLAN.md).
