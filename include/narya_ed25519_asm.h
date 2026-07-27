@@ -14,7 +14,8 @@
 extern "C" {
 #endif
 
-#define NARYA_ED25519_ASM_ABI_VERSION 1u
+/* Version zero means the ABI is intentionally unstable before the verifier. */
+#define NARYA_ED25519_ASM_ABI_VERSION 0u
 #define NARYA_R51_LIMBS 5u
 #define NARYA_X8_LANES 8u
 

@@ -33,9 +33,34 @@ typedef struct narya_edwards_point_x8 {
     narya_r51x8 T;
 } narya_edwards_point_x8;
 
+/* Cached projective-Niels form (Y+X, Y-X, Z, 2dT). */
+typedef struct narya_projective_niels_x8 {
+    narya_r51x8 Y_plus_X;
+    narya_r51x8 Y_minus_X;
+    narya_r51x8 Z;
+    narya_r51x8 T2d;
+} narya_projective_niels_x8;
+
 /* Unchecked: caller proves CPU support, u52 limbs, and a valid point. */
 void narya_edwards_double_x8(
     narya_edwards_point_x8 *out,
     const narya_edwards_point_x8 *point);
+void narya_edwards_to_projective_niels_x8(
+    narya_projective_niels_x8 *out,
+    const narya_edwards_point_x8 *point);
+void narya_edwards_add_projective_niels_x8(
+    narya_edwards_point_x8 *out,
+    const narya_edwards_point_x8 *point,
+    const narya_projective_niels_x8 *cached);
+
+/*
+ * Permissive compressed-point decode used by the strict verifier.  Encoded y
+ * is reduced modulo p and x=0 accepts either sign bit.  Invalid and inactive
+ * lanes become the identity; the returned mask is a subset of `active`.
+ */
+uint8_t narya_edwards_decode_x8(
+    narya_edwards_point_x8 *out,
+    const uint8_t encoded[8 * 32],
+    uint8_t active);
 
 #endif

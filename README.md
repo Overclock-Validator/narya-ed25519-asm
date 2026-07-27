@@ -1,7 +1,7 @@
 # Narya Ed25519 Assembly
 
 Standalone AMD64 assembly for Narya's eight-lane Ed25519 verification design.
-The library exposes a stable System V C ABI and has no Go runtime, cgo, or
+The library is building toward a stable System V C ABI and has no Go runtime, cgo, or
 language-runtime dependency. It is intended to make the optimized arithmetic
 usable—and independently auditable—from C, C++, Rust, Zig, and validator
 clients that cannot embed the Go package.
@@ -11,14 +11,20 @@ clients that cannot embed the Go package.
 > contains the first independently tested r51×8 field kernel, not a complete
 > signature verifier. Do not use it to make security or consensus decisions.
 
+The ABI version is currently zero and may change without compatibility shims.
+ABI stability starts only after the complete strict verifier and its audit
+boundary are frozen.
+
 ## Status
 
 - Implemented: runtime CPU/OS feature gate; checked r51×8 multiply, add,
-  subtract, and negate; SysV AMD64 IFMA leaves; extended-point doubling;
-  portable bit-exact differential oracles; alias and range tests.
-- In progress: remaining Edwards point kernels, paired
-  decompression, multi-buffer SHA-512, scalar reduction and recoding, Straus
-  double-scalar multiplication, strict final predicate, lane verdict mapping.
+  subtract, and negate; SysV AMD64 IFMA leaves; extended-point doubling and
+  projective-Niels mixed addition; portable bit-exact differential oracles;
+  permissive compressed-point decompression; alias, lane-independence, and
+  range tests.
+- In progress: paired A/R decode scheduling, strict byte prechecks,
+  multi-buffer SHA-512, scalar reduction and recoding, Straus double-scalar
+  multiplication, strict final predicate, and lane verdict mapping.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
@@ -30,6 +36,8 @@ On a Linux AMD64 machine with AVX-512 IFMA:
 ```sh
 make
 make test
+make test-native
+make test-sanitize
 ```
 
 `make check-source` asks Clang to parse the GNU assembly for an x86-64 ELF
@@ -52,6 +60,8 @@ candidate machine-checked work is recorded in
 [`docs/proofs/FORMALIZATION_BACKLOG.md`](docs/proofs/FORMALIZATION_BACKLOG.md).
 The implementation boundary is described in
 [`docs/architecture/PORTING_PLAN.md`](docs/architecture/PORTING_PLAN.md).
+The [documentation index](docs/README.md) separates architecture, proofs,
+audit material, performance reports, and raw reproducibility evidence.
 
 ## License and attribution
 
