@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Complete, audit-first DalekStrict verifier assembled from the independently
- * gated x8 components.  The fixed-base term temporarily uses the same
- * variable-base multiplier as A.  That is intentionally a performance issue,
- * never a predicate shortcut: the later radix-256 comb replaces only [S]B.
+ * gated x8 components. The fixed-base term uses the immutable radix-256 comb;
+ * its scalar-model oracle remains the variable-base implementation.
  *
  * Predicate and proof map:
  *   docs/architecture/STRICT_PREDICATE.md
@@ -20,7 +19,6 @@
 
 typedef struct narya_verify_strict_workspace_x8 {
     narya_projective_niels_presigned_table_x8 public_table;
-    narya_projective_niels_presigned_table_x8 basepoint_table;
 } narya_verify_strict_workspace_x8;
 
 typedef union narya_digest_batch_x8 {
@@ -269,24 +267,14 @@ narya_ed25519_verify_strict_x8(
         return NARYA_OK;
     }
 
-    uint8_t basepoint_bytes[8 * 32];
-    for (size_t lane = 0; lane < 8; lane++) {
-        basepoint_bytes[lane * 32] = 0x58;
-        memset(&basepoint_bytes[lane * 32 + 1], 0x66, 31);
-    }
-    narya_edwards_point_x8 basepoint;
-    if (narya_edwards_decode_x8(&basepoint, basepoint_bytes, live) != live)
-        return NARYA_ERR_RANGE; /* Internal constant/invariant failure. */
-
     narya_verify_strict_workspace_x8 *scratch = workspace;
     narya_projective_niels_table_build_x8(&scratch->public_table, &public_point);
-    narya_projective_niels_table_build_x8(&scratch->basepoint_table, &basepoint);
 
     narya_edwards_point_x8 a_term, b_term;
     const uint8_t a_mask = narya_variable_scalar_mult_x8(
         &a_term, &scratch->public_table, challenge.flat, live, live);
-    const uint8_t b_mask = narya_variable_scalar_mult_x8(
-        &b_term, &scratch->basepoint_table, s_bytes, 0, live);
+    const uint8_t b_mask = narya_fixed_base_scalar_mult_x8(
+        &b_term, s_bytes, live);
     live &= a_mask & b_mask;
 
     narya_projective_niels_x8 a_cached;

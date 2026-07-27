@@ -140,9 +140,8 @@ size_t narya_ed25519_verify_strict_x8_workspace_alignment(void);
  *
  * Signature rejection is not an API error: NARYA_OK is returned and the
  * corresponding verdict bit is clear. On an argument/CPU error, verdict_mask
- * is unchanged. This ABI-zero implementation establishes the complete
- * predicate boundary before the fixed-base comb is ported; it is not yet the
- * intended performance implementation.
+ * is unchanged. The fixed base uses one process-shared immutable radix-256
+ * comb; cold public keys require no retained state outside this call.
  */
 narya_status narya_ed25519_verify_strict_x8(
     uint8_t *verdict_mask,

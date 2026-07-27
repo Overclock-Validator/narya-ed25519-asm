@@ -127,3 +127,37 @@ narya_edwards_add_projective_niels_x8(
     narya_r51x8_mul_ifma(&out->T, &E, &H);
     narya_r51x8_mul_ifma(&out->Z, &F, &G);
 }
+
+void
+narya_edwards_add_affine_niels_x8(
+    narya_edwards_point_x8 *out,
+    const narya_edwards_point_x8 *point,
+    const narya_affine_niels_x8 *cached)
+{
+    narya_r51x8 y_minus_x, y_plus_x;
+    narya_r51x8 A, B, C, D, E, F, G, H;
+
+    /*
+     * Affine-Niels specialization of the formula above. The cached point has
+     * Zc=1, so D=2*Z and the fourth input multiplication disappears:
+     *
+     *   A=(Y-X)(Yc-Xc), B=(Y+X)(Yc+Xc), C=T(2dTc), D=2Z.
+     *
+     * This is seven field multiplications total including the four output
+     * products. Inputs are dead before output stores, so out==point is safe.
+     */
+    narya_r51x8_sub_ifma(&y_minus_x, &point->Y, &point->X);
+    narya_r51x8_add_ifma(&y_plus_x, &point->Y, &point->X);
+    narya_r51x8_mul_ifma(&A, &y_minus_x, &cached->Y_minus_X);
+    narya_r51x8_mul_ifma(&B, &y_plus_x, &cached->Y_plus_X);
+    narya_r51x8_mul_ifma(&C, &point->T, &cached->T2d);
+    narya_r51x8_add_ifma(&D, &point->Z, &point->Z);
+    narya_r51x8_sub_ifma(&E, &B, &A);
+    narya_r51x8_sub_ifma(&F, &D, &C);
+    narya_r51x8_add_ifma(&G, &D, &C);
+    narya_r51x8_add_ifma(&H, &B, &A);
+    narya_r51x8_mul_ifma(&out->X, &E, &F);
+    narya_r51x8_mul_ifma(&out->Y, &G, &H);
+    narya_r51x8_mul_ifma(&out->T, &E, &H);
+    narya_r51x8_mul_ifma(&out->Z, &F, &G);
+}

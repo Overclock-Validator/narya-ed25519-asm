@@ -96,6 +96,27 @@ typedef struct narya_projective_niels_x8 {
     narya_r51x8 T2d;
 } narya_projective_niels_x8;
 
+/* Dense scalar affine-Niels entry and arithmetic SoA selection. */
+typedef struct narya_affine_niels_micro_entry_x8 {
+    uint64_t limb[5][3];
+} narya_affine_niels_micro_entry_x8;
+
+typedef struct narya_affine_niels_x8 {
+    narya_r51x8 Y_plus_X;
+    narya_r51x8 Y_minus_X;
+    narya_r51x8 T2d;
+} narya_affine_niels_x8;
+
+extern const narya_affine_niels_micro_entry_x8
+    narya_fixed_base_comb_r256[16][128][2];
+void narya_affine_niels_transpose_x8_asm(
+    narya_affine_niels_x8 *out,
+    const narya_affine_niels_micro_entry_x8 *const source[8]);
+uint8_t narya_fixed_base_scalar_mult_x8(
+    narya_edwards_point_x8 *out,
+    const uint8_t scalar[8 * 32],
+    uint8_t active);
+
 void narya_projective_niels_transpose_x8_asm(
     narya_projective_niels_x8 *out,
     const narya_projective_niels_micro_entry_x8 *const source[8]);
@@ -125,6 +146,10 @@ void narya_edwards_add_projective_niels_x8(
     narya_edwards_point_x8 *out,
     const narya_edwards_point_x8 *point,
     const narya_projective_niels_x8 *cached);
+void narya_edwards_add_affine_niels_x8(
+    narya_edwards_point_x8 *out,
+    const narya_edwards_point_x8 *point,
+    const narya_affine_niels_x8 *cached);
 
 /*
  * Permissive compressed-point decode used by the strict verifier.  Encoded y

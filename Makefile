@@ -9,6 +9,9 @@ LIB := $(BUILD)/libnarya_ed25519_asm.a
 OBJECTS := \
 	$(BUILD)/dispatch.o \
 	$(BUILD)/decode_x8.o \
+	$(BUILD)/fixed_base_comb.o \
+	$(BUILD)/fixed_base_comb_data.o \
+	$(BUILD)/affine_niels_transpose_x8.o \
 	$(BUILD)/point_x8.o \
 	$(BUILD)/projective_niels_table.o \
 	$(BUILD)/projective_niels_transpose_x8.o \
@@ -43,6 +46,15 @@ $(BUILD)/projective_niels_table.o: src/projective_niels_table.c include/narya_ed
 
 $(BUILD)/decode_x8.o: src/decode_x8.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/fixed_base_comb.o: src/fixed_base_comb.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/fixed_base_comb_data.o: src/fixed_base_comb_data.S data/narya_fixed_base_comb_r256.bin | $(BUILD)
+	$(CC) $(CPPFLAGS) -c $< -o $@
+
+$(BUILD)/affine_niels_transpose_x8.o: src/affine_niels_transpose_x8.S | $(BUILD)
+	$(CC) $(CPPFLAGS) -c $< -o $@
 
 $(BUILD)/sha512x8.o: src/sha512x8.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -98,7 +110,10 @@ $(BUILD)/test_scalar_mult_x8: tests/test_scalar_mult_x8.c tests/vectors/narya_ba
 $(BUILD)/test_verify_strict_x8: tests/test_verify_strict_x8.c tests/vectors/narya_strict_verify_v1.txt $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
-test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_verify_strict_x8
+$(BUILD)/test_fixed_base_comb: tests/test_fixed_base_comb.c tests/vectors/narya_fixed_base_scalar_v1.txt $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
+
+test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8
 	$(BUILD)/test_r51x8
 	$(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	$(BUILD)/test_sha512x8
@@ -106,9 +121,10 @@ test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(
 	$(BUILD)/test_scalar_recode
 	$(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
 	$(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
+	$(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
 	$(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
 
-test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_verify_strict_x8
+test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
@@ -116,6 +132,7 @@ test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha5
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_recode
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
 
 test-sanitize:
@@ -133,6 +150,7 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/sha512x8.S -o /tmp/narya-sha512x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/scalar_reduce_x8.S -o /tmp/narya-scalar-reduce-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o
+	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/affine_niels_transpose_x8.S -o /tmp/narya-affine-niels-transpose-x8.o
 
 clean:
 	rm -rf $(BUILD)
