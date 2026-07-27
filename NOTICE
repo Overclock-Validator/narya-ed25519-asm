@@ -12,6 +12,15 @@ The translation changes calling convention, assembler syntax, public data
 layout documentation, and test harnesses while intentionally retaining the
 same field representation and native instruction schedule.
 
+The x8 rolling-register SHA-512 compression leaf is a System V AMD64 / GNU
+assembly translation of Narya's multi-buffer SHA-512 kernel at commit:
+
+  https://github.com/Overclock-Validator/narya-ed25519/commit/13dc06d4a5f0ad8be62412a89de3a44de57bd504
+
+Its calling convention and assembler syntax were translated; its eighty-round
+schedule and lane orientation were retained and checked against a separate
+scalar implementation plus the FIPS SHA-512 empty-message digest.
+
 This checkpoint does not include Narya's separate internal/r43x6 backend or
 copy Firedancer source. Later ports must update this notice before adding code
 with additional provenance.

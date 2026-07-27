@@ -8,6 +8,7 @@ passing differential corpus does not establish a universal theorem.
 
 - [Standalone port plan](architecture/PORTING_PLAN.md)
 - [System V ABI and data layouts](architecture/ABI.md)
+- [Eight-lane SHA-512 compression](architecture/SHA512_X8.md)
 
 ## Proofs and assurance
 

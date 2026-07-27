@@ -25,6 +25,10 @@ void narya_r51x8_sub_ifma(
     const narya_r51x8 *y);
 void narya_r51x8_neg_ifma(narya_r51x8 *out, const narya_r51x8 *x);
 
+void narya_sha512_compress_x8_asm(
+    narya_sha512_state_x8 *state,
+    const narya_sha512_block_x8 *block);
+
 /* Extended Edwards coordinates, internal until the complete verifier ABI. */
 typedef struct narya_edwards_point_x8 {
     narya_r51x8 X;

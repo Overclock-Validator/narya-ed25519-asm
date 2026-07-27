@@ -40,6 +40,15 @@ typedef struct narya_r51x8 {
     uint64_t limb[NARYA_R51_LIMBS][NARYA_X8_LANES];
 } narya_r51x8;
 
+/* Transposed SHA-512 state and one-block schedule input. */
+typedef struct narya_sha512_state_x8 {
+    uint64_t word[8][NARYA_X8_LANES];
+} narya_sha512_state_x8;
+
+typedef struct narya_sha512_block_x8 {
+    uint64_t word[16][NARYA_X8_LANES];
+} narya_sha512_block_x8;
+
 /* Reports the complete AVX-512 feature set required by the r51 field layer. */
 int narya_r51x8_available(void);
 
@@ -71,6 +80,19 @@ narya_status narya_r51x8_sub(
     const narya_r51x8 *x,
     const narya_r51x8 *y);
 narya_status narya_r51x8_neg(narya_r51x8 *out, const narya_r51x8 *x);
+
+/*
+ * Applies one SHA-512 compression block to eight independent states.
+ *
+ * block.word[i][lane] is the numeric value of big-endian message word i;
+ * callers that start from bytes must byte-swap while transposing.  state and
+ * block must not overlap.  On an argument/CPU error state is unchanged.
+ * This compression primitive is an ABI-zero review seam, not the eventual
+ * segmented R || A || message hashing API.
+ */
+narya_status narya_sha512_compress_x8(
+    narya_sha512_state_x8 *state,
+    const narya_sha512_block_x8 *block);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -9,6 +9,7 @@ The current reviewable scope is intentionally narrower than Ed25519:
 - SysV AVX-512 IFMA field leaves;
 - C point doubling and projective-Niels addition schedules over those leaves;
 - permissive compressed-point decoder with pinned scalar-Go fixtures;
+- SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
 - scalar differential oracles and native Zen 5 evidence.
 
 There is no complete signature-verification API. A review of this checkpoint

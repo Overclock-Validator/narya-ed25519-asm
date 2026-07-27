@@ -1,10 +1,10 @@
 # Narya Ed25519 Assembly
 
 Standalone AMD64 assembly for Narya's eight-lane Ed25519 verification design.
-The library is building toward a stable System V C ABI and has no Go runtime, cgo, or
-language-runtime dependency. It is intended to make the optimized arithmetic
-usable—and independently auditable—from C, C++, Rust, Zig, and validator
-clients that cannot embed the Go package.
+The library is building toward a stable System V C ABI and has no Go runtime,
+cgo, or language-runtime dependency. It is intended to make the optimized
+arithmetic usable—and independently auditable—from C, C++, Rust, Zig, and
+validator clients that cannot embed the Go package.
 
 > [!WARNING]
 > This repository is alpha, incomplete, and unaudited. The current checkpoint
@@ -20,11 +20,12 @@ boundary are frozen.
 - Implemented: runtime CPU/OS feature gate; checked r51×8 multiply, add,
   subtract, and negate; SysV AMD64 IFMA leaves; extended-point doubling and
   projective-Niels mixed addition; portable bit-exact differential oracles;
-  permissive compressed-point decompression; alias, lane-independence, and
-  range tests.
+  permissive compressed-point decompression; x8 rolling-register SHA-512
+  compression; alias, lane-independence, known-answer, and range tests.
 - In progress: paired A/R decode scheduling, strict byte prechecks,
-  multi-buffer SHA-512, scalar reduction and recoding, Straus double-scalar
-  multiplication, strict final predicate, and lane verdict mapping.
+  segmented SHA-512 input scheduling, scalar reduction and recoding, Straus
+  double-scalar multiplication, strict final predicate, and lane verdict
+  mapping.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
