@@ -1,0 +1,26 @@
+NARYA_REQUIRE_IFMA=1 build/test_r51x8
+PASS: r51x8 field, point, and permissive decode gates passed
+NARYA_REQUIRE_IFMA=1 build/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
+PASS: 256 pinned permissive-decoder vectors
+NARYA_REQUIRE_IFMA=1 build/test_sha512x8
+PASS: x8 SHA-512 compression and segmented hash match independent oracles
+NARYA_REQUIRE_IFMA=1 build/test_scalar_reduce
+PASS: x8 scalar reduction matches independent modulo-l oracle
+NARYA_REQUIRE_IFMA=1 build/test_scalar_recode
+PASS: round-major radix-32 recoding is an exact signed integer map
+NARYA_REQUIRE_IFMA=1 build/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
+PASS: pre-signed micro-AoS table, group law, and x8 transpose selector
+NARYA_REQUIRE_IFMA=1 build/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
+PASS: x8 variable-base scalar multiplication matches affine fixtures
+NARYA_REQUIRE_IFMA=1 build/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
+PASS: immutable radix-256 basepoint comb matches affine fixtures
+NARYA_REQUIRE_IFMA=1 build/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
+PASS: complete x8 DalekStrict equation matches independent signatures
+
+The same binaries and corpora passed under:
+
+  -O1 -g -std=c11 -Wall -Wextra -Wpedantic
+  -fno-omit-frame-pointer -fsanitize=address,undefined
+
+The non-sanitized build additionally enabled `-Wconversion`, `-Wshadow`, and
+`-Werror` and completed without diagnostics.

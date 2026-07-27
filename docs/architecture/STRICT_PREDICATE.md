@@ -60,10 +60,10 @@ become identities internally and cannot influence another lane's table entry,
 field arithmetic, or verdict. The public caller owns a reusable non-overlapping
 workspace; the implementation performs no allocation.
 
-## Current performance boundary
+## Fixed-base boundary
 
-The ABI-zero checkpoint uses the variable-base radix-32 engine for both terms.
-That makes the whole predicate testable before the fixed-base optimization is
-trusted. Replacing `[S]B` by a fixed-base comb changes only an implementation
-of scalar multiplication and must remain differential-equivalent to this
-checkpoint.
+The verifier uses the immutable radix-256 comb documented in
+[`FIXED_BASE_COMB.md`](FIXED_BASE_COMB.md) for `[S]B`. The earlier checkpoint
+used the variable-base radix-32 engine for both terms, establishing the whole
+predicate before accepting that optimization. Direct comb fixtures and the
+unchanged complete-verifier corpus gate the replacement.

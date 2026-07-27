@@ -24,12 +24,12 @@ boundary are frozen.
   compression and exact segmented verifier hashing; x8 canonical scalar
   reduction and exact signed radix-32 recoding; pre-signed projective-Niels
   tables and the micro-AoS transpose selector; full-width x8 variable-base
-  scalar multiplication; the complete x8 `DalekStrict` equation and public
-  workspace ABI; alias, lane-independence, known-answer, and range tests.
-- In progress: paired A/R decode scheduling, strict byte prechecks,
-  optimized fixed-base multiplication and broader external differential
-  corpora. The current complete verifier intentionally evaluates `[S]B` with
-  the variable-base engine until the radix-256 comb passes its own gate.
+  scalar multiplication; an immutable radix-256 basepoint comb with a masked
+  affine-Niels transpose leaf; the complete x8 `DalekStrict` equation and
+  public workspace ABI; alias, lane-independence, known-answer, and range
+  tests.
+- In progress: broader external differential corpora, long fuzzing, complete
+  performance measurement, and fusion of remaining C-scheduled point layers.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.

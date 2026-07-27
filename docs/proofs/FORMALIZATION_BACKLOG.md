@@ -35,3 +35,11 @@ a composition theorem rather than another instruction proof:
 This target can reuse an abstract Edwards group and does not need to model
 AVX-512 instructions. The instruction-refinement proof remains localized to
 the field and transpose leaves.
+
+The fixed-base comb admits an even smaller abstract-group proof. Establish
+that 32 balanced radix-256 digits reconstruct `s`, define
+`P_i=[2^(16i)]B`, and prove that accumulating odd columns, multiplying the
+result by `2^8`, then accumulating even columns equals `[s]B`. Separately
+prove that each generated table record is the affine-Niels representation of
+`[m]P_i` for `m in 1..128`; the binary-to-assembly obligation is its pinned
+SHA-256 plus the three-coordinate transpose refinement.

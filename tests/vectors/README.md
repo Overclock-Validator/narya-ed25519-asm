@@ -74,3 +74,21 @@ Python affine Edwards oracle. It shares no SHA-512 compression, scalar
 reduction, decoding, recoding, table, or point-operation code with the native
 library. The C gate verifies every active mask, late message failures, strict
 byte rejections in each lane, and API output atomicity.
+
+## Fixed-base comb scalars
+
+`narya_fixed_base_scalar_v1.txt` contains 32 heterogeneous x8 groups for the
+immutable radix-256 basepoint comb. The same command regenerates the binary
+table and the scalar fixtures:
+
+```text
+python3 tools/generate_fixed_base_comb.py \
+  --table data/narya_fixed_base_comb_r256.bin \
+  --vectors tests/vectors/narya_fixed_base_scalar_v1.txt \
+  --groups 32
+```
+
+The table and expected points come from affine big-integer Edwards arithmetic.
+The native comb is structurally independent: balanced byte recoding, an
+embedded limb table, an x8 masked transpose, affine-Niels additions, and a
+two-way eight-doubling schedule.
