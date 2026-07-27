@@ -14,6 +14,7 @@ OBJECTS := \
 	$(BUILD)/r51x8_ifma.o \
 	$(BUILD)/scalar_reduce.o \
 	$(BUILD)/scalar_reduce_x8.o \
+	$(BUILD)/scalar_recode.o \
 	$(BUILD)/sha512x8.o \
 	$(BUILD)/sha512x8_asm.o
 
@@ -42,6 +43,9 @@ $(BUILD)/sha512x8.o: src/sha512x8.c include/narya_ed25519_asm.h src/internal.h |
 $(BUILD)/scalar_reduce.o: src/scalar_reduce.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD)/scalar_recode.o: src/scalar_recode.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD)/r51x8_ifma.o: src/r51x8_ifma.S | $(BUILD)
 	$(CC) $(CPPFLAGS) -c $< -o $@
 
@@ -66,17 +70,22 @@ $(BUILD)/test_sha512x8: tests/test_sha512x8.c $(LIB)
 $(BUILD)/test_scalar_reduce: tests/test_scalar_reduce.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
-test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce
+$(BUILD)/test_scalar_recode: tests/test_scalar_recode.c $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
+
+test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode
 	$(BUILD)/test_r51x8
 	$(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	$(BUILD)/test_sha512x8
 	$(BUILD)/test_scalar_reduce
+	$(BUILD)/test_scalar_recode
 
-test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce
+test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_reduce
+	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_recode
 
 test-sanitize:
 	$(MAKE) clean

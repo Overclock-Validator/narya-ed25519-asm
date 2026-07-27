@@ -22,9 +22,10 @@ boundary are frozen.
   projective-Niels mixed addition; portable bit-exact differential oracles;
   permissive compressed-point decompression; x8 rolling-register SHA-512
   compression and exact segmented verifier hashing; x8 canonical scalar
-  reduction; alias, lane-independence, known-answer, and range tests.
+  reduction and exact signed radix-32 recoding; alias, lane-independence,
+  known-answer, and range tests.
 - In progress: paired A/R decode scheduling, strict byte prechecks,
-  fused SHA-512 input scheduling, scalar recoding, Straus double-scalar
+  fused SHA-512 input scheduling, table construction, Straus double-scalar
   multiplication, strict final predicate, and lane verdict mapping.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate

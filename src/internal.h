@@ -36,6 +36,36 @@ void narya_sha512_compress_x8_asm(
  */
 void narya_scalar_reduce_radix21_x8_asm(int64_t limbs[24][8]);
 
+enum {
+    NARYA_RADIX32_BITS = 5,
+    NARYA_RADIX32_ROUNDS = 51,
+    NARYA_RADIX32_ENTRIES = 16
+};
+
+/*
+ * Round-major balanced radix-32 digits for eight independent scalars.
+ * magnitude is in [0,16]. The masks duplicate digit sign/zero state so the
+ * eventual constant-shape table selector never branches on secret material
+ * (verification scalars are public, but one representation serves all paths).
+ */
+typedef struct narya_radix32_round_x8 {
+    uint8_t magnitude[8];
+    uint8_t nonzero_mask;
+    uint8_t negative_mask;
+} narya_radix32_round_x8;
+
+typedef struct narya_radix32_digits_x8 {
+    narya_radix32_round_x8 round[NARYA_RADIX32_ROUNDS];
+    uint8_t valid_mask;
+} narya_radix32_digits_x8;
+
+/* Exact-integer recoding: negative_mask negates digits, not scalars modulo l. */
+uint8_t narya_scalar_recode_radix32_x8(
+    narya_radix32_digits_x8 *out,
+    const uint8_t scalar[8 * 32],
+    uint8_t negative_mask,
+    uint8_t active);
+
 /* Extended Edwards coordinates, internal until the complete verifier ABI. */
 typedef struct narya_edwards_point_x8 {
     narya_r51x8 X;
