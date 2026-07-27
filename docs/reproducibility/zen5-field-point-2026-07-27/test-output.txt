@@ -1,0 +1,10 @@
+rm -rf build
+mkdir -p build
+cc -Iinclude -Isrc -O3 -g -std=c11 -Wall -Wextra -Wpedantic -c src/dispatch.c -o build/dispatch.o
+cc -Iinclude -Isrc -O3 -g -std=c11 -Wall -Wextra -Wpedantic -c src/point_x8.c -o build/point_x8.o
+cc -Iinclude -Isrc -O3 -g -std=c11 -Wall -Wextra -Wpedantic -c src/r51x8.c -o build/r51x8.o
+cc -Iinclude -Isrc -c src/r51x8_ifma.S -o build/r51x8_ifma.o
+ar rcs build/libnarya_ed25519_asm.a build/dispatch.o build/point_x8.o build/r51x8.o build/r51x8_ifma.o
+cc -Iinclude -Isrc -O3 -g -std=c11 -Wall -Wextra -Wpedantic tests/test_r51x8.c build/libnarya_ed25519_asm.a -o build/test_r51x8
+build/test_r51x8
+PASS: r51x8 field and point-double operations match scalar oracles

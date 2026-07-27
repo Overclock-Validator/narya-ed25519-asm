@@ -1,0 +1,17 @@
+Narya Ed25519 Assembly
+Copyright 2026 Overclock Validator
+
+Licensed under the Apache License, Version 2.0.
+
+The initial r51x8 arithmetic is a System V AMD64 / GNU assembly translation
+of the independently implemented Narya r51x5 Go-ABI assembly at commit:
+
+  https://github.com/Overclock-Validator/narya-ed25519/commit/eff4c8ddafdfe0448eb50f2eafc723a42b95fe2c
+
+The translation changes calling convention, assembler syntax, public data
+layout documentation, and test harnesses while intentionally retaining the
+same field representation and native instruction schedule.
+
+This checkpoint does not include Narya's separate internal/r43x6 backend or
+copy Firedancer source. Later ports must update this notice before adding code
+with additional provenance.

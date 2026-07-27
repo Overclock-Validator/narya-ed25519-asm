@@ -1,0 +1,6 @@
+CPU: AMD Ryzen 7 9700X 8-Core Processor
+Architecture: x86_64
+OS: Ubuntu Linux, kernel 7.0.0-28-generic
+Compiler: GCC 15.2.0 (Ubuntu toolchain)
+Required CPU flags observed: avx2 avx512f avx512dq avx512ifma avx512bw avx512vl avx512vbmi
+Date: 2026-07-27
