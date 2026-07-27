@@ -8,11 +8,11 @@
 static uint64_t random_state = UINT64_C(0x13ac957e4b682fd1);
 
 static void
-canonical_lane(uint64_t out[5], const narya_r51x8 *in)
+canonical_lane(uint64_t out[5], const narya_r51x8 *in, size_t lane)
 {
     const uint64_t mask = (UINT64_C(1) << 51) - 1;
     for (size_t limb = 0; limb < 5; limb++)
-        out[limb] = in->limb[limb][0];
+        out[limb] = in->limb[limb][lane];
     for (size_t round = 0; round < 4; round++) {
         for (size_t limb = 0; limb < 4; limb++) {
             const uint64_t carry = out[limb] >> 51;
@@ -31,12 +31,12 @@ canonical_lane(uint64_t out[5], const narya_r51x8 *in)
 }
 
 static int
-field_equal(const narya_r51x8 *a, const narya_r51x8 *b)
+field_equal_lane(const narya_r51x8 *a, const narya_r51x8 *b, size_t lane)
 {
     uint64_t canonical_a[5];
     uint64_t canonical_b[5];
-    canonical_lane(canonical_a, a);
-    canonical_lane(canonical_b, b);
+    canonical_lane(canonical_a, a, lane);
+    canonical_lane(canonical_b, b, lane);
     return memcmp(canonical_a, canonical_b, sizeof(canonical_a)) == 0;
 }
 
@@ -155,9 +155,9 @@ check_table_sign_pair(void)
             }
             narya_r51x8 zero = {0};
             for (size_t sign = 0; sign < 2; sign++) {
-                if (!field_equal(&value[sign][0], &value[sign][1]) ||
-                    !field_equal(&value[sign][0], &value[sign][2]) ||
-                    !field_equal(&value[sign][3], &zero)) {
+                if (!field_equal_lane(&value[sign][0], &value[sign][1], 0) ||
+                    !field_equal_lane(&value[sign][0], &value[sign][2], 0) ||
+                    !field_equal_lane(&value[sign][3], &zero, 0)) {
                     fputs("identity table/sign construction mismatch\n", stderr);
                     return 0;
                 }
@@ -167,8 +167,142 @@ check_table_sign_pair(void)
     return 1;
 }
 
+static int
+hex_nibble(char value)
+{
+    if (value >= '0' && value <= '9')
+        return value - '0';
+    if (value >= 'a' && value <= 'f')
+        return value - 'a' + 10;
+    return -1;
+}
+
+static int
+load_basepoint_vectors(const char *path, uint8_t encoded[129][32])
+{
+    FILE *file = fopen(path, "r");
+    if (file == NULL)
+        return 0;
+    uint8_t seen[129] = {0};
+    char line[256];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (line[0] == '#')
+            continue;
+        size_t scalar = 0;
+        char hex[65];
+        if (sscanf(line, "%zu %64s", &scalar, hex) != 2 ||
+            scalar == 0 || scalar > 128 || strlen(hex) != 64) {
+            fclose(file);
+            return 0;
+        }
+        for (size_t byte = 0; byte < 32; byte++) {
+            const int high = hex_nibble(hex[2 * byte]);
+            const int low = hex_nibble(hex[2 * byte + 1]);
+            if (high < 0 || low < 0) {
+                fclose(file);
+                return 0;
+            }
+            encoded[scalar][byte] = (uint8_t)(high << 4 | low);
+        }
+        seen[scalar] = 1;
+    }
+    fclose(file);
+    for (size_t scalar = 1; scalar <= 128; scalar++)
+        if (seen[scalar] == 0)
+            return 0;
+    return 1;
+}
+
+static const narya_r51x8 *
+niels_coordinate(const narya_projective_niels_x8 *point, size_t coordinate)
+{
+    switch (coordinate) {
+    case 0: return &point->Y_plus_X;
+    case 1: return &point->Y_minus_X;
+    case 2: return &point->Z;
+    default: return &point->T2d;
+    }
+}
+
+static int
+niels_equal_projective(
+    const narya_projective_niels_x8 *a,
+    const narya_projective_niels_x8 *b)
+{
+    for (size_t coordinate = 0; coordinate < 4; coordinate++) {
+        narya_r51x8 left;
+        narya_r51x8 right;
+        narya_r51x8_mul_ifma(&left, niels_coordinate(a, coordinate), &b->Z);
+        narya_r51x8_mul_ifma(&right, niels_coordinate(b, coordinate), &a->Z);
+        for (size_t lane = 0; lane < 8; lane++)
+            if (!field_equal_lane(&left, &right, lane))
+                return 0;
+    }
+    return 1;
+}
+
+static int
+check_table_group_law(const char *path)
+{
+    uint8_t vectors[129][32] = {{0}};
+    if (!load_basepoint_vectors(path, vectors)) {
+        fprintf(stderr, "failed to load basepoint fixture %s\n", path);
+        return 0;
+    }
+
+    uint8_t encoded_base[8 * 32];
+    for (size_t lane = 0; lane < 8; lane++)
+        memcpy(&encoded_base[lane * 32], vectors[lane + 1], 32);
+    narya_edwards_point_x8 base;
+    if (narya_edwards_decode_x8(&base, encoded_base, 0xff) != 0xff)
+        return 0;
+    narya_projective_niels_presigned_table_x8 table;
+    narya_projective_niels_table_build_x8(&table, &base);
+
+    for (size_t magnitude = 1; magnitude <= 16; magnitude++) {
+        uint8_t encoded_want[8 * 32];
+        narya_radix32_round_x8 round = {
+            .nonzero_mask = 0xff,
+        };
+        for (size_t lane = 0; lane < 8; lane++) {
+            round.magnitude[lane] = (uint8_t)magnitude;
+            memcpy(&encoded_want[lane * 32],
+                   vectors[(lane + 1) * magnitude], 32);
+        }
+
+        narya_projective_niels_x8 selected;
+        narya_projective_niels_table_select_x8(
+            &selected, &table, &round, 0xff);
+        narya_edwards_point_x8 expected_point;
+        if (narya_edwards_decode_x8(&expected_point, encoded_want, 0xff) != 0xff)
+            return 0;
+        narya_projective_niels_x8 expected;
+        narya_edwards_to_projective_niels_x8(&expected, &expected_point);
+        if (!niels_equal_projective(&selected, &expected)) {
+            fprintf(stderr, "positive table multiple mismatch magnitude=%zu\n",
+                    magnitude);
+            return 0;
+        }
+
+        round.negative_mask = 0xff;
+        for (size_t lane = 0; lane < 8; lane++)
+            encoded_want[lane * 32 + 31] ^= 0x80;
+        narya_projective_niels_table_select_x8(
+            &selected, &table, &round, 0xff);
+        if (narya_edwards_decode_x8(&expected_point, encoded_want, 0xff) != 0xff)
+            return 0;
+        narya_edwards_to_projective_niels_x8(&expected, &expected_point);
+        if (!niels_equal_projective(&selected, &expected)) {
+            fprintf(stderr, "negative table multiple mismatch magnitude=%zu\n",
+                    magnitude);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 int
-main(void)
+main(int argc, char **argv)
 {
     const char *required = getenv("NARYA_REQUIRE_IFMA");
     if (!narya_r51x8_available()) {
@@ -179,8 +313,13 @@ main(void)
         puts("SKIP: AVX-512 IFMA unavailable");
         return 0;
     }
-    if (!check_selector() || !check_table_sign_pair())
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s BASEPOINT_FIXTURE\n", argv[0]);
         return 1;
-    puts("PASS: pre-signed micro-AoS table and x8 transpose selector");
+    }
+    if (!check_selector() || !check_table_sign_pair() ||
+        !check_table_group_law(argv[1]))
+        return 1;
+    puts("PASS: pre-signed micro-AoS table, group law, and x8 transpose selector");
     return 0;
 }

@@ -26,9 +26,8 @@ boundary are frozen.
   tables and the micro-AoS transpose selector; alias, lane-independence,
   known-answer, and range tests.
 - In progress: paired A/R decode scheduling, strict byte prechecks,
-  fused SHA-512 input scheduling, table group-law fixtures, Straus
-  double-scalar multiplication, strict final predicate, and lane verdict
-  mapping.
+  fused SHA-512 input scheduling, Straus double-scalar multiplication, strict
+  final predicate, and lane verdict mapping.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.

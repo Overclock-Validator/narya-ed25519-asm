@@ -81,7 +81,7 @@ $(BUILD)/test_scalar_reduce: tests/test_scalar_reduce.c $(LIB)
 $(BUILD)/test_scalar_recode: tests/test_scalar_recode.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
-$(BUILD)/test_projective_niels_table: tests/test_projective_niels_table.c $(LIB)
+$(BUILD)/test_projective_niels_table: tests/test_projective_niels_table.c tests/vectors/narya_basepoint_multiples_v1.txt $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
 test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table
@@ -90,7 +90,7 @@ test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(
 	$(BUILD)/test_sha512x8
 	$(BUILD)/test_scalar_reduce
 	$(BUILD)/test_scalar_recode
-	$(BUILD)/test_projective_niels_table
+	$(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
 
 test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
@@ -98,7 +98,7 @@ test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha5
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_reduce
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_recode
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_projective_niels_table
+	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
 
 test-sanitize:
 	$(MAKE) clean

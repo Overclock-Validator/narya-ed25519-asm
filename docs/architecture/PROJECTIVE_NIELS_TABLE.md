@@ -17,7 +17,7 @@ shape in the Go implementation; the standalone port retains it so the C ABI
 does not begin with a known-obsolete diagnostic layout.
 
 The transpose gate fills every source cell with a unique tag and sweeps all
-256 active masks with varying signs and magnitudes. A separate group-law
-fixture is still required before table construction may feed the DSM; the
-identity-table test alone proves layout/sign mechanics, not arbitrary-point
-multiples.
+256 active masks with varying signs and magnitudes. An independent affine
+big-integer fixture supplies `[1]B` through `[128]B`; the native gate places
+eight different basepoint multiples in the lanes and verifies all sixteen
+positive and negative table entries up to projective scale.
