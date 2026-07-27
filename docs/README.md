@@ -10,6 +10,7 @@ passing differential corpus does not establish a universal theorem.
 - [System V ABI and data layouts](architecture/ABI.md)
 - [Eight-lane SHA-512 compression](architecture/SHA512_X8.md)
 - [Exact signed scalar recoding](architecture/SCALAR_RECODING.md)
+- [Projective-Niels table and selector](architecture/PROJECTIVE_NIELS_TABLE.md)
 
 ## Proofs and assurance
 

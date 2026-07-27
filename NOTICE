@@ -30,6 +30,15 @@ That implementation uses the public-domain ref10 reduction identity. The
 standalone test oracle is separately structured as bit-at-a-time modular
 reduction and does not reuse the ref10 limbs, constants, carries, or packing.
 
+The micro-AoS projective-Niels transpose is a System V AMD64 / GNU assembly
+translation of Narya's Go-ABI selector at:
+
+  https://github.com/Overclock-Validator/narya-ed25519/commit/13dc06d4a5f0ad8be62412a89de3a44de57bd504
+
+The standalone translation changes its internal ABI to accept an eight-entry
+pointer vector, documents the exact permutation, and tests every source cell
+and active mask independently.
+
 This checkpoint does not include Narya's separate internal/r43x6 backend or
 copy Firedancer source. Later ports must update this notice before adding code
 with additional provenance.

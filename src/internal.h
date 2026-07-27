@@ -66,6 +66,20 @@ uint8_t narya_scalar_recode_radix32_x8(
     uint8_t negative_mask,
     uint8_t active);
 
+/* One key's contiguous [Y+X,Y-X,Z,2dT] row for one positive magnitude. */
+typedef struct narya_projective_niels_micro_entry_x8 {
+    uint64_t limb[5][4];
+} narya_projective_niels_micro_entry_x8;
+
+/*
+ * The cold table stores positive and negative entries explicitly. Public
+ * scalar signs can therefore select an already-signed point without a second
+ * field negation in every radix round. Layout is key, sign, magnitude.
+ */
+typedef struct narya_projective_niels_presigned_table_x8 {
+    narya_projective_niels_micro_entry_x8 point[8][2][16];
+} narya_projective_niels_presigned_table_x8;
+
 /* Extended Edwards coordinates, internal until the complete verifier ABI. */
 typedef struct narya_edwards_point_x8 {
     narya_r51x8 X;
@@ -81,6 +95,18 @@ typedef struct narya_projective_niels_x8 {
     narya_r51x8 Z;
     narya_r51x8 T2d;
 } narya_projective_niels_x8;
+
+void narya_projective_niels_transpose_x8_asm(
+    narya_projective_niels_x8 *out,
+    const narya_projective_niels_micro_entry_x8 *const source[8]);
+void narya_projective_niels_table_build_x8(
+    narya_projective_niels_presigned_table_x8 *out,
+    const narya_edwards_point_x8 *base);
+void narya_projective_niels_table_select_x8(
+    narya_projective_niels_x8 *out,
+    const narya_projective_niels_presigned_table_x8 *table,
+    const narya_radix32_round_x8 *round,
+    uint8_t active);
 
 /* Unchecked: caller proves CPU support, u52 limbs, and a valid point. */
 void narya_edwards_double_x8(
