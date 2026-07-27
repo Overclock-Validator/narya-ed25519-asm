@@ -1,0 +1,18 @@
+NARYA_REQUIRE_IFMA=1 build/test_r51x8
+PASS: r51x8 field, point, and permissive decode gates passed
+NARYA_REQUIRE_IFMA=1 build/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
+PASS: 256 pinned permissive-decoder vectors
+NARYA_REQUIRE_IFMA=1 build/test_sha512x8
+PASS: x8 SHA-512 compression and segmented hash match independent oracles
+NARYA_REQUIRE_IFMA=1 build/test_scalar_reduce
+PASS: x8 scalar reduction matches independent modulo-l oracle
+
+The same four binaries and corpora passed under:
+
+  -O1 -g -std=c11 -Wall -Wextra -Wpedantic
+  -fno-omit-frame-pointer -fsanitize=address,undefined
+
+The non-sanitized build used `-Werror` and completed without diagnostics.
+The reducer object exposes one 2,750-byte GLOBAL HIDDEN leaf with no stack
+frame or calls; its disassembly begins with 24 ZMM loads and ends with twelve
+ZMM stores followed by VZEROUPPER and RET.

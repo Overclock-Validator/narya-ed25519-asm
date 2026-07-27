@@ -1,0 +1,5 @@
+make clean
+make CFLAGS="-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror" test-native
+make test-sanitize
+objdump -d -Mintel build/scalar_reduce_x8.o
+readelf -sW build/scalar_reduce_x8.o
