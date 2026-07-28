@@ -27,7 +27,8 @@ boundary are frozen.
   scalar multiplication; an immutable radix-256 basepoint comb with a masked
   affine-Niels transpose leaf; the complete x8 `DalekStrict` equation and
   public workspace ABI; alias, lane-independence, known-answer, and range
-  tests.
+  tests; and a first machine-checked Lean layer for radix-51 IFMA product,
+  fold, carry, and reusable-range lemmas.
 - In progress: broader external differential corpora, long fuzzing, complete
   performance measurement, and fusion of remaining C-scheduled point layers.
 - Supported verification target: eight independent cold Ed25519 equations
@@ -43,10 +44,15 @@ make
 make test
 make test-native
 make test-sanitize
+make formal-check
 ```
 
 `make check-source` asks Clang to parse the GNU assembly for an x86-64 ELF
 target and is useful on a non-x86 development host.
+
+`make formal-check` uses the pinned Lean/mathlib project under `formal/lean`.
+It proves the arithmetic model; it does not yet prove that the System V x86
+instruction trace refines that model.
 
 ## Audit orientation
 
@@ -61,7 +67,9 @@ The assembly is intentionally heavily commented. Each leaf records:
 
 The field proof obligations are collected in
 [`docs/proofs/R51_FIELD_CONTRACT.md`](docs/proofs/R51_FIELD_CONTRACT.md), and
-the signed scalar-reduction boundary is documented in
+the checked Lean source is under [`formal/lean`](formal/lean/README.md). The
+current theorem explicitly leaves the assembly-grouping/range trace as a
+named refinement hypothesis. The signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).

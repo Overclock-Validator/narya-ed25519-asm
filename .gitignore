@@ -5,3 +5,4 @@ build/
 *.dylib
 *.dll
 *.exe
+formal/lean/.lake/

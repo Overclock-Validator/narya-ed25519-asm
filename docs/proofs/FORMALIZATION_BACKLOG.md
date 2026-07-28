@@ -1,11 +1,16 @@
 # Formalization backlog
 
-The first useful machine-checked target is the r51×8 multiply contract, split
-into two refinement layers:
+The first machine-checked target, the algebraic r51×8 multiply foundation,
+has started under [`formal/lean`](../../formal/lean/README.md). The checked
+lemmas currently cover split-product reconstruction, positioned convolution,
+the modular fold, carry preservation, folded-u61 bounds, and the final u52
+carry bound.
 
-1. a Lean theorem for split-product reconstruction, reduction modulo
-   `2^255-19`, u64 no-wrap bounds, and the final u52 carry bound;
-2. an instruction-level theorem or bitvector certificate connecting the
+The remaining work is split into two refinement layers:
+
+1. finish the exact grouping theorem for the assembly's low/high degree
+   accumulators and certify every partial u64 accumulation;
+2. add an instruction-level theorem or bitvector certificate connecting the
    SysV AVX-512 leaf to that scalar operation, including lane noninterference
    and load-before-store alias safety.
 

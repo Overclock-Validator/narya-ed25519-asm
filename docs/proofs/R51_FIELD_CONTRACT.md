@@ -1,7 +1,19 @@
 # r51×8 field contract
 
-This note states the obligations enforced by `narya_r51x8_mul_ifma`. It is a
-review aid, not a substitute for an independent proof or audit.
+This note states the obligations enforced by `narya_r51x8_mul_ifma`.
+
+The algebraic foundation is machine-checked in
+[`formal/lean/NaryaFormal/Radix51.lean`](../../formal/lean/NaryaFormal/Radix51.lean).
+That layer proves the 52-bit IFMA split identity, positioned 25-product
+convolution, the `2^255 = 19 (mod p)` monomial fold, ordinary carry
+preservation, folded-u61 bounds, and composable-u52 output bounds. It also
+provides an end-to-end composition theorem whose explicit hypothesis is that
+the assembly's grouped accumulator trace produces the modeled folded value
+within the proved u61 ranges.
+
+Consequently this remains an audit contract rather than a complete assembly
+proof. Instruction ordering, per-instruction no-wrap, lane mapping, and the
+System V load/store trace still require a bit-vector or ISA refinement.
 
 ## Representation
 

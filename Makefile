@@ -1,6 +1,7 @@
 CC ?= cc
 CLANG ?= clang
 AR ?= ar
+LAKE ?= lake
 CFLAGS ?= -O3 -g -std=c11 -Wall -Wextra -Wpedantic
 CPPFLAGS ?= -Iinclude -Isrc
 
@@ -25,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize check check-source
+.PHONY: all clean test test-native test-sanitize check check-source formal-check
 
 all: $(LIB)
 
@@ -139,7 +140,7 @@ test-sanitize:
 	$(MAKE) clean
 	$(MAKE) CFLAGS='-O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined' test-native
 
-check: check-source
+check: check-source formal-check
 	$(MAKE) clean
 	$(MAKE) CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror' test
 
@@ -151,6 +152,9 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/scalar_reduce_x8.S -o /tmp/narya-scalar-reduce-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/affine_niels_transpose_x8.S -o /tmp/narya-affine-niels-transpose-x8.o
+
+formal-check:
+	cd formal/lean && $(LAKE) build
 
 clean:
 	rm -rf $(BUILD)
