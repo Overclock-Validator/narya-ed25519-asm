@@ -46,6 +46,7 @@ particular run, never general performance or correctness claims.
 
 ## Audits and security review
 
+- [Auditor quickstart](audits/AUDITOR_QUICKSTART.md)
 - [Audit scope](audits/AUDIT_SCOPE.md)
 
 ## Performance

@@ -58,6 +58,7 @@ Start with the [documentation index](docs/README.md). External arithmetic
 implementers should begin with the
 [field-arithmetic evidence handoff](docs/proofs/FIELD_ARITHMETIC_HANDOFF.md);
 reviewers of the complete verifier should begin with the
+[auditor quickstart](docs/audits/AUDITOR_QUICKSTART.md) and then the
 [audit scope](docs/audits/AUDIT_SCOPE.md).
 
 ## Build and test

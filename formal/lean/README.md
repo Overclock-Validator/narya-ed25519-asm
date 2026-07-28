@@ -171,12 +171,14 @@ covered merely because it uses the same limb representation.
 
 ## Reproduce
 
-The project pins Lean and mathlib. From this directory:
+The project pins Lean and the complete resolved dependency graph. From this
+directory, verify the committed project without changing that graph:
 
 ```sh
-lake update
 lake build
 ```
 
 `lake-manifest.json` is committed after dependency resolution. `.lake/` is a
-local build/cache directory and is ignored.
+local build/cache directory and is ignored. `lake update` is intentionally not
+part of the verification procedure: it is used only for an explicit dependency
+update whose manifest diff receives separate review.

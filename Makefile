@@ -29,7 +29,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
 
 all: $(LIB)
 
@@ -167,6 +167,11 @@ fuzz-build:
 check: check-source check-generated formal-check
 	$(MAKE) clean
 	$(MAKE) CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror' test-native
+
+# Deterministic review gate that does not execute AVX-512. This is suitable for
+# hosted CI and non-IFMA review machines. It is deliberately not named `check`:
+# a complete release gate must also execute `make check` on native IFMA hardware.
+audit-portable: check-source check-generated formal-check
 
 # This target is useful on non-x86 development hosts. It checks the standalone
 # assembly parser without trying to link or execute the resulting ELF object.
