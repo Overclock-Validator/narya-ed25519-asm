@@ -273,6 +273,18 @@ theorem carry_lt_1024_of_u61 {t : ℕ} (ht : t < 2 ^ 61) :
   simp only [carry, B]
   omega
 
+/-!
+The weak carry is useful beyond multiplication outputs.  A genuine unsigned
+64-bit limb has at most 13 carry bits above radix 2^51.  Even the limb-4
+wraparound carry multiplied by 19 therefore fits beneath the spare source bit
+and produces a reusable u52 result.  This theorem does not apply to a signed
+value stored in two's complement; the nonnegative Nat model is load-bearing.
+-/
+theorem carry_lt_8192_of_u64 {t : ℕ} (ht : t < 2 ^ 64) :
+    carry t < 2 ^ 13 := by
+  simp only [carry, B]
+  omega
+
 theorem carry_fold_output0_u52 {t0 t4 : ℕ}
     (ht4 : t4 < 2 ^ 61) :
     remainder t0 + 19 * carry t4 < U52 := by
@@ -286,6 +298,22 @@ theorem carry_output_u52 {current previous : ℕ}
     remainder current + carry previous < U52 := by
   have hr := remainder_lt_B current
   have hc := carry_lt_1024_of_u61 hprevious
+  norm_num [B, U52] at hr hc ⊢
+  omega
+
+theorem carry_fold_output0_u52_of_u64 {t0 t4 : ℕ}
+    (ht4 : t4 < 2 ^ 64) :
+    remainder t0 + 19 * carry t4 < U52 := by
+  have hr := remainder_lt_B t0
+  have hc := carry_lt_8192_of_u64 ht4
+  norm_num [B, U52] at hr hc ⊢
+  omega
+
+theorem carry_output_u52_of_u64 {current previous : ℕ}
+    (hprevious : previous < 2 ^ 64) :
+    remainder current + carry previous < U52 := by
+  have hr := remainder_lt_B current
+  have hc := carry_lt_8192_of_u64 hprevious
   norm_num [B, U52] at hr hc ⊢
   omega
 
@@ -305,6 +333,23 @@ theorem normalized_limbs_u52 (x : Loose5)
   constructor
   · exact carry_output_u52 h2
   · exact carry_output_u52 h3
+
+theorem normalized_limbs_u52_of_u64 (x : Loose5)
+    (h0 : x.l0 < 2 ^ 64) (h1 : x.l1 < 2 ^ 64)
+    (h2 : x.l2 < 2 ^ 64) (h3 : x.l3 < 2 ^ 64)
+    (h4 : x.l4 < 2 ^ 64) :
+    (normalized x).l0 < U52 ∧ (normalized x).l1 < U52 ∧
+      (normalized x).l2 < U52 ∧ (normalized x).l3 < U52 ∧
+      (normalized x).l4 < U52 := by
+  constructor
+  · exact carry_fold_output0_u52_of_u64 h4
+  constructor
+  · exact carry_output_u52_of_u64 h0
+  constructor
+  · exact carry_output_u52_of_u64 h1
+  constructor
+  · exact carry_output_u52_of_u64 h2
+  · exact carry_output_u52_of_u64 h3
 
 /-!
 `radix51_mul_correct_of_folded_schedule` is the algebraic composition seam.

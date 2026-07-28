@@ -13,7 +13,9 @@ The first completed target is the five-limb radix-`2^51` field multiplier:
 - ordinary carry preservation;
 - the exact row-major 25-product accumulator trace;
 - every low/high accumulator prefix, `COMBINE_HIGH`, and `×19` no-wrap bound;
-- folded-limb, carry, and composable-u52 bounds.
+- folded-limb, carry, and composable-u52 bounds;
+- the more general unsigned weak-carry theorem from arbitrary u64 limbs to
+  reusable u52 limbs.
 
 [`Radix51.lean`](NaryaFormal/Radix51.lean) contains the representation-level
 algebra. [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean) mirrors the

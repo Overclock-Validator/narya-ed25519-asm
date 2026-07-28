@@ -43,6 +43,7 @@ the exact 25-product trace in the same file.
 | Final IFMA carry fold is exact | `final_carry_ifma_low_exact` |
 | Parallel carry preserves the residue | `parallel_carry_preserves_mod` |
 | Outputs are reusable u52 sources | `normalized_limbs_u52` |
+| Any unsigned u64 loose limbs weak-carry to u52 | `normalized_limbs_u52_of_u64` |
 | End-to-end scalar trace | `radix51_mul_assembly_trace_correct` |
 
 The representation-level lemmas live in

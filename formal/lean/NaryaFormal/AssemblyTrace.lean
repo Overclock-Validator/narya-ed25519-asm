@@ -348,6 +348,15 @@ theorem final_carry_ifma_low_exact {foldedLimb4 : ℕ}
     omega
   simp [lo52, Nat.mod_eq_of_lt hproduct]
 
+theorem final_carry_ifma_low_exact_of_u64 {foldedLimb4 : ℕ}
+    (hfolded : foldedLimb4 < 2 ^ 64) :
+    lo52 19 (carry foldedLimb4) = 19 * carry foldedLimb4 := by
+  have hcarry := carry_lt_8192_of_u64 hfolded
+  have hproduct : 19 * carry foldedLimb4 < U52 := by
+    norm_num [U52] at hcarry ⊢
+    omega
+  simp [lo52, Nat.mod_eq_of_lt hproduct]
+
 theorem folded_grouped_u61 (x y : FiveLimbs)
     (hx : LimbsU52 x) (hy : LimbsU52 y) :
     (foldedGrouped x y).l0 < 2 ^ 61 ∧

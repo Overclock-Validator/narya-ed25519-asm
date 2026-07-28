@@ -62,6 +62,12 @@ out[1..4] < B + 1024
 
 Every output is consequently below `2^52` and can be reused by IFMA.
 
+The Lean layer also proves the stronger generic weak-carry contract: if every
+input is a genuine nonnegative u64 limb, one parallel carry still returns u52
+limbs. The largest carry is below `2^13`, so limb zero remains below
+`B + 19*8192 < 2^52`. This statement deliberately excludes signed values
+encoded in two's complement.
+
 ## Lane independence
 
 Every vector instruction is lane-wise. There are no permutes, horizontal
