@@ -107,8 +107,10 @@ effect of `VZEROUPPER`.
    instruction list.
 3. **Partially implemented:** `X86VectorSemantics.lean` defines exact
    qword-lane semantics and generic bitvector-to-natural refinement lemmas for
-   IFMA, add, shift, mask, and multiply. Byte memory, `VZEROUPPER`, and `RET`
-   remain open.
+   IFMA, add, shift, mask, and multiply. `X86Machine.lean` now adds
+   byte-addressed little-endian memory, 512-bit vector layout, permission-aware
+   `RET`, and exact `VZEROUPPER` state changes. Canonical-address/CET behavior
+   and the full memory-frame/round-trip proofs remain open.
 4. Compose those lemmas over the decoded list using the existing accumulator,
    fold, and carry bounds.
 5. Prove the decoded Nat execution equals the generated 25-product source

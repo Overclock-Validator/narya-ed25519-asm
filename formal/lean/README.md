@@ -96,6 +96,17 @@ from a deterministic linked ELF, while
 byte ranges, and constant values. No instruction decoding or execution claim
 is made by that artifact alone.
 
+[`X86VectorSemantics.lean`](NaryaFormal/X86VectorSemantics.lean) defines the
+exact lane-local `BitVec 64` meaning of the vector arithmetic subset used by
+that symbol, together with no-wrap refinements into unbounded naturals.
+[`X86Machine.lean`](NaryaFormal/X86Machine.lean) adds byte-addressed
+little-endian memory, explicit read/write permissions, 512-bit load/store
+layout, the architectural `VZEROUPPER` effect on registers 0--15, and the
+stack read, stack advance, and control transfer performed by `RET`. Its
+permission-sensitive transitions fail closed. These are reusable semantics
+and local lemmas; the checked 800 bytes have not yet been decoded into and
+executed through them.
+
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires
 an explicit mapping from that implementation's ordered operations to the

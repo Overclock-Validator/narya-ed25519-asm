@@ -1,0 +1,280 @@
+/-
+Copyright 2026 Overclock Validator
+SPDX-License-Identifier: Apache-2.0
+
+Restricted byte-addressed machine state for the linked r51 multiplier proof.
+This models the exact memory layout, vector loads/stores, VZEROUPPER, and RET
+effects used by the leaf. Canonical-address checks, CET shadow-stack behavior,
+and instruction decoding are separate obligations.
+-/
+
+import NaryaFormal.X86VectorSemantics
+
+namespace NaryaFormal.X86
+
+abbrev Addr := BitVec 64
+abbrev Byte := BitVec 8
+abbrev ZReg := Fin 32
+abbrev KReg := Fin 8
+
+inductive Gpr
+  | rax | rbx | rcx | rdx | rsi | rdi | rbp | rsp
+  | r8 | r9 | r10 | r11 | r12 | r13 | r14 | r15
+  deriving DecidableEq, Repr
+
+structure Perm where
+  read : Bool
+  write : Bool
+  exec : Bool
+deriving DecidableEq, Repr
+
+structure Memory where
+  byte : Addr → Byte
+  perm : Addr → Perm
+
+structure MachineState (Other : Type) where
+  gpr : Gpr → QWord
+  zmm : ZReg → Zmm
+  opmask : KReg → QWord
+  rflags : QWord
+  mxcsr : BitVec 32
+  mem : Memory
+  rip : Addr
+  other : Other
+
+inductive Fault
+  | badDecode
+  | unsupportedEncoding
+  | nonCanonicalAddress (address : Addr)
+  | readFault (address : Addr)
+  | writeFault (address : Addr)
+  | execFault (address : Addr)
+  deriving DecidableEq, Repr
+
+inductive Outcome (Other : Type)
+  | next (state : MachineState Other)
+  | returned (state : MachineState Other)
+
+def addressAdd (base : Addr) (offset : Nat) : Addr :=
+  base + BitVec.ofNat 64 offset
+
+def readableBytes (memory : Memory) (base : Addr) (count : Nat) : Bool :=
+  (List.range count).all (fun offset => (memory.perm (addressAdd base offset)).read)
+
+def writableBytes (memory : Memory) (base : Addr) (count : Nat) : Bool :=
+  (List.range count).all (fun offset => (memory.perm (addressAdd base offset)).write)
+
+def loadQwordLE (memory : Memory) (base : Addr) : QWord :=
+  BitVec.ofNat 64
+    (∑ offset ∈ Finset.range 8,
+      (memory.byte (addressAdd base offset)).toNat * 256 ^ offset)
+
+def qwordByte (word : QWord) (offset : Nat) : Byte :=
+  word.extractLsb' (8 * offset) 8
+
+def qwordBytes (word : QWord) : List Byte :=
+  [qwordByte word 0, qwordByte word 1, qwordByte word 2, qwordByte word 3,
+    qwordByte word 4, qwordByte word 5, qwordByte word 6, qwordByte word 7]
+
+def storeByte (memory : Memory) (address : Addr) (value : Byte) : Memory :=
+  { memory with byte := fun candidate => if candidate = address then value else memory.byte candidate }
+
+def storeBytes : Memory → Addr → List Byte → Memory
+  | memory, _, [] => memory
+  | memory, base, value :: rest =>
+      storeBytes (storeByte memory base value) (addressAdd base 1) rest
+
+def storeQwordLE (memory : Memory) (base : Addr) (word : QWord) : Memory :=
+  storeBytes memory base (qwordBytes word)
+
+def loadZmm (memory : Memory) (base : Addr) : Zmm :=
+  fun lane => loadQwordLE memory (addressAdd base (8 * lane.val))
+
+def storeZmm (memory : Memory) (base : Addr) (value : Zmm) : Memory :=
+  let m0 := storeQwordLE memory (addressAdd base 0) (value 0)
+  let m1 := storeQwordLE m0 (addressAdd base 8) (value 1)
+  let m2 := storeQwordLE m1 (addressAdd base 16) (value 2)
+  let m3 := storeQwordLE m2 (addressAdd base 24) (value 3)
+  let m4 := storeQwordLE m3 (addressAdd base 32) (value 4)
+  let m5 := storeQwordLE m4 (addressAdd base 40) (value 5)
+  let m6 := storeQwordLE m5 (addressAdd base 48) (value 6)
+  storeQwordLE m6 (addressAdd base 56) (value 7)
+
+def setGpr (registers : Gpr → QWord) (target : Gpr) (value : QWord) :
+    Gpr → QWord :=
+  fun register => if register = target then value else registers register
+
+def setZmm (registers : ZReg → Zmm) (target : ZReg) (value : Zmm) :
+    ZReg → Zmm :=
+  fun register => if register = target then value else registers register
+
+def vmovdqu64Load {Other : Type} (state : MachineState Other) (target : ZReg)
+    (base : Addr) : MachineState Other :=
+  { state with zmm := setZmm state.zmm target (loadZmm state.mem base) }
+
+def vmovdqu64Store {Other : Type} (state : MachineState Other) (base : Addr)
+    (source : ZReg) : MachineState Other :=
+  { state with mem := storeZmm state.mem base (state.zmm source) }
+
+def execVmovdqu64Load {Other : Type} (state : MachineState Other)
+    (target : ZReg) (base : Addr) : Except Fault (MachineState Other) :=
+  if readableBytes state.mem base 64 then
+    .ok (vmovdqu64Load state target base)
+  else
+    .error (.readFault base)
+
+def execVmovdqu64Store {Other : Type} (state : MachineState Other)
+    (base : Addr) (source : ZReg) : Except Fault (MachineState Other) :=
+  if writableBytes state.mem base 64 then
+    .ok (vmovdqu64Store state base source)
+  else
+    .error (.writeFault base)
+
+def vzeroUpperRegister (register : ZReg) (value : Zmm) : Zmm :=
+  fun lane =>
+    if register.val < 16 ∧ 2 ≤ lane.val then BitVec.ofNat 64 0 else value lane
+
+def execVzeroUpper {Other : Type} (state : MachineState Other) : MachineState Other :=
+  { state with zmm := fun register => vzeroUpperRegister register (state.zmm register) }
+
+def execRet {Other : Type} (state : MachineState Other) : Except Fault (Outcome Other) :=
+  let stack := state.gpr Gpr.rsp
+  if readableBytes state.mem stack 8 then
+    let returnAddress := loadQwordLE state.mem stack
+    let nextStack := addressAdd stack 8
+    .ok (.returned
+      { state with
+        gpr := setGpr state.gpr Gpr.rsp nextStack
+        rip := returnAddress })
+  else
+    .error (.readFault stack)
+
+theorem qword_bytes_length (word : QWord) :
+    (qwordBytes word).length = 8 := by rfl
+
+theorem storeByte_same (memory : Memory) (address : Addr) (value : Byte) :
+    (storeByte memory address value).byte address = value := by
+  simp [storeByte]
+
+theorem storeByte_other (memory : Memory) (address other : Addr) (value : Byte)
+    (hne : other ≠ address) :
+    (storeByte memory address value).byte other = memory.byte other := by
+  simp [storeByte, hne]
+
+theorem storeByte_permissions (memory : Memory) (address : Addr) (value : Byte) :
+    (storeByte memory address value).perm = memory.perm := by rfl
+
+theorem storeBytes_permissions (memory : Memory) (base : Addr)
+    (values : List Byte) :
+    (storeBytes memory base values).perm = memory.perm := by
+  induction values generalizing memory base with
+  | nil => rfl
+  | cons value rest ih =>
+      simp only [storeBytes]
+      rw [ih]
+      rfl
+
+theorem storeQwordLE_permissions (memory : Memory) (base : Addr)
+    (word : QWord) :
+    (storeQwordLE memory base word).perm = memory.perm := by
+  exact storeBytes_permissions memory base (qwordBytes word)
+
+theorem storeZmm_permissions (memory : Memory) (base : Addr) (value : Zmm) :
+    (storeZmm memory base value).perm = memory.perm := by
+  simp only [storeZmm]
+  repeat' rw [storeQwordLE_permissions]
+
+theorem loadZmm_lane (memory : Memory) (base : Addr) (lane : Fin 8) :
+    loadZmm memory base lane =
+      loadQwordLE memory (addressAdd base (8 * lane.val)) := by
+  rfl
+
+theorem vmovdqu64Load_target {Other : Type} (state : MachineState Other) (target : ZReg)
+    (base : Addr) :
+    (vmovdqu64Load state target base).zmm target = loadZmm state.mem base := by
+  simp [vmovdqu64Load, setZmm]
+
+theorem vmovdqu64Load_other {Other : Type} (state : MachineState Other) (target other : ZReg)
+    (base : Addr) (hne : other ≠ target) :
+    (vmovdqu64Load state target base).zmm other = state.zmm other := by
+  simp [vmovdqu64Load, setZmm, hne]
+
+theorem vmovdqu64Load_memory {Other : Type} (state : MachineState Other) (target : ZReg)
+    (base : Addr) :
+    (vmovdqu64Load state target base).mem = state.mem := by rfl
+
+theorem vmovdqu64Store_registers {Other : Type} (state : MachineState Other)
+    (base : Addr) (source : ZReg) :
+    (vmovdqu64Store state base source).gpr = state.gpr ∧
+      (vmovdqu64Store state base source).zmm = state.zmm ∧
+      (vmovdqu64Store state base source).opmask = state.opmask := by
+  exact ⟨rfl, rfl, rfl⟩
+
+theorem vmovdqu64Store_permissions {Other : Type} (state : MachineState Other)
+    (base : Addr) (source : ZReg) :
+    (vmovdqu64Store state base source).mem.perm = state.mem.perm := by
+  exact storeZmm_permissions state.mem base (state.zmm source)
+
+theorem execVmovdqu64Load_readable {Other : Type} (state : MachineState Other)
+    (target : ZReg) (base : Addr)
+    (hread : readableBytes state.mem base 64 = true) :
+    execVmovdqu64Load state target base =
+      .ok (vmovdqu64Load state target base) := by
+  simp [execVmovdqu64Load, hread]
+
+theorem execVmovdqu64Load_unreadable {Other : Type} (state : MachineState Other)
+    (target : ZReg) (base : Addr)
+    (hread : readableBytes state.mem base 64 = false) :
+    execVmovdqu64Load state target base = .error (.readFault base) := by
+  simp [execVmovdqu64Load, hread]
+
+theorem execVmovdqu64Store_writable {Other : Type} (state : MachineState Other)
+    (base : Addr) (source : ZReg)
+    (hwrite : writableBytes state.mem base 64 = true) :
+    execVmovdqu64Store state base source =
+      .ok (vmovdqu64Store state base source) := by
+  simp [execVmovdqu64Store, hwrite]
+
+theorem execVmovdqu64Store_unwritable {Other : Type} (state : MachineState Other)
+    (base : Addr) (source : ZReg)
+    (hwrite : writableBytes state.mem base 64 = false) :
+    execVmovdqu64Store state base source = .error (.writeFault base) := by
+  simp [execVmovdqu64Store, hwrite]
+
+theorem vzeroUpper_low128_preserved {Other : Type} (state : MachineState Other)
+    (register : ZReg) (lane : Fin 8) (hlane : lane.val < 2) :
+    (execVzeroUpper state).zmm register lane = state.zmm register lane := by
+  simp [execVzeroUpper, vzeroUpperRegister]
+  omega
+
+theorem vzeroUpper_high_register_preserved {Other : Type} (state : MachineState Other)
+    (register : ZReg) (hregister : 16 ≤ register.val) :
+    (execVzeroUpper state).zmm register = state.zmm register := by
+  funext lane
+  simp [execVzeroUpper, vzeroUpperRegister]
+  omega
+
+theorem vzeroUpper_low_register_upper_cleared {Other : Type} (state : MachineState Other)
+    (register : ZReg) (lane : Fin 8) (hregister : register.val < 16)
+    (hlane : 2 ≤ lane.val) :
+    (execVzeroUpper state).zmm register lane = BitVec.ofNat 64 0 := by
+  simp [execVzeroUpper, vzeroUpperRegister, hregister, hlane]
+
+theorem vzeroUpper_memory_preserved {Other : Type} (state : MachineState Other) :
+    (execVzeroUpper state).mem = state.mem := by rfl
+
+theorem execRet_readable {Other : Type} (state : MachineState Other)
+    (hread : readableBytes state.mem (state.gpr Gpr.rsp) 8 = true) :
+    execRet state = .ok (.returned
+      { state with
+        gpr := setGpr state.gpr Gpr.rsp
+          (addressAdd (state.gpr Gpr.rsp) 8)
+        rip := loadQwordLE state.mem (state.gpr Gpr.rsp) }) := by
+  simp [execRet, hread]
+
+theorem execRet_unreadable {Other : Type} (state : MachineState Other)
+    (hread : readableBytes state.mem (state.gpr Gpr.rsp) 8 = false) :
+    execRet state = .error (.readFault (state.gpr Gpr.rsp)) := by
+  simp [execRet, hread]
+
+end NaryaFormal.X86

@@ -8,6 +8,7 @@ import NaryaFormal.AssemblyTrace
 import NaryaFormal.LinearTrace
 import NaryaFormal.ObjectBytes
 import NaryaFormal.X86VectorSemantics
+import NaryaFormal.X86Machine
 import NaryaFormal.Transpose
 import NaryaFormal.ScalarReduction
 import NaryaFormal.VerificationSpine
