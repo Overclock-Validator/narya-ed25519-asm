@@ -10,6 +10,8 @@ BUILD := build
 LIB := $(BUILD)/libnarya_ed25519_asm.a
 PROOF_BUILD := $(BUILD)/proof
 R51_PROOF_ELF := $(PROOF_BUILD)/r51x8_ifma.so
+PROJECTIVE_TRANSPOSE_PROOF_OBJECT := $(PROOF_BUILD)/projective_niels_transpose_x8.o
+AFFINE_TRANSPOSE_PROOF_OBJECT := $(PROOF_BUILD)/affine_niels_transpose_x8.o
 OBJECTS := \
 	$(BUILD)/dispatch.o \
 	$(BUILD)/decode_x8.o \
@@ -29,7 +31,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
 
 all: $(LIB)
 
@@ -44,6 +46,12 @@ $(PROOF_BUILD)/r51x8_ifma.o: src/r51x8_ifma.S | $(PROOF_BUILD)
 
 $(R51_PROOF_ELF): $(PROOF_BUILD)/r51x8_ifma.o
 	$(LD) -shared --build-id=none -z noexecstack $< -o $@
+
+$(PROJECTIVE_TRANSPOSE_PROOF_OBJECT): src/projective_niels_transpose_x8.S | $(PROOF_BUILD)
+	$(CLANG) --target=x86_64-unknown-linux-gnu -c $< -o $@
+
+$(AFFINE_TRANSPOSE_PROOF_OBJECT): src/affine_niels_transpose_x8.S | $(PROOF_BUILD)
+	$(CLANG) --target=x86_64-unknown-linux-gnu -c $< -o $@
 
 $(BUILD)/dispatch.o: src/dispatch.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -187,6 +195,7 @@ check-source:
 	$(MAKE) check-r51-linear-trace
 	$(MAKE) test-r51-linear-trace-mutations
 	$(MAKE) check-transpose
+	$(MAKE) check-transpose-object-bytes
 	$(MAKE) test-transpose-mutations
 	$(MAKE) check-scalar-bounds
 	$(MAKE) check-sha512-schedule
@@ -214,6 +223,11 @@ check-r51-object-bytes: $(R51_PROOF_ELF)
 
 check-transpose:
 	python3 tools/check_transpose_schedule.py
+
+# The leaves have no relocations in their executable sections, so their ET_REL
+# symbol bytes are the link-stable input for the forthcoming Lean decoder.
+check-transpose-object-bytes: $(PROJECTIVE_TRANSPOSE_PROOF_OBJECT) $(AFFINE_TRANSPOSE_PROOF_OBJECT)
+	python3 tools/generate_transpose_object_bytes.py --check
 
 test-transpose-mutations:
 	python3 tools/test_transpose_schedule_mutations.py

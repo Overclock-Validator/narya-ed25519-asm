@@ -50,6 +50,10 @@ AUDIT_ANCHORS = {
         "projective_transpose_x8_lane_exact",
         "affine_transpose_x8_lane_exact",
     ),
+    "TransposeObjectBytes.lean": (
+        "projective_symbol_extent_exact",
+        "affine_symbol_extent_exact",
+    ),
     "ScalarReduction.lean": (
         "fold_polynomial_exact",
         "radix12_fold_mod_order",

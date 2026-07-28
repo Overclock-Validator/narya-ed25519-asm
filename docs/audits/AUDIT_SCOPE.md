@@ -42,9 +42,10 @@ general performance claim.
    mixed-order public keys?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
-covering both transpose leaves. Review still needs to confirm that certificate's
-ISA model; those transpose leaves are not yet linked to their emitted bytes by
-the restricted decoder used for the multiplier.
+covering both transpose leaves. Their exact relocation-free assembled symbol
+bytes are now pinned as Lean input. Review still needs to confirm the source
+certificate's ISA model and the ELF extractor; those bytes are not yet decoded
+and executed by a restricted Lean semantics as the multiplier bytes are.
 
 The r51 multiply's arithmetic theorem now consumes a trace mechanically
 generated from the assembly source. The extractor is fail-closed over the

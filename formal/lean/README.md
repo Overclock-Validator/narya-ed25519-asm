@@ -82,7 +82,10 @@ theorems. `tools/check_transpose_schedule.py` binds those semantics to the
 actual assembly source's macros, pointer map, five limb rows, and output
 offsets. See the
 [transpose certificate](../../docs/proofs/TRANSPOSE_LANE_MAP.md) for the exact
-claim and trust boundary.
+claim and trust boundary. `GeneratedTransposeObjectBytes.lean` now additionally
+pins both relocation-free assembled symbols, while `TransposeObjectBytes.lean`
+kernel-checks their extents and byte domains. Restricted opcode decoding and
+execution refinement of those bytes remain open.
 
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389

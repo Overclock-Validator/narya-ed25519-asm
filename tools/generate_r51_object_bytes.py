@@ -30,6 +30,7 @@ SYMBOL = struct.Struct("<IBBHQQ")
 
 ELFCLASS64 = 2
 ELFDATA2LSB = 1
+ET_REL = 1
 ET_DYN = 3
 EM_X86_64 = 62
 SHT_PROGBITS = 1
@@ -41,7 +42,7 @@ STT_FUNC = 2
 
 
 def fail(message: str) -> NoReturn:
-    raise SystemExit(f"r51 object extraction failed: {message}")
+    raise SystemExit(f"ELF object extraction failed: {message}")
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,7 @@ class Section:
     offset: int
     size: int
     link: int
+    info: int
     entry_size: int
 
 
@@ -79,7 +81,9 @@ def cstring(data: bytes, offset: int) -> str:
 
 
 class Elf:
-    def __init__(self, data: bytes) -> None:
+    def __init__(
+        self, data: bytes, *, allowed_types: tuple[int, ...] = (ET_DYN,)
+    ) -> None:
         self.data = data
         if len(data) < ELF_HEADER.size:
             fail("truncated ELF header")
@@ -90,11 +94,12 @@ class Elf:
         if ident[4] != ELFCLASS64 or ident[5] != ELFDATA2LSB or ident[6] != 1:
             fail("expected ELF64, little-endian, current-version image")
         elf_type, machine, version = fields[1], fields[2], fields[3]
-        if elf_type != ET_DYN or machine != EM_X86_64 or version != 1:
+        if elf_type not in allowed_types or machine != EM_X86_64 or version != 1:
             fail(
-                f"expected x86-64 ET_DYN image, got type={elf_type} "
+                f"expected x86-64 ELF type in {allowed_types}, got type={elf_type} "
                 f"machine={machine} version={version}"
             )
+        self.elf_type = elf_type
         section_offset = fields[6]
         section_entry_size = fields[11]
         section_count = fields[12]
@@ -125,6 +130,7 @@ class Elf:
                     offset=raw[4],
                     size=raw[5],
                     link=raw[6],
+                    info=raw[7],
                     entry_size=raw[9],
                 )
             )

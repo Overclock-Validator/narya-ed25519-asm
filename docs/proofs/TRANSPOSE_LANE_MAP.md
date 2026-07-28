@@ -82,6 +82,16 @@ demonstrates that representative changes to a shuffle immediate, lane-half
 offset, pointer assignment, affine mask/load, output offset, or instruction
 stream are all rejected.
 
+The next binary-refinement layer is now committed as
+[`GeneratedTransposeObjectBytes.lean`](../../formal/lean/NaryaFormal/GeneratedTransposeObjectBytes.lean).
+`generate_transpose_object_bytes.py` extracts the exact STT_FUNC bytes from
+the two ELF64 x86-64 objects and rejects any relocation section targeting
+their executable sections. Because these leaves contain no link-time
+references, those symbol bytes are link-stable. Lean kernel-checks both symbol
+extents and that every literal is an octet in `TransposeObjectBytes.lean`.
+This freezes the input for a restricted decoder; it does not decode or assign
+execution semantics to those bytes yet.
+
 The existing native selector tests provide a third layer: concrete unique
 tags traverse table selection and the assembly leaf under all lane masks,
 signs, and magnitudes. On Linux, the affine test additionally places each
@@ -123,16 +133,17 @@ The affine masked load's fourth qword is zero and is not stored as a coordinate.
 ## Remaining trust boundary
 
 This is stronger than a handwritten inspection and broader than a tagged test,
-but it is not a proof over decoded ELF machine code. It trusts:
+but it is not yet an execution proof over decoded ELF machine code. Exact
+relocation-free assembled symbol bytes are pinned, but it still trusts:
 
 - the small Python source parser/interpreter;
 - the stated Intel instruction semantics;
-- the assembler's encoding of the checked source;
+- the small ELF extractor until the bytes are decoded in Lean;
 - the SysV AMD64 calling convention used by the source;
 - valid, non-overlapping source/output objects as required by the internal ABI;
 - the CPU's implementation of the instructions.
 
-Closing the binary-refinement gap requires decoding the emitted instruction
-bytes and proving their register/memory execution refines the Lean trace. That
-larger obligation is tracked separately and must not be inferred from this
-certificate.
+Closing the remaining binary-refinement gap requires decoding the committed
+instruction bytes and proving their register/memory execution refines the Lean
+trace. That larger obligation is tracked separately and must not be inferred
+from the presence of an exact byte artifact.
