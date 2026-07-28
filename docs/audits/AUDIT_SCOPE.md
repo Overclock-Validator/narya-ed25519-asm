@@ -54,10 +54,12 @@ the canonical linked proof ELF, and Lean kernel reduction proves that it equals
 the independently source-generated 129-instruction list. Audit must review both
 parsers and the restricted instruction semantics. Whole-program execution in
 the unbounded-natural shadow is now checked phase by phase and equals the
-generated arithmetic trace. BitVec range-premise composition, the System V
-memory/alias postcondition, and identity with bytes in a downstream deployment
-remain open; this is not a general x86 decoder or a proof about an arbitrary
-consumer binary.
+generated arithmetic trace. The decoded 94-instruction arithmetic core also
+executes in the fault-aware BitVec machine and refines, under explicit u52,
+no-wrap, and linked-constant memory premises, to that Nat trace in an arbitrary
+lane. Input-load/output-store composition, the System V memory/alias
+postcondition, and identity with bytes in a downstream deployment remain open;
+this is not a general x86 decoder or a proof about an arbitrary consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

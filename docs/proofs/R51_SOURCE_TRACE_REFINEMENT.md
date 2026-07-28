@@ -97,11 +97,17 @@ exact 800 linked bytes -> restricted decoder -> 129 source instructions
 
 `X86ObjectRefinement.lean` kernel-checks that equality. The decoder rejects
 unmodeled maps, opcodes, masks, vector widths, ModRM modes, and displacement
-forms; it is not a general x86 decoder. The next open link is execution:
+forms; it is not a general x86 decoder. The arithmetic portion of the next
+link is now closed:
 
 ```text
-decoded instruction trace -> BitVec/memory execution -> scalar source trace
+94 decoded arithmetic instructions -> BitVec execution -> scalar source trace
 ```
+
+This theorem includes the fold/mask broadcasts through an explicit readable
+constant-memory contract and proves the register-only core leaves memory
+unchanged. The remaining link composes input loads, output stores, alias/frame
+properties, and return/ABI behavior around that core.
 
 The present certificate still trusts the ELF extractor and source parser. It
 does not yet prove the complete System V call/return and memory-frame theorem,

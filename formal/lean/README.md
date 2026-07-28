@@ -86,11 +86,12 @@ and binary refinement remain open; see the
 The r51 multiply now has a fail-closed assembly-source-to-Lean link; see the
 [source refinement certificate](../../docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md).
 The exact canonical linked symbol is also connected to that source trace by a
-restricted, fail-closed decoder. The remaining gap is instruction-execution
-and ABI refinement: composing the semantics over the decoded trace, proving
-the memory/alias/register postcondition, and separately covering dispatch and
-downstream deployment identity. The Lean result is not a verified decoder for
-arbitrary machine code.
+restricted, fail-closed decoder. The decoded 94-instruction arithmetic core is
+now executed in the fault-aware `BitVec 64` semantics and refined, in an
+arbitrary selected lane, to the independently generated radix-51 result. The
+remaining gap is the surrounding load/store/return and ABI refinement, plus
+dispatch and downstream deployment identity. The Lean result is not a verified
+decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
 Its first artifact layer is now present:
@@ -114,8 +115,9 @@ little-endian memory, explicit read/write permissions, 512-bit load/store
 layout, the architectural `VZEROUPPER` effect on registers 0--15, and the
 stack read, stack advance, and control transfer performed by `RET`. Its
 permission-sensitive transitions fail closed. These are reusable semantics
-and local lemmas; the checked 800 bytes have been decoded but the full trace
-has not yet been executed through the BitVec machine semantics.
+and local lemmas; the checked 800 bytes have been decoded, and its arithmetic
+core is proved in the BitVec machine, but the complete load-to-return machine
+trace is not yet a single exported theorem.
 
 [`X86Execution.lean`](NaryaFormal/X86Execution.lean) gives every decoded
 instruction a fault-aware machine-state transition and rejects a return with
@@ -127,14 +129,15 @@ generated 25-product arithmetic trace.
 [`X86Refinement.lean`](NaryaFormal/X86Refinement.lean) proves local
 machine-to-shadow refinements for XOR, AND, add, multiply, shifts, and both
 IFMA halves; every u52 and no-wrap premise is explicit. Its compositional
-machine runner now proves the complete decoded product and combine phases
-lane-by-lane under the public u52 input contract. The fold and normalize
-phases remain separate because their broadcasts require explicit memory
-premises. The exact decoded
+machine runner now proves the complete 94-instruction decoded arithmetic core
+lane-by-lane under the public u52 input contract. That theorem covers product,
+combine, fold, and normalize, reads the fold and mask through an explicit
+readable-memory contract, and proves the register-only core preserves memory.
+The exact decoded
 program also kernel-checks that all ten source loads precede every output
 store, that the five store offsets/registers are exact, and that the epilogue
-is `VZEROUPPER; RET`. The BitVec-to-Nat range-premise composition and final
-memory/ABI theorem remain open.
+is `VZEROUPPER; RET`. Composing the load and store semantics, alias/frame
+lemmas, return behavior, and System V postcondition remains open.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

@@ -19,11 +19,13 @@ fail-closed trace described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). A source
 edit changes a Lean proof input or fails extraction. The exact 800-byte
 canonical linked multiplier now also kernel-decodes to the independently
-expanded 129-instruction source trace. The remaining native multiplier work
-is execution and ABI refinement:
+expanded 129-instruction source trace. Its 94-instruction arithmetic core now
+has a fault-aware BitVec-to-Nat lane refinement, including the linked fold and
+mask constants. The remaining native multiplier work is memory and ABI
+refinement:
 
-1. compose the existing BitVec/Nat instruction lemmas over that decoded trace
-   and prove the full SysV memory, alias, return, and register postcondition in
+1. compose the input loads, output stores, epilogue, and the proved arithmetic
+   core into the full SysV memory, alias, return, and register postcondition in
    [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
 The paired interpreters and local arithmetic refinement lemmas now exist.
@@ -32,13 +34,12 @@ is unbounded. The generated instruction list is partitioned into eight checked
 semantic phases. Small phase theorems now prove every unbounded register
 transition from input loads through the returned stored output, and
 `runR51NatShadow_correct` composes them into the exact decoded-program result.
-This closes the decoded Nat schedule. Finish the native item by discharging
-the BitVec/Nat no-wrap premises phase by phase, then prove the byte-memory,
-alias, return, and System V postcondition. The product and combine phase
-certificates are now closed: all 50 IFMA updates and 17 shift/add operations
-refine the exact Nat states in an arbitrary selected lane. Fold and normalize
-remain because their constant broadcasts need an explicit read-only-memory
-contract. A prior monolithic 129-step
+This closes the decoded Nat schedule. The BitVec/Nat arithmetic item is now
+also closed across product, combine, fold, and normalize: all 94 instructions
+refine the exact Nat states in an arbitrary selected lane, and the constant
+broadcasts are tied to an explicit read-only-memory contract. Finish the native
+item by proving the byte-memory load/store, alias, return, and System V
+postcondition. A prior monolithic 129-step
 simplifier proof type-checked but was intentionally rejected because its
 serialized proof term was too large for a dependable audit/CI artifact.
 

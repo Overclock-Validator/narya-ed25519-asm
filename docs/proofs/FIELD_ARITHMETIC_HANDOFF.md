@@ -85,10 +85,11 @@ prove that they equal the checked source instruction trace. They do not yet
 execute that entire trace through a complete x86/System V theorem. The
 remaining refinement must cover:
 
-- composition of the existing per-instruction bitvector semantics over all
-  129 decoded instructions;
-- the mapping of eight ZMM lanes to eight independent scalar traces;
-- SysV register clobbers and constant loads;
+- composition of the proved 94-instruction arithmetic core with the ten input
+  loads, five output stores, and epilogue;
+- the final all-eight-lane and lane-noninterference corollaries from the
+  arbitrary selected-lane theorem;
+- SysV register clobbers and return behavior;
 - all-source-loads-before-output-stores alias safety; and
 - the checked wrapper's CPU/OS feature gate and source-range validation.
 

@@ -316,6 +316,37 @@ theorem combine_phase_correct (environment : NatShadowEnvironment) :
       GeneratedR51MulTrace.groupedDegree, GeneratedR51MulTrace.lowTerms,
       GeneratedR51MulTrace.highTerms] <;> ring
 
+def foldBroadcastNatZmm (environment : NatShadowEnvironment)
+    (register : ZReg) : Nat :=
+  match register.val with
+  | 30 => 19
+  | _ => combinedNatZmm environment register
+
+def foldBroadcastNatShadowState
+    (environment : NatShadowEnvironment) : NatShadowState :=
+  { zmm := foldBroadcastNatZmm environment
+    output := fun _ => 0 }
+
+theorem fold_broadcast_phase_correct (environment : NatShadowEnvironment) :
+    runNatPhase environment GeneratedR51InstructionTrace.foldBroadcastPhase
+      (combinedNatShadowState environment) =
+      some (foldBroadcastNatShadowState environment) := by
+  simp [GeneratedR51InstructionTrace.foldBroadcastPhase,
+    GeneratedR51InstructionTrace.foldPhase, runNatPhase, executeNatShadow,
+    shadowConstant, writeNatZmm, combinedNatShadowState,
+    foldBroadcastNatShadowState, foldBroadcastNatZmm, setNatZmm,
+    R51Object.ifma_fold19Address, R51Object.ifma_mask51Address]
+  funext register
+  fin_cases register <;> rfl
+
+theorem fold_broadcast_state_eq (environment : NatShadowEnvironment) :
+    writeNatZmm (combinedNatShadowState environment) ⟨30, by decide⟩ 19 =
+      foldBroadcastNatShadowState environment := by
+  unfold writeNatZmm combinedNatShadowState foldBroadcastNatShadowState
+  congr 1
+  funext register
+  fin_cases register <;> rfl
+
 def foldedNatZmm (environment : NatShadowEnvironment) (register : ZReg) : Nat :=
   match register.val with
   | 0 => environment.x 0
@@ -372,6 +403,50 @@ theorem fold_phase_correct (environment : NatShadowEnvironment) :
       GeneratedR51MulTrace.groupedDegree, GeneratedR51MulTrace.lowTerms,
       GeneratedR51MulTrace.highTerms] <;> ring
 
+set_option maxRecDepth 8192 in
+set_option maxHeartbeats 1000000 in
+theorem fold_arithmetic_phase_correct (environment : NatShadowEnvironment) :
+    runNatPhase environment GeneratedR51InstructionTrace.foldArithmeticPhase
+      (foldBroadcastNatShadowState environment) =
+      some (foldedNatShadowState environment) := by
+  have hfull := fold_phase_correct environment
+  rw [GeneratedR51InstructionTrace.constant_phase_splits.1,
+    runNatPhase_append,
+    fold_broadcast_phase_correct] at hfull
+  exact hfull
+
+def normalizeBroadcastNatZmm (environment : NatShadowEnvironment)
+    (register : ZReg) : Nat :=
+  match register.val with
+  | 5 => 2 ^ 51 - 1
+  | _ => foldedNatZmm environment register
+
+def normalizeBroadcastNatShadowState
+    (environment : NatShadowEnvironment) : NatShadowState :=
+  { zmm := normalizeBroadcastNatZmm environment
+    output := fun _ => 0 }
+
+theorem normalize_broadcast_phase_correct (environment : NatShadowEnvironment) :
+    runNatPhase environment GeneratedR51InstructionTrace.normalizeBroadcastPhase
+      (foldedNatShadowState environment) =
+      some (normalizeBroadcastNatShadowState environment) := by
+  simp [GeneratedR51InstructionTrace.normalizeBroadcastPhase,
+    GeneratedR51InstructionTrace.normalizePhase, runNatPhase, executeNatShadow,
+    shadowConstant, writeNatZmm, foldedNatShadowState,
+    normalizeBroadcastNatShadowState, normalizeBroadcastNatZmm, setNatZmm,
+    R51Object.ifma_fold19Address, R51Object.ifma_mask51Address]
+  funext register
+  fin_cases register <;> rfl
+
+theorem normalize_broadcast_state_eq (environment : NatShadowEnvironment) :
+    writeNatZmm (foldedNatShadowState environment) ⟨5, by decide⟩
+        (2 ^ 51 - 1) =
+      normalizeBroadcastNatShadowState environment := by
+  unfold writeNatZmm foldedNatShadowState normalizeBroadcastNatShadowState
+  congr 1
+  funext register
+  fin_cases register <;> rfl
+
 def normalizedNatZmm (environment : NatShadowEnvironment) (register : ZReg) : Nat :=
   let folded := GeneratedR51MulTrace.foldedGrouped environment.x environment.y
   let output := GeneratedR51MulTrace.assemblyOutput environment.x environment.y
@@ -413,6 +488,19 @@ theorem normalize_phase_correct (environment : NatShadowEnvironment) :
       GeneratedR51MulTrace.foldConstant,
       GeneratedR51MulTrace.groupedDegree, GeneratedR51MulTrace.lowTerms,
       GeneratedR51MulTrace.highTerms, and_mask51_eq_mod]
+
+set_option maxRecDepth 16384 in
+set_option maxHeartbeats 2000000 in
+theorem normalize_arithmetic_phase_correct
+    (environment : NatShadowEnvironment) :
+    runNatPhase environment GeneratedR51InstructionTrace.normalizeArithmeticPhase
+      (normalizeBroadcastNatShadowState environment) =
+      some (normalizedNatShadowState environment) := by
+  have hfull := normalize_phase_correct environment
+  rw [GeneratedR51InstructionTrace.constant_phase_splits.2.1,
+    runNatPhase_append,
+    normalize_broadcast_phase_correct] at hfull
+  exact hfull
 
 def storedNatShadowState (environment : NatShadowEnvironment) : NatShadowState :=
   let value := GeneratedR51MulTrace.assemblyOutput environment.x environment.y

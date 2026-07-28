@@ -15,6 +15,22 @@ def laneAgrees {Other : Type} (lane : Fin 8) (machine : MachineState Other)
     (shadow : NatShadowState) : Prop :=
   ∀ register, (machine.zmm register lane).toNat = shadow.zmm register
 
+/--
+The two read-only qwords consumed by the decoded multiplier's broadcast
+instructions. Keeping this as an explicit machine-state contract prevents the
+proof from silently replacing linked memory with mathematical constants.
+-/
+structure R51ConstantMemory {Other : Type} (machine : MachineState Other) : Prop where
+  foldReadable : readableBytes machine.mem
+      (BitVec.ofNat 64 R51Object.ifma_fold19Address) 8 = true
+  foldValue : loadQwordLE machine.mem
+      (BitVec.ofNat 64 R51Object.ifma_fold19Address) = BitVec.ofNat 64 19
+  maskReadable : readableBytes machine.mem
+      (BitVec.ofNat 64 R51Object.ifma_mask51Address) 8 = true
+  maskValue : loadQwordLE machine.mem
+      (BitVec.ofNat 64 R51Object.ifma_mask51Address) =
+        BitVec.ofNat 64 (2 ^ 51 - 1)
+
 theorem laneAgrees_write {Other : Type} (lane : Fin 8)
     (machine : MachineState Other) (shadow : NatShadowState)
     (target : ZReg) (machineValue : Zmm) (shadowValue : Nat)
@@ -111,6 +127,38 @@ theorem refine_vpsrlq {Other : Type} (lane : Fin 8)
   apply laneAgrees_write lane machine shadow destination _ _ hagrees
   change (qwordShiftRight (machine.zmm source lane) amount).toNat = _
   rw [qwordShiftRight_toNat, hagrees source]
+
+/-- A readable constant broadcast refines the Nat shadow in one SIMD lane. -/
+theorem refine_vpbroadcastq {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other) (shadow : NatShadowState)
+    (destination : ZReg) (absoluteAddress shadowValue : Nat)
+    (haddress : absoluteAddress < 2 ^ 64)
+    (hread : readableBytes machine.mem
+      (BitVec.ofNat 64 absoluteAddress) 8 = true)
+    (hvalue : (loadQwordLE machine.mem
+      (BitVec.ofNat 64 absoluteAddress)).toNat = shadowValue)
+    (hconstant : shadowConstant absoluteAddress = some shadowValue)
+    (hagrees : laneAgrees lane machine shadow) :
+    ∃ machineNext shadowNext,
+      executeInstruction (.vpbroadcastq destination absoluteAddress) machine =
+        .ok (.next machineNext) ∧
+      executeNatShadow environment (.vpbroadcastq destination absoluteAddress)
+        shadow = some (.next shadowNext) ∧
+      laneAgrees lane machineNext shadowNext ∧
+      machineNext.mem = machine.mem := by
+  let machineNext := writeZmm machine destination
+    (broadcastQword
+      (loadQwordLE machine.mem (BitVec.ofNat 64 absoluteAddress)))
+  let shadowNext := writeNatZmm shadow destination shadowValue
+  refine ⟨machineNext, shadowNext, ?_, ?_, ?_, rfl⟩
+  · rw [executeInstruction,
+      executeBroadcast_readable machine destination absoluteAddress
+        haddress hread]
+    rfl
+  · simp [executeNatShadow, hconstant, shadowNext]
+  · apply laneAgrees_write lane machine shadow destination _ _ hagrees
+    simp [broadcastQword, hvalue]
 
 theorem refine_vpmadd52luq {Other : Type} (lane : Fin 8)
     (machine : MachineState Other) (shadow : NatShadowState)
@@ -216,7 +264,8 @@ theorem executeArithmeticInstruction_refines {Other : Type}
     ∃ machineNext shadowNext,
       executeInstruction instruction machine = .ok (.next machineNext) ∧
       executeNatShadow environment instruction shadow = some (.next shadowNext) ∧
-      laneAgrees lane machineNext shadowNext := by
+      laneAgrees lane machineNext shadowNext ∧
+      machineNext.mem = machine.mem := by
   cases instruction with
   | vmovdqu64Load destination base displacement =>
       simp [isArithmeticInstruction] at harithmetic
@@ -224,33 +273,36 @@ theorem executeArithmeticInstruction_refines {Other : Type}
       simp [isArithmeticInstruction] at harithmetic
   | vpxorq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
-        refine_vpxorq lane machine shadow destination source1 source2 hagrees⟩
+        refine_vpxorq lane machine shadow destination source1 source2 hagrees,
+        rfl⟩
   | vpmadd52luq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
         refine_vpmadd52luq lane machine shadow destination source1 source2
-          hagrees hsafe.1 hsafe.2.1 hsafe.2.2⟩
+          hagrees hsafe.1 hsafe.2.1 hsafe.2.2, rfl⟩
   | vpmadd52huq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
         refine_vpmadd52huq lane machine shadow destination source1 source2
-          hagrees hsafe.1 hsafe.2.1 hsafe.2.2⟩
+          hagrees hsafe.1 hsafe.2.1 hsafe.2.2, rfl⟩
   | vpaddq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
         refine_vpaddq lane machine shadow destination source1 source2
-          hagrees hsafe⟩
+          hagrees hsafe, rfl⟩
   | vpmullq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
         refine_vpmullq lane machine shadow destination source1 source2
-          hagrees hsafe⟩
+          hagrees hsafe, rfl⟩
   | vpandq destination source1 source2 =>
       exact ⟨_, _, rfl, rfl,
-        refine_vpandq lane machine shadow destination source1 source2 hagrees⟩
+        refine_vpandq lane machine shadow destination source1 source2 hagrees,
+        rfl⟩
   | vpsllq destination source amount =>
       exact ⟨_, _, rfl, rfl,
         refine_vpsllq lane machine shadow destination source amount
-          hagrees hsafe⟩
+          hagrees hsafe, rfl⟩
   | vpsrlq destination source amount =>
       exact ⟨_, _, rfl, rfl,
-        refine_vpsrlq lane machine shadow destination source amount hagrees⟩
+        refine_vpsrlq lane machine shadow destination source amount hagrees,
+        rfl⟩
   | vpbroadcastq destination absoluteAddress =>
       simp [isArithmeticInstruction] at harithmetic
   | vzeroUpper =>
@@ -288,10 +340,11 @@ theorem runArithmeticPhase_refines {Other : Type}
     ∃ machineNext shadowNext,
       runMachinePhase instructions machine = .ok machineNext ∧
       runNatPhase environment instructions shadow = some shadowNext ∧
-      laneAgrees lane machineNext shadowNext := by
+      laneAgrees lane machineNext shadowNext ∧
+      machineNext.mem = machine.mem := by
   induction instructions generalizing machine shadow with
   | nil =>
-      exact ⟨machine, shadow, rfl, rfl, hagrees⟩
+      exact ⟨machine, shadow, rfl, rfl, hagrees, rfl⟩
   | cons instruction rest ih =>
       simp only [natArithmeticProgramSafe] at hsafe
       cases hshadow : executeNatShadow environment instruction shadow with
@@ -304,12 +357,14 @@ theorem runArithmeticPhase_refines {Other : Type}
               rcases hsafe with ⟨harithmetic, hinstruction, hrest⟩
               rcases executeArithmeticInstruction_refines environment lane
                   instruction machine shadow harithmetic hinstruction hagrees with
-                ⟨machineStep, shadowStep', hmachine, hshadow', hagrees'⟩
+                ⟨machineStep, shadowStep', hmachine, hshadow', hagrees', hmemStep⟩
               rw [hshadow] at hshadow'
               cases hshadow'
               rcases ih machineStep shadowStep hrest hagrees' with
-                ⟨machineNext, shadowNext, hmachineRest, hshadowRest, hnext⟩
-              refine ⟨machineNext, shadowNext, ?_, ?_, hnext⟩
+                ⟨machineNext, shadowNext, hmachineRest, hshadowRest, hnext,
+                  hmemRest⟩
+              refine ⟨machineNext, shadowNext, ?_, ?_, hnext,
+                hmemRest.trans hmemStep⟩
               · simp [runMachinePhase, hmachine, hmachineRest]
               · simp [runNatPhase, hshadow, hshadowRest]
 
@@ -339,6 +394,11 @@ theorem add5_u64_of_u52 {a b c d e : Nat}
     (ha : a < U52) (hb : b < U52) (hc : c < U52) (hd : d < U52)
     (he : e < U52) : a + b + c + d + e < U64 := by
   norm_num [U52, U64] at ha hb hc hd he ⊢
+  omega
+
+theorem lt_u64_of_lt_u61 {value : Nat} (hvalue : value < 2 ^ 61) :
+    value < U64 := by
+  norm_num [U64] at hvalue ⊢
   omega
 
 set_option maxRecDepth 16384 in
@@ -374,15 +434,16 @@ theorem run_product_phase_refines {Other : Type}
     ∃ machineNext,
       runMachinePhase GeneratedR51InstructionTrace.productPhase machine =
         .ok machineNext ∧
-      laneAgrees lane machineNext (productNatShadowState environment) := by
+      laneAgrees lane machineNext (productNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
   rcases runArithmeticPhase_refines environment lane
       GeneratedR51InstructionTrace.productPhase machine
       (preparedNatShadowState environment)
       (product_phase_machine_safe environment hx hy) hagrees with
-    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext⟩
+    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext, hmem⟩
   rw [product_phase_correct environment] at hshadow
   cases hshadow
-  exact ⟨machineNext, hmachine, hagreesNext⟩
+  exact ⟨machineNext, hmachine, hagreesNext, hmem⟩
 
 set_option maxRecDepth 8192 in
 set_option maxHeartbeats 1000000 in
@@ -456,14 +517,373 @@ theorem run_combine_phase_refines {Other : Type}
     ∃ machineNext,
       runMachinePhase GeneratedR51InstructionTrace.combinePhase machine =
         .ok machineNext ∧
-      laneAgrees lane machineNext (combinedNatShadowState environment) := by
+      laneAgrees lane machineNext (combinedNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
   rcases runArithmeticPhase_refines environment lane
       GeneratedR51InstructionTrace.combinePhase machine
       (productNatShadowState environment)
       (combine_phase_machine_safe environment hx hy) hagrees with
-    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext⟩
+    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext, hmem⟩
   rw [combine_phase_correct environment] at hshadow
   cases hshadow
-  exact ⟨machineNext, hmachine, hagreesNext⟩
+  exact ⟨machineNext, hmachine, hagreesNext, hmem⟩
+
+set_option maxRecDepth 8192 in
+set_option maxHeartbeats 1000000 in
+theorem fold_arithmetic_phase_machine_safe
+    (environment : NatShadowEnvironment)
+    (hx : Radix51.AssemblyTrace.LimbsU52 environment.x)
+    (hy : Radix51.AssemblyTrace.LimbsU52 environment.y) :
+    natArithmeticProgramSafe environment
+      GeneratedR51InstructionTrace.foldArithmeticPhase
+      (foldBroadcastNatShadowState environment) := by
+  simp [natArithmeticProgramSafe,
+    GeneratedR51InstructionTrace.foldArithmeticPhase,
+    GeneratedR51InstructionTrace.foldPhase, executeNatShadow,
+    isArithmeticInstruction, natInstructionSafe,
+    foldBroadcastNatShadowState, foldBroadcastNatZmm,
+    combinedNatZmm, writeNatZmm, setNatZmm]
+  obtain ⟨hp5, hp6, hp7, hp8, hp9⟩ :=
+    Radix51.AssemblyTrace.fold_products_u64
+      environment.x environment.y hx hy
+  obtain ⟨hf0, hf1, hf2, hf3, hf4⟩ :=
+    Radix51.AssemblyTrace.folded_grouped_u61
+      environment.x environment.y hx hy
+  exact ⟨by simpa [Nat.mul_comm] using hp5,
+    by
+      convert lt_u64_of_lt_u61 hf0 using 1
+      rw [Radix51.AssemblyTrace.folded_grouped_eq_fold_degrees]
+      simp [Radix51.foldDegrees]
+      ring,
+    by simpa [Nat.mul_comm] using hp6,
+    by
+      convert lt_u64_of_lt_u61 hf1 using 1
+      rw [Radix51.AssemblyTrace.folded_grouped_eq_fold_degrees]
+      simp [Radix51.foldDegrees]
+      ring,
+    by simpa [Nat.mul_comm] using hp7,
+    by
+      convert lt_u64_of_lt_u61 hf2 using 1
+      rw [Radix51.AssemblyTrace.folded_grouped_eq_fold_degrees]
+      simp [Radix51.foldDegrees]
+      ring,
+    by simpa [Nat.mul_comm] using hp8,
+    by
+      convert lt_u64_of_lt_u61 hf3 using 1
+      rw [Radix51.AssemblyTrace.folded_grouped_eq_fold_degrees]
+      simp [Radix51.foldDegrees]
+      ring,
+    by simpa [Nat.mul_comm] using hp9,
+    by
+      convert lt_u64_of_lt_u61 hf4 using 1
+      rw [Radix51.AssemblyTrace.folded_grouped_eq_fold_degrees]
+      simp [Radix51.foldDegrees]
+      ring⟩
+
+set_option maxRecDepth 16384 in
+set_option maxHeartbeats 2000000 in
+theorem normalize_arithmetic_phase_machine_safe
+    (environment : NatShadowEnvironment)
+    (hx : Radix51.AssemblyTrace.LimbsU52 environment.x)
+    (hy : Radix51.AssemblyTrace.LimbsU52 environment.y) :
+    natArithmeticProgramSafe environment
+      GeneratedR51InstructionTrace.normalizeArithmeticPhase
+      (normalizeBroadcastNatShadowState environment) := by
+  simp [natArithmeticProgramSafe,
+    GeneratedR51InstructionTrace.normalizeArithmeticPhase,
+    GeneratedR51InstructionTrace.normalizePhase, executeNatShadow,
+    isArithmeticInstruction, natInstructionSafe,
+    normalizeBroadcastNatShadowState, normalizeBroadcastNatZmm,
+    foldedNatZmm, writeNatZmm, setNatZmm, and_mask51_eq_mod]
+  obtain ⟨_, ho0, ho1, ho2, ho3, ho4⟩ :=
+    Radix51.AssemblyTrace.radix51_mul_assembly_trace_correct
+      environment.x environment.y hx hy
+  obtain ⟨_, _, _, _, hf4⟩ :=
+    Radix51.AssemblyTrace.folded_grouped_u61
+      environment.x environment.y hx hy
+  have ho0' :
+      (Radix51.GeneratedR51MulTrace.assemblyOutput
+        environment.x environment.y).l0 < U52 := by
+    simpa [Radix51.U52, U52] using ho0
+  have ho1' :
+      (Radix51.GeneratedR51MulTrace.assemblyOutput
+        environment.x environment.y).l1 < U52 := by
+    simpa [Radix51.U52, U52] using ho1
+  have ho2' :
+      (Radix51.GeneratedR51MulTrace.assemblyOutput
+        environment.x environment.y).l2 < U52 := by
+    simpa [Radix51.U52, U52] using ho2
+  have ho3' :
+      (Radix51.GeneratedR51MulTrace.assemblyOutput
+        environment.x environment.y).l3 < U52 := by
+    simpa [Radix51.U52, U52] using ho3
+  have ho4' :
+      (Radix51.GeneratedR51MulTrace.assemblyOutput
+        environment.x environment.y).l4 < U52 := by
+    simpa [Radix51.U52, U52] using ho4
+  have hcarry :
+      Radix51.GeneratedR51MulTrace.traceCarry
+        (Radix51.GeneratedR51MulTrace.foldedGrouped
+          environment.x environment.y).l4 < U52 := by
+    have hc := Radix51.carry_lt_1024_of_u61 hf4
+    norm_num [Radix51.GeneratedR51MulTrace.traceCarry,
+      Radix51.carry, Radix51.B, U52] at hc ⊢
+    omega
+  exact ⟨by
+      simpa [Radix51.GeneratedR51MulTrace.assemblyOutput,
+        Radix51.GeneratedR51MulTrace.traceRemainder,
+        Radix51.GeneratedR51MulTrace.traceCarry,
+        Radix51.GeneratedR51MulTrace.foldConstant] using
+          lt_u64_of_lt_u52 ho1',
+    by
+      simpa [Radix51.GeneratedR51MulTrace.assemblyOutput,
+        Radix51.GeneratedR51MulTrace.traceRemainder,
+        Radix51.GeneratedR51MulTrace.traceCarry,
+        Radix51.GeneratedR51MulTrace.foldConstant] using
+          lt_u64_of_lt_u52 ho2',
+    by
+      simpa [Radix51.GeneratedR51MulTrace.assemblyOutput,
+        Radix51.GeneratedR51MulTrace.traceRemainder,
+        Radix51.GeneratedR51MulTrace.traceCarry,
+        Radix51.GeneratedR51MulTrace.foldConstant] using
+          lt_u64_of_lt_u52 ho3',
+    by
+      simpa [Radix51.GeneratedR51MulTrace.assemblyOutput,
+        Radix51.GeneratedR51MulTrace.traceRemainder,
+        Radix51.GeneratedR51MulTrace.traceCarry,
+        Radix51.GeneratedR51MulTrace.foldConstant] using
+          lt_u64_of_lt_u52 ho4',
+    by norm_num [U52],
+    hcarry,
+    by
+      simpa [Radix51.GeneratedR51MulTrace.assemblyOutput,
+        Radix51.GeneratedR51MulTrace.traceRemainder,
+        Radix51.GeneratedR51MulTrace.traceCarry,
+        Radix51.GeneratedR51MulTrace.foldConstant] using
+          lt_u64_of_lt_u52 ho0'⟩
+
+theorem run_fold_broadcast_phase_refines {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other)
+    (hconstants : R51ConstantMemory machine)
+    (hagrees : laneAgrees lane machine
+      (combinedNatShadowState environment)) :
+    ∃ machineNext,
+      runMachinePhase GeneratedR51InstructionTrace.foldBroadcastPhase machine =
+        .ok machineNext ∧
+      laneAgrees lane machineNext
+        (foldBroadcastNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
+  have hvalue :
+      (loadQwordLE machine.mem
+        (BitVec.ofNat 64 R51Object.ifma_fold19Address)).toNat = 19 := by
+    rw [hconstants.foldValue]
+    norm_num
+  have hconstant :
+      shadowConstant R51Object.ifma_fold19Address = some 19 := by
+    norm_num [shadowConstant, R51Object.ifma_fold19Address,
+      R51Object.ifma_mask51Address]
+  rcases refine_vpbroadcastq environment lane machine
+      (combinedNatShadowState environment) ⟨30, by decide⟩
+      R51Object.ifma_fold19Address 19
+      (by norm_num [R51Object.ifma_fold19Address])
+      hconstants.foldReadable hvalue hconstant hagrees with
+    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext, hmem⟩
+  have hshadowExpected :
+      executeNatShadow environment
+        (.vpbroadcastq ⟨30, by decide⟩ R51Object.ifma_fold19Address)
+        (combinedNatShadowState environment) =
+          some (.next (foldBroadcastNatShadowState environment)) := by
+    simp [executeNatShadow, hconstant]
+    exact fold_broadcast_state_eq environment
+  rw [hshadowExpected] at hshadow
+  cases hshadow
+  refine ⟨machineNext, ?_, hagreesNext, hmem⟩
+  have hmachine' :
+      executeInstruction
+        (.vpbroadcastq (30 : ZReg) R51Object.ifma_fold19Address) machine =
+          .ok (.next machineNext) := by
+    simpa using hmachine
+  simp [GeneratedR51InstructionTrace.foldBroadcastPhase,
+    GeneratedR51InstructionTrace.foldPhase, runMachinePhase, hmachine']
+
+theorem run_fold_phase_refines {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other)
+    (hx : Radix51.AssemblyTrace.LimbsU52 environment.x)
+    (hy : Radix51.AssemblyTrace.LimbsU52 environment.y)
+    (hconstants : R51ConstantMemory machine)
+    (hagrees : laneAgrees lane machine
+      (combinedNatShadowState environment)) :
+    ∃ machineNext,
+      runMachinePhase GeneratedR51InstructionTrace.foldPhase machine =
+        .ok machineNext ∧
+      laneAgrees lane machineNext (foldedNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
+  rcases run_fold_broadcast_phase_refines environment lane machine
+      hconstants hagrees with
+    ⟨machineMiddle, hmachineFirst, hagreesMiddle, hmemFirst⟩
+  rcases runArithmeticPhase_refines environment lane
+      GeneratedR51InstructionTrace.foldArithmeticPhase machineMiddle
+      (foldBroadcastNatShadowState environment)
+      (fold_arithmetic_phase_machine_safe environment hx hy)
+      hagreesMiddle with
+    ⟨machineNext, shadowNext, hmachineRest, hshadowRest, hagreesNext,
+      hmemRest⟩
+  rw [fold_arithmetic_phase_correct environment] at hshadowRest
+  cases hshadowRest
+  refine ⟨machineNext, ?_, hagreesNext, hmemRest.trans hmemFirst⟩
+  rw [GeneratedR51InstructionTrace.constant_phase_splits.1,
+    runMachinePhase_append, hmachineFirst]
+  exact hmachineRest
+
+theorem run_normalize_broadcast_phase_refines {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other)
+    (hconstants : R51ConstantMemory machine)
+    (hagrees : laneAgrees lane machine
+      (foldedNatShadowState environment)) :
+    ∃ machineNext,
+      runMachinePhase
+        GeneratedR51InstructionTrace.normalizeBroadcastPhase machine =
+        .ok machineNext ∧
+      laneAgrees lane machineNext
+        (normalizeBroadcastNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
+  have hvalue :
+      (loadQwordLE machine.mem
+        (BitVec.ofNat 64 R51Object.ifma_mask51Address)).toNat =
+          2 ^ 51 - 1 := by
+    rw [hconstants.maskValue]
+    norm_num
+  have hconstant :
+      shadowConstant R51Object.ifma_mask51Address = some (2 ^ 51 - 1) := by
+    norm_num [shadowConstant, R51Object.ifma_fold19Address,
+      R51Object.ifma_mask51Address]
+  rcases refine_vpbroadcastq environment lane machine
+      (foldedNatShadowState environment) ⟨5, by decide⟩
+      R51Object.ifma_mask51Address (2 ^ 51 - 1)
+      (by norm_num [R51Object.ifma_mask51Address])
+      hconstants.maskReadable hvalue hconstant hagrees with
+    ⟨machineNext, shadowNext, hmachine, hshadow, hagreesNext, hmem⟩
+  have hshadowExpected :
+      executeNatShadow environment
+        (.vpbroadcastq ⟨5, by decide⟩ R51Object.ifma_mask51Address)
+        (foldedNatShadowState environment) =
+          some (.next (normalizeBroadcastNatShadowState environment)) := by
+    simp [executeNatShadow, hconstant]
+    exact normalize_broadcast_state_eq environment
+  rw [hshadowExpected] at hshadow
+  cases hshadow
+  refine ⟨machineNext, ?_, hagreesNext, hmem⟩
+  have hmachine' :
+      executeInstruction
+        (.vpbroadcastq (5 : ZReg) R51Object.ifma_mask51Address) machine =
+          .ok (.next machineNext) := by
+    simpa using hmachine
+  simp [GeneratedR51InstructionTrace.normalizeBroadcastPhase,
+    GeneratedR51InstructionTrace.normalizePhase, runMachinePhase, hmachine']
+
+theorem run_normalize_phase_refines {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other)
+    (hx : Radix51.AssemblyTrace.LimbsU52 environment.x)
+    (hy : Radix51.AssemblyTrace.LimbsU52 environment.y)
+    (hconstants : R51ConstantMemory machine)
+    (hagrees : laneAgrees lane machine
+      (foldedNatShadowState environment)) :
+    ∃ machineNext,
+      runMachinePhase GeneratedR51InstructionTrace.normalizePhase machine =
+        .ok machineNext ∧
+      laneAgrees lane machineNext
+        (normalizedNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
+  rcases run_normalize_broadcast_phase_refines environment lane machine
+      hconstants hagrees with
+    ⟨machineMiddle, hmachineFirst, hagreesMiddle, hmemFirst⟩
+  rcases runArithmeticPhase_refines environment lane
+      GeneratedR51InstructionTrace.normalizeArithmeticPhase machineMiddle
+      (normalizeBroadcastNatShadowState environment)
+      (normalize_arithmetic_phase_machine_safe environment hx hy)
+      hagreesMiddle with
+    ⟨machineNext, shadowNext, hmachineRest, hshadowRest, hagreesNext,
+      hmemRest⟩
+  rw [normalize_arithmetic_phase_correct environment] at hshadowRest
+  cases hshadowRest
+  refine ⟨machineNext, ?_, hagreesNext, hmemRest.trans hmemFirst⟩
+  rw [GeneratedR51InstructionTrace.constant_phase_splits.2.1,
+    runMachinePhase_append, hmachineFirst]
+  exact hmachineRest
+
+/--
+The 94 decoded arithmetic instructions, from the first IFMA product through
+the final carry fold, refine the independently generated radix-51 output in a
+selected lane. The theorem is fault-aware, proves every IFMA source and u64
+accumulator premise, reads the linked constants through memory, and records
+that this register-only core leaves memory unchanged.
+-/
+theorem run_arithmetic_core_refines {Other : Type}
+    (environment : NatShadowEnvironment) (lane : Fin 8)
+    (machine : MachineState Other)
+    (hx : Radix51.AssemblyTrace.LimbsU52 environment.x)
+    (hy : Radix51.AssemblyTrace.LimbsU52 environment.y)
+    (hconstants : R51ConstantMemory machine)
+    (hagrees : laneAgrees lane machine
+      (preparedNatShadowState environment)) :
+    ∃ machineNext,
+      runMachinePhase GeneratedR51InstructionTrace.arithmeticCorePhase machine =
+        .ok machineNext ∧
+      laneAgrees lane machineNext
+        (normalizedNatShadowState environment) ∧
+      machineNext.mem = machine.mem := by
+  rcases run_product_phase_refines environment lane machine hx hy hagrees with
+    ⟨machineProduct, hproduct, hagreesProduct, hmemProduct⟩
+  rcases run_combine_phase_refines environment lane machineProduct hx hy
+      hagreesProduct with
+    ⟨machineCombined, hcombine, hagreesCombined, hmemCombined⟩
+  have hconstantsCombined : R51ConstantMemory machineCombined := by
+    constructor
+    · simpa [hmemCombined, hmemProduct] using hconstants.foldReadable
+    · simpa [hmemCombined, hmemProduct] using hconstants.foldValue
+    · simpa [hmemCombined, hmemProduct] using hconstants.maskReadable
+    · simpa [hmemCombined, hmemProduct] using hconstants.maskValue
+  rcases run_fold_phase_refines environment lane machineCombined hx hy
+      hconstantsCombined hagreesCombined with
+    ⟨machineFolded, hfold, hagreesFolded, hmemFolded⟩
+  have hconstantsFolded : R51ConstantMemory machineFolded := by
+    constructor
+    · simpa [hmemFolded] using hconstantsCombined.foldReadable
+    · simpa [hmemFolded] using hconstantsCombined.foldValue
+    · simpa [hmemFolded] using hconstantsCombined.maskReadable
+    · simpa [hmemFolded] using hconstantsCombined.maskValue
+  rcases run_normalize_phase_refines environment lane machineFolded hx hy
+      hconstantsFolded hagreesFolded with
+    ⟨machineNext, hnormalize, hagreesNext, hmemNormalize⟩
+  refine ⟨machineNext, ?_, hagreesNext,
+    hmemNormalize.trans
+      (hmemFolded.trans (hmemCombined.trans hmemProduct))⟩
+  rw [GeneratedR51InstructionTrace.arithmeticCorePhase]
+  calc
+    runMachinePhase
+        (GeneratedR51InstructionTrace.productPhase ++
+          (GeneratedR51InstructionTrace.combinePhase ++
+            (GeneratedR51InstructionTrace.foldPhase ++
+              GeneratedR51InstructionTrace.normalizePhase))) machine =
+        runMachinePhase
+          (GeneratedR51InstructionTrace.combinePhase ++
+            (GeneratedR51InstructionTrace.foldPhase ++
+              GeneratedR51InstructionTrace.normalizePhase)) machineProduct := by
+            rw [runMachinePhase_append, hproduct]
+            rfl
+    _ = runMachinePhase
+          (GeneratedR51InstructionTrace.foldPhase ++
+            GeneratedR51InstructionTrace.normalizePhase) machineCombined := by
+            rw [runMachinePhase_append, hcombine]
+            rfl
+    _ = runMachinePhase GeneratedR51InstructionTrace.normalizePhase
+          machineFolded := by
+            rw [runMachinePhase_append, hfold]
+            rfl
+    _ = .ok machineNext := hnormalize
 
 end NaryaFormal.X86

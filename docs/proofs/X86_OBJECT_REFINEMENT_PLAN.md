@@ -123,12 +123,18 @@ effect of `VZEROUPPER`.
    the returned stored output. `runMachinePhase_append` supplies the matching
    fault-aware machine law. The 50-instruction product and 17-instruction
    combine phases now have decoded per-step u52/no-wrap certificates and
-   checked lane refinements into their exact Nat phase states. The remaining
-   arithmetic work is the constant-backed fold and normalize phases.
+   checked lane refinements into their exact Nat phase states. The fold and
+   normalize phases now also have checked per-step certificates. Their two
+   broadcasts read through an explicit `R51ConstantMemory` contract rather
+   than replacing linked memory with axiomatic constants. The capstone
+   `run_arithmetic_core_refines` covers all 94 decoded instructions from the
+   first IFMA product through the normalized output, for an arbitrary selected
+   lane, and proves the register-only core preserves memory.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
-6. Add the complete ABI, memory-frame, lane-noninterference, and alias
+6. Add the complete input-load/output-store, ABI, memory-frame,
+   lane-noninterference, and alias
    corollaries. The byte-store frame lemma and the decoded all-loads-before-
    stores/store-map/epilogue properties are implemented prerequisites. Exact
    qword little-endian store/load round-trip and disjoint-qword frame lemmas are

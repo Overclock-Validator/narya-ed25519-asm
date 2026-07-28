@@ -83,9 +83,11 @@ a deterministic linked ELF, decodes the exact 800-byte multiplier symbol with
 a fail-closed restricted x86-64 decoder, and proves that the result is the
 independently source-generated 129-instruction trace. The exact decoded program
 also executes in the unbounded-natural shadow semantics to the independently
-generated radix-51 result. BitVec no-wrap composition, the complete System V
-memory/alias theorem, downstream deployment identity, and correspondence to
-physical CPU behavior remain explicit open boundaries.
+generated radix-51 result. The decoded 94-instruction arithmetic core also has
+a fault-aware BitVec-to-Nat lane-refinement theorem with explicit range and
+linked-constant memory premises. Input-load/output-store and System V
+memory/alias composition, downstream deployment identity, and correspondence
+to physical CPU behavior remain explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,
