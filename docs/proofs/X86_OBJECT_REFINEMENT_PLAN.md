@@ -1,12 +1,13 @@
 # Byte-linked x86-64 refinement plan
 
-Narya's current Lean proofs are connected fail closed to the checked assembly
-**source**. They do not yet prove that the bytes in a final linked artifact
-execute that source trace. This document fixes the smallest credible boundary
-for closing that gap without importing a general-purpose x86 formalization.
+Narya's r51 multiplier Lean proof is now connected fail closed from checked
+assembly **source** through exact canonical linked bytes to a restricted
+load-to-return System V execution theorem. This document records the boundary
+that closed that gap without importing a general-purpose x86 formalization,
+plus the trust that deliberately remains outside it.
 
 The target is a restricted, byte-linked x86-64 semantics specialized to the
-straight-line System V leaf `narya_r51x8_mul_ifma`. The proof must consume the
+straight-line System V leaf `narya_r51x8_mul_ifma`. The proof consumes the
 final linked symbol and its resolved read-only constants, not a handwritten
 instruction transcript and not merely a digest.
 

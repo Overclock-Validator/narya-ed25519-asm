@@ -20,10 +20,11 @@ semantics, non-underflow/no-wrap, and composable-u52 outputs.
 
 The source/model connection is described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). This is
-still not a complete binary proof. A bit-vector or ISA refinement must connect
-the emitted x86 object to the checked source trace and finish the assembler,
-SysV, and runtime-dispatch boundary.
-The restricted byte-linked design for that work is fixed in
+now a complete restricted binary/System V leaf proof for the multiplier's
+canonical linked proof artifact. Runtime dispatch, downstream deployment-byte
+identity, physical CPU behavior, and the separately source-linked linear
+leaves remain outside that capstone. The restricted byte-linked design and
+trust boundary are recorded in
 [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
 ## Representation

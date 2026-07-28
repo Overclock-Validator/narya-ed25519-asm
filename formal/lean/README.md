@@ -138,8 +138,9 @@ register assumed initialized, it kernel-checks that the load/clear/arithmetic/
 store body consumes only defined values and leaves all five output registers
 defined. In particular, scratch ZMM28 and ZMM30 are written before first use,
 while ZMM29 and ZMM31 are never dependencies. This is a definite-assignment
-certificate, not yet the semantic noninterference theorem that will remove
-those arbitrary entry values from the load-to-core refinement.
+certificate; the separate semantic noninterference theorem in
+`X86Noninterference.lean` gives it execution-level force and removes those
+arbitrary entry values from the load-to-core refinement.
 
 [`X86VectorSemantics.lean`](NaryaFormal/X86VectorSemantics.lean) defines the
 exact lane-local `BitVec 64` meaning of the vector arithmetic subset used by

@@ -72,8 +72,9 @@ multiplier bytes decode to the same 129 instructions, checks the mathematical
 theorem over the source trace, and checks the restricted complete-leaf System
 V refinement. `make check-source` also
 mutation-tests the extractor and asks Clang to parse the GNU assembly for an
-x86-64 ELF target. Neither gate is an external audit or a complete
-instruction-execution proof.
+x86-64 ELF target. Neither gate is an external audit. `make check-source` alone
+is not an instruction-execution proof; `make formal-check` includes the
+restricted complete-leaf theorem described below.
 
 Native tests additionally compare the exact redundant output limbs against an
 independent `__uint128_t` oracle, exercise all eight lanes independently, test

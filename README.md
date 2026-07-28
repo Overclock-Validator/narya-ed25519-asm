@@ -124,8 +124,8 @@ The checked Lean source is under [`formal/lean`](formal/lean/README.md). The
 [source-refinement certificate](docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md)
 explains how multiply assembly edits reach the theorem; the same fail-closed
 source link and modular/range proofs now cover add, subtract, and negate. The
-remaining [x86 execution/ABI boundary](docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md)
-is specified separately; its final-byte decoding milestone is complete. The
+[x86 execution/ABI evidence and remaining trust boundary](docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md)
+are specified separately. The
 signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
