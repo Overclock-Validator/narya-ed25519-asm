@@ -69,7 +69,9 @@ The assembly is intentionally heavily commented. Each leaf records:
 
 The field proof obligations are collected in
 [`docs/proofs/R51_FIELD_CONTRACT.md`](docs/proofs/R51_FIELD_CONTRACT.md), and
-the checked Lean source is under [`formal/lean`](formal/lean/README.md). The
+the concise external evidence map is
+[`docs/proofs/FIELD_ARITHMETIC_HANDOFF.md`](docs/proofs/FIELD_ARITHMETIC_HANDOFF.md).
+The checked Lean source is under [`formal/lean`](formal/lean/README.md). The
 current theorem discharges the assembly-grouping/range hypothesis; the
 remaining boundary is x86/ABI refinement. The signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
