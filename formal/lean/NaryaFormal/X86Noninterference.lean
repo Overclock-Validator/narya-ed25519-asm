@@ -206,6 +206,113 @@ theorem arithmetic_core_instructions_admitted :
       true := by
   native_decide
 
+theorem execBroadcast_gpr_preserved {Other : Type}
+    (state next : MachineState Other) (destination : ZReg)
+    (absoluteAddress : Nat)
+    (hrun : execBroadcast state destination absoluteAddress = .ok next) :
+    next.gpr = state.gpr := by
+  by_cases haddress : absoluteAddress < 2 ^ 64
+  · by_cases hread : readableBytes state.mem
+        (BitVec.ofNat 64 absoluteAddress) 8 = true
+    · simp [execBroadcast, haddress, hread] at hrun
+      norm_num at haddress
+      simp [haddress] at hrun
+      cases hrun
+      rfl
+    · have hreadFalse : readableBytes state.mem
+          (BitVec.ofNat 64 absoluteAddress) 8 = false :=
+        Bool.eq_false_of_not_eq_true hread
+      norm_num at haddress
+      simp [execBroadcast, haddress, hreadFalse] at hrun
+  · norm_num at haddress
+    have hnot : ¬absoluteAddress < 18446744073709551616 := by omega
+    simp [execBroadcast, hnot] at hrun
+
+theorem executeCoreInstruction_gpr_preserved {Other : Type}
+    (instruction : Instruction) (state next : MachineState Other)
+    (hcore : isCoreInstruction instruction = true)
+    (hrun : executeInstruction instruction state = .ok (.next next)) :
+    next.gpr = state.gpr := by
+  cases instruction with
+  | vmovdqu64Load destination base displacement =>
+      simp [isCoreInstruction] at hcore
+  | vmovdqu64Store base displacement source =>
+      simp [isCoreInstruction] at hcore
+  | vpxorq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpmadd52luq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpmadd52huq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpaddq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpmullq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpandq destination source1 source2 =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpsllq destination source amount =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpsrlq destination source amount =>
+      simp [executeInstruction] at hrun
+      subst next
+      rfl
+  | vpbroadcastq destination absoluteAddress =>
+      change (execBroadcast state destination absoluteAddress).map Outcome.next =
+        .ok (.next next) at hrun
+      cases hstep : execBroadcast state destination absoluteAddress with
+      | error fault =>
+          rw [hstep] at hrun
+          change Except.error fault = Except.ok (Outcome.next next) at hrun
+          contradiction
+      | ok broadcastNext =>
+          rw [hstep] at hrun
+          change Except.ok (Outcome.next broadcastNext) =
+            Except.ok (Outcome.next next) at hrun
+          have hgpr := execBroadcast_gpr_preserved state broadcastNext
+            destination absoluteAddress hstep
+          cases hrun
+          exact hgpr
+  | vzeroUpper => simp [isCoreInstruction] at hcore
+  | ret => simp [isCoreInstruction] at hcore
+
+theorem runCorePhase_gpr_preserved {Other : Type}
+    (instructions : List Instruction) (state next : MachineState Other)
+    (hcore : instructions.all isCoreInstruction = true)
+    (hrun : runMachinePhase instructions state = .ok next) :
+    next.gpr = state.gpr := by
+  induction instructions generalizing state next with
+  | nil =>
+      simp only [runMachinePhase, Except.ok.injEq] at hrun
+      subst next
+      rfl
+  | cons instruction rest ih =>
+      simp only [List.all_cons, Bool.and_eq_true] at hcore
+      simp only [runMachinePhase] at hrun
+      cases hstep : executeInstruction instruction state with
+      | error fault => simp [hstep] at hrun
+      | ok outcome =>
+          cases outcome with
+          | returned returnedState => simp [hstep] at hrun
+          | next middle =>
+              simp [hstep] at hrun
+              exact (ih middle next hcore.2 hrun).trans
+                (executeCoreInstruction_gpr_preserved instruction state middle
+                  hcore.1 hstep)
+
 /--
 Lift single-step noninterference over a decoded core phase. The successful
 reference execution supplies all memory-read premises for broadcasts; static

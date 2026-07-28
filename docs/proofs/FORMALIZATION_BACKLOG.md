@@ -41,9 +41,10 @@ broadcasts are tied to an explicit read-only-memory contract. Semantic scratch
 independence is also closed: a relational machine theorem proves arbitrary
 entry values in ZMM28--31 cannot affect the five outputs. Input-memory
 preparation is now closed separately across the exact ten loads and eighteen
-clears, with explicit row permissions and selected-lane values. Finish the
-native item by proving whole-program frame composition, return, and the System
-V postcondition. The
+clears, with explicit row permissions and selected-lane values. The
+non-returning decoded body is now composed without a
+source/output disjointness premise and preserves the exact five-row byte frame;
+the remaining native step is the explicit `VZEROUPPER; RET`/stack contract. The
 five-store suffix's permissions, row isolation, selected-lane content, and
 exact byte frame are now closed in `X86MemoryRefinement.lean`. A prior
 monolithic 129-step

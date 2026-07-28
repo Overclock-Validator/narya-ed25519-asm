@@ -48,9 +48,11 @@ theorem also proves that arbitrary caller values in ZMM28--31 cannot affect any
 of the five arithmetic outputs: ZMM28 and ZMM30 are overwritten before use,
 while ZMM29 and ZMM31 are never dependencies. Input loads and accumulator clears
 now separately refine explicit readable source rows into the partial register
-relation required by that theorem. Whole-program frame
-composition, System V return/postconditions, downstream deployment identity,
-and dispatch refinement remain separate open obligations.
+relation required by that theorem. The complete non-returning decoded body now
+composes preparation, arithmetic, and stores without a source/output
+disjointness premise, and retains the exact output byte frame. The
+`VZEROUPPER; RET`/System V postcondition, downstream deployment identity, and
+dispatch refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

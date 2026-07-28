@@ -148,12 +148,12 @@ effect of `VZEROUPPER`.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
-6. Compose the completed input-load and output-store results into the complete
-   ABI, memory-frame, and alias corollaries. The byte-store frame lemma and the
-   decoded all-loads-before-
-   stores/store-map/epilogue properties are implemented prerequisites. Exact
-   qword little-endian store/load round-trip and disjoint-qword frame lemmas are
-   also implemented; compose them into the full ZMM/output postcondition.
+6. **Partially implemented:** `X86BodyRefinement.lean` composes the input-load,
+   clear, arithmetic, and output-store phases. It proves the selected-lane
+   mathematical output, GPR/permission preservation, and exact byte frame with
+   no source/output disjointness premise. Add the `VZEROUPPER; RET`, stack-return
+   non-overlap/readability, and final System V postcondition. The decoded
+   epilogue shape is already source- and byte-linked.
 7. Regenerate and rebuild the Lean artifact in CI whenever the final binary
    changes.
 

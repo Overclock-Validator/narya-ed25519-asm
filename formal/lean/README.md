@@ -103,8 +103,10 @@ noninterference now proves arbitrary caller values in ZMM28--31 cannot affect
 the five arithmetic results. `X86InputRefinement.lean` additionally proves that
 the exact ten-load/eighteen-clear prefix establishes the required ZMM0--27
 relation from explicit readable input rows and arbitrary caller ZMM values. The
-remaining gap is whole-program frame composition, return/ABI refinement,
-dispatch, and downstream deployment identity. The Lean
+non-returning load/clear/arithmetic/store composition, including source/output
+aliasing and its exact write frame, is closed by `X86BodyRefinement.lean`. The
+remaining gap is `VZEROUPPER; RET`/ABI refinement, dispatch, and downstream
+deployment identity. The Lean
 result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
@@ -167,8 +169,10 @@ closes the five-store row-content and isolation theorem from the post-arithmetic
 lane relation, including its exact byte-write frame.
 [`X86InputRefinement.lean`](NaryaFormal/X86InputRefinement.lean) closes the
 fault-aware load/clear prefix and its memory/GPR preservation. Composing those
-pieces into the whole-program frame, return behavior, and System V postcondition
-remains open.
+pieces through the five stores is closed in
+[`X86BodyRefinement.lean`](NaryaFormal/X86BodyRefinement.lean), with no
+source/output disjointness premise. Return behavior and the final System V
+postcondition remain open.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires
