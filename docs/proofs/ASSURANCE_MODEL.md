@@ -43,9 +43,10 @@ contract, and the 94-instruction arithmetic core has one fault-aware lane
 refinement theorem with memory preservation. The exact five-store suffix now
 has an additional byte-memory theorem: explicit permissions, correct row and
 lane mapping, disjoint-row preservation, and exact read-back of the arithmetic
-result. Input loads, scratch-register semantic noninterference, the complete
-external-memory frame, System V return/postconditions, downstream deployment
-identity, and dispatch refinement remain separate open obligations.
+result, with no writes outside the five output rows. Input loads,
+scratch-register semantic noninterference, whole-program frame composition,
+System V return/postconditions, downstream deployment identity, and dispatch
+refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

@@ -28,6 +28,14 @@ def storedR51OutputState {Other : Type} (state : MachineState Other) :
   let s3 := vmovdqu64Store s2 (addressAdd (state.gpr .rdi) 192) 13
   vmovdqu64Store s3 (addressAdd (state.gpr .rdi) 256) 14
 
+def outputWrittenAddresses {Other : Type} (state : MachineState Other) :
+    List Addr :=
+  zmmWrittenAddresses (addressAdd (state.gpr .rdi) 0) (state.zmm 10) ++
+  zmmWrittenAddresses (addressAdd (state.gpr .rdi) 64) (state.zmm 11) ++
+  zmmWrittenAddresses (addressAdd (state.gpr .rdi) 128) (state.zmm 12) ++
+  zmmWrittenAddresses (addressAdd (state.gpr .rdi) 192) (state.zmm 13) ++
+  zmmWrittenAddresses (addressAdd (state.gpr .rdi) 256) (state.zmm 14)
+
 /-- Every written output row reads back the exact source ZMM. -/
 theorem stored_output_rows_exact {Other : Type}
     (state : MachineState Other) (limb : Fin 5) :
@@ -46,6 +54,21 @@ theorem stored_output_permissions_preserved {Other : Type}
     (storedR51OutputState state).mem.perm = state.mem.perm := by
   simp only [storedR51OutputState, vmovdqu64Store]
   repeat' rw [storeZmm_permissions]
+
+/-- No byte outside the five exact 64-byte output rows is modified. -/
+theorem stored_output_frame {Other : Type} (state : MachineState Other)
+    (candidate : Addr)
+    (hnot : candidate ∉ outputWrittenAddresses state) :
+    (storedR51OutputState state).mem.byte candidate =
+      state.mem.byte candidate := by
+  simp only [outputWrittenAddresses, List.mem_append, not_or] at hnot
+  rcases hnot with ⟨⟨⟨⟨h0, h1⟩, h2⟩, h3⟩, h4⟩
+  simp only [storedR51OutputState, vmovdqu64Store]
+  rw [storeZmm_frame _ _ _ _ h4]
+  rw [storeZmm_frame _ _ _ _ h3]
+  rw [storeZmm_frame _ _ _ _ h2]
+  rw [storeZmm_frame _ _ _ _ h1]
+  rw [storeZmm_frame _ _ _ _ h0]
 
 theorem stored_output_registers_preserved {Other : Type}
     (state : MachineState Other) :
@@ -137,11 +160,14 @@ theorem run_store_phase_refines {Other : Type}
         (loadZmm next.mem (outputRowAddress state limb) lane).toNat =
           (storedNatShadowState environment).output limb) ∧
       next.mem.perm = state.mem.perm ∧
-      next.gpr = state.gpr ∧ next.zmm = state.zmm := by
+      next.gpr = state.gpr ∧ next.zmm = state.zmm ∧
+      (∀ candidate, candidate ∉ outputWrittenAddresses state →
+        next.mem.byte candidate = state.mem.byte candidate) := by
   refine ⟨storedR51OutputState state, run_store_phase state hwrite, ?_,
     stored_output_permissions_preserved state,
     (stored_output_registers_preserved state).1,
-    (stored_output_registers_preserved state).2.1⟩
+    (stored_output_registers_preserved state).2.1,
+    stored_output_frame state⟩
   intro limb
   rw [stored_output_rows_exact state limb]
   rw [hagrees (outputRegister limb)]

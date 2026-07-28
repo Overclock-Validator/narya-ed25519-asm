@@ -58,11 +58,12 @@ generated arithmetic trace. The decoded 94-instruction arithmetic core also
 executes in the fault-aware BitVec machine and refines, under explicit u52,
 no-wrap, and linked-constant memory premises, to that Nat trace in an arbitrary
 lane. The decoded five-store suffix separately proves permission-sensitive
-execution, exact row/lane read-back, and disjoint-row preservation from that
-post-arithmetic relation. Input-load composition, scratch-register semantic
-noninterference, the complete external frame and System V return/postcondition,
-and identity with bytes in a downstream deployment remain open; this is not a
-general x86 decoder or a proof about an arbitrary consumer binary.
+execution, exact row/lane read-back, disjoint-row preservation, and the exact
+five-row byte-write frame from that post-arithmetic relation. Input-load
+composition, scratch-register semantic noninterference, whole-program frame
+composition, the System V return/postcondition, and identity with bytes in a
+downstream deployment remain open; this is not a general x86 decoder or a
+proof about an arbitrary consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

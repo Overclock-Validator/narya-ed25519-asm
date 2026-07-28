@@ -98,9 +98,10 @@ arbitrary selected lane, to the independently generated radix-51 result. The
 output-store suffix is now separately refined: all five decoded stores require
 explicit writable permissions, preserve registers and permissions, do not
 cross-contaminate rows, and write the selected lane's proved limbs to the
-correct SysV output rows. The remaining gap is input-load composition,
-scratch-register semantic noninterference, the complete external-memory frame,
-return/ABI refinement, dispatch, and downstream deployment identity. The Lean
+correct SysV output rows without modifying bytes outside them. The remaining
+gap is input-load composition, scratch-register semantic noninterference,
+whole-program frame composition, return/ABI refinement, dispatch, and
+downstream deployment identity. The Lean
 result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
@@ -157,8 +158,9 @@ program also kernel-checks that all ten source loads precede every output
 store, that the five store offsets/registers are exact, and that the epilogue
 is `VZEROUPPER; RET`. [`X86MemoryRefinement.lean`](NaryaFormal/X86MemoryRefinement.lean)
 closes the five-store row-content and isolation theorem from the post-arithmetic
-lane relation. Composing input loads, semantic scratch independence, the full
-external frame, return behavior, and the System V postcondition remains open.
+lane relation, including its exact byte-write frame. Composing input loads,
+semantic scratch independence, the whole-program frame, return behavior, and
+the System V postcondition remains open.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires
