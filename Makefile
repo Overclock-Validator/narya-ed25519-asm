@@ -1,12 +1,15 @@
 CC ?= cc
 CLANG ?= clang
 AR ?= ar
+LD ?= ld
 LAKE ?= lake
 CFLAGS ?= -O3 -g -std=c11 -Wall -Wextra -Wpedantic
 CPPFLAGS ?= -Iinclude -Isrc
 
 BUILD := build
 LIB := $(BUILD)/libnarya_ed25519_asm.a
+PROOF_BUILD := $(BUILD)/proof
+R51_PROOF_ELF := $(PROOF_BUILD)/r51x8_ifma.so
 OBJECTS := \
 	$(BUILD)/dispatch.o \
 	$(BUILD)/decode_x8.o \
@@ -26,12 +29,21 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated formal-check
 
 all: $(LIB)
 
 $(BUILD):
 	mkdir -p $(BUILD)
+
+$(PROOF_BUILD):
+	mkdir -p $(PROOF_BUILD)
+
+$(PROOF_BUILD)/r51x8_ifma.o: src/r51x8_ifma.S | $(PROOF_BUILD)
+	$(CLANG) --target=x86_64-unknown-linux-gnu -fPIC -c $< -o $@
+
+$(R51_PROOF_ELF): $(PROOF_BUILD)/r51x8_ifma.o
+	$(LD) -shared --build-id=none -z noexecstack $< -o $@
 
 $(BUILD)/dispatch.o: src/dispatch.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -185,6 +197,12 @@ check-r51-linear-trace:
 
 test-r51-linear-trace-mutations:
 	python3 tools/test_r51_linear_trace_mutations.py
+
+# Linux-only: creates a deterministic final link for byte-level proof input.
+# The shipped static archive has no repository-controlled deployment link, so
+# this artifact is a canonical proof fixture rather than a deployment claim.
+check-r51-object-bytes: $(R51_PROOF_ELF)
+	python3 tools/generate_r51_object_bytes.py --elf $(R51_PROOF_ELF) --check
 
 check-transpose:
 	python3 tools/check_transpose_schedule.py

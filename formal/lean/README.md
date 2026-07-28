@@ -88,6 +88,13 @@ object implements the checked source trace, plus complete SysV ABI and dispatch
 theorems. The Lean result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
+Its first artifact layer is now present:
+[`GeneratedR51ObjectBytes.lean`](NaryaFormal/GeneratedR51ObjectBytes.lean)
+contains the exact 800-byte multiplier symbol and resolved read-only constants
+from a deterministic linked ELF, while
+[`ObjectBytes.lean`](NaryaFormal/ObjectBytes.lean) kernel-checks their extents,
+byte ranges, and constant values. No instruction decoding or execution claim
+is made by that artifact alone.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

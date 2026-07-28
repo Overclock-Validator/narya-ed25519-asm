@@ -10,6 +10,14 @@ straight-line System V leaf `narya_r51x8_mul_ifma`. The proof must consume the
 final linked symbol and its resolved read-only constants, not a handwritten
 instruction transcript and not merely a digest.
 
+This repository ships a static archive, so it does not control the eventual
+consumer link. `make check-r51-object-bytes` therefore creates a deterministic,
+build-ID-free linked ELF as a **canonical proof artifact**. Its exact symbol
+and constant bytes are committed in `GeneratedR51ObjectBytes.lean` and rebuilt
+in Linux CI. A later consumer/deployment gate must separately establish that
+the bytes actually loaded by a downstream binary are the proved bytes (or are
+an address-relocated instance covered by an extended theorem).
+
 ## Architecture
 
 One mechanically decoded instruction list feeds two interpreters:
@@ -92,8 +100,9 @@ effect of `VZEROUPPER`.
 
 ## Required milestones
 
-1. Extract the final linked symbol bytes, symbol size, resolved constant
-   bytes, and build ID into a generated Lean artifact.
+1. **Implemented:** extract the canonical final-linked symbol bytes, symbol
+   size, and resolved constant bytes into a generated Lean artifact, and
+   reproduce them in Linux CI. The Python ELF extractor remains trusted.
 2. Prove by kernel reduction that the restricted decoder yields the checked
    instruction list.
 3. Prove generic bitvector-to-natural refinement lemmas for IFMA, add, shift,

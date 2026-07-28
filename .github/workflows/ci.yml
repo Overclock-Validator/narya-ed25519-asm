@@ -27,6 +27,9 @@ jobs:
         run: make check-generated
       - name: Parse all AMD64 assembly leaves
         run: make check-source
+      - name: Check canonical linked multiplier bytes
+        if: matrix.compiler == 'clang'
+        run: make CLANG=clang LD=ld check-r51-object-bytes
       - name: Build with warnings as errors
         run: >-
           make CC=${{ matrix.compiler }}
@@ -50,4 +53,3 @@ jobs:
         uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
         with:
           lake-package-directory: formal/lean
-
