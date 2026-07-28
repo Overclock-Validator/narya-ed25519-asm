@@ -20,6 +20,8 @@
  *   One arithmetic coordinate is five 64-byte limb vectors. Lanes 0..3 come
  *   from the first four sources and lanes 4..7 from the second four. The
  *   transpose writes Y+X at offset 0, Y-X at 320, Z at 640, and 2dT at 960.
+ *   In closed form, coordinate q, limb j, lane i is written at byte
+ *   320*q + 64*j + 8*i and equals source[i]->limb[j][q].
  *
  * NONINTERFERENCE
  *   The 4x4 shuffles permute qwords only to change representation; they never

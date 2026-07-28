@@ -10,8 +10,12 @@
  *
  * INPUT
  *   Each source is exactly 120 bytes: five 24-byte rows of
- *   [Y+X,Y-X,2dT]. K1=0b0111 makes every VMOVDQU64 load exactly three qwords;
- *   in particular the row at offset 96 cannot overread the entry boundary.
+ *   [Y+X,Y-X,2dT]. K1=0b0111 activates exactly three qwords in every
+ *   VMOVDQU64. The fourth qword addressed by the row at offset 96 begins at
+ *   the entry boundary; EVEX per-element fault suppression makes that masked
+ *   element safe even if it is on an unmapped page. Zeroing only supplies the
+ *   unused fourth column to the common permutation network. No claim about
+ *   unobservable microarchitectural memory traffic is required.
  *
  * OUTPUT
  *   Three narya_r51x8 coordinates occupy offsets 0, 320 and 640. Each output
@@ -22,6 +26,11 @@
  *   Source entries and output must not overlap. The selector supplies a
  *   separate output object. All four source rows for a half are loaded before
  *   stores from that half.
+ *
+ * ISA
+ *   KMOVB and EVEX.256 masked loads require AVX-512DQ and AVX-512VL in
+ *   addition to AVX-512F. The public dispatch gate checks all three before
+ *   this internal leaf is reachable.
  *
  * Source schedule: Narya Go commit 13dc06d4a5f0ad8be62412a89de3a44de57bd504.
  * Proof boundary: docs/proofs/TRANSPOSE_LANE_MAP.md.

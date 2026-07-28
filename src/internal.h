@@ -83,6 +83,10 @@ typedef struct narya_projective_niels_micro_entry_x8 {
     uint64_t limb[5][4];
 } narya_projective_niels_micro_entry_x8;
 
+_Static_assert(
+    sizeof(narya_projective_niels_micro_entry_x8) == 160,
+    "projective transpose source ABI changed");
+
 /*
  * The cold table stores positive and negative entries explicitly. Public
  * scalar signs can therefore select an already-signed point without a second
@@ -108,16 +112,34 @@ typedef struct narya_projective_niels_x8 {
     narya_r51x8 T2d;
 } narya_projective_niels_x8;
 
+_Static_assert(sizeof(narya_r51x8) == 320, "r51x8 assembly ABI changed");
+_Static_assert(
+    offsetof(narya_projective_niels_x8, Y_minus_X) == 320 &&
+        offsetof(narya_projective_niels_x8, Z) == 640 &&
+        offsetof(narya_projective_niels_x8, T2d) == 960 &&
+        sizeof(narya_projective_niels_x8) == 1280,
+    "projective transpose destination ABI changed");
+
 /* Dense scalar affine-Niels entry and arithmetic SoA selection. */
 typedef struct narya_affine_niels_micro_entry_x8 {
     uint64_t limb[5][3];
 } narya_affine_niels_micro_entry_x8;
+
+_Static_assert(
+    sizeof(narya_affine_niels_micro_entry_x8) == 120,
+    "affine transpose source ABI changed");
 
 typedef struct narya_affine_niels_x8 {
     narya_r51x8 Y_plus_X;
     narya_r51x8 Y_minus_X;
     narya_r51x8 T2d;
 } narya_affine_niels_x8;
+
+_Static_assert(
+    offsetof(narya_affine_niels_x8, Y_minus_X) == 320 &&
+        offsetof(narya_affine_niels_x8, T2d) == 640 &&
+        sizeof(narya_affine_niels_x8) == 960,
+    "affine transpose destination ABI changed");
 
 extern const narya_affine_niels_micro_entry_x8
     narya_fixed_base_comb_r256[16][128][2];

@@ -119,15 +119,6 @@ POINTER_LANES = {
 }
 
 
-def require_subsequence(lines: list[str], expected: list[str], label: str) -> None:
-    cursor = 0
-    for line in lines:
-        if cursor < len(expected) and line == expected[cursor]:
-            cursor += 1
-    if cursor != len(expected):
-        raise AssertionError(f"{label} differs at expected line {cursor}: {expected[cursor]}")
-
-
 def parse_calls(lines: list[str]) -> list[list[str]]:
     calls: list[list[str]] = []
     for line in lines:
@@ -189,7 +180,14 @@ def certify_projective(text: str) -> None:
         raise AssertionError("projective TRANSPOSE_HALF load/store layout changed")
 
     body = function_body(text, "narya_projective_niels_transpose_x8_asm")
-    require_subsequence(body, POINTER_LOADS, "projective source-pointer map")
+    expected_body = [
+        *POINTER_LOADS,
+        *("TRANSPOSE_HALF " + ", ".join(call) for call in expected_projective_calls()),
+        "vzeroupper",
+        "ret",
+    ]
+    if body != expected_body:
+        raise AssertionError("projective function body or instruction order changed")
     calls = parse_calls(body)
     if calls != expected_projective_calls():
         raise AssertionError(f"projective limb/half schedule changed: {calls!r}")
@@ -205,7 +203,17 @@ def certify_projective(text: str) -> None:
         transposed = tuple(tuple(rows[lane][coordinate] for lane in range(4)) for coordinate in range(4))
         for coordinate in range(4):
             for local_lane, token in enumerate(transposed[coordinate]):
-                output[coordinate, limb, lane_base + local_lane] = token
+                lane = lane_base + local_lane
+                key = (coordinate, limb, lane)
+                if key in output:
+                    raise AssertionError(f"projective output cell written twice: {key}")
+                actual_byte = coordinate * 320 + 2 * int(source_offset) + int(half) + 8 * local_lane
+                expected_byte = coordinate * 320 + 64 * limb + 8 * lane
+                if actual_byte != expected_byte or actual_byte + 8 > 1280:
+                    raise AssertionError(
+                        f"projective byte address {actual_byte} != {expected_byte} for {key}"
+                    )
+                output[key] = token
 
     for coordinate in range(4):
         for limb in range(5):
@@ -217,6 +225,8 @@ def certify_projective(text: str) -> None:
                         f"projective output ({coordinate}, {limb}, {lane}) = {actual}, "
                         f"expected {expected}"
                     )
+    if len(output) != 160:
+        raise AssertionError(f"projective output coverage is {len(output)}, expected 160")
 
 
 def certify_affine(text: str) -> None:
@@ -227,7 +237,16 @@ def certify_affine(text: str) -> None:
         raise AssertionError("affine TRANSPOSE_HALF masked-load/store layout changed")
 
     body = function_body(text, "narya_affine_niels_transpose_x8_asm")
-    require_subsequence(body, ["mov eax, 7", "kmovb k1, eax", *POINTER_LOADS], "affine mask/pointer map")
+    expected_body = [
+        "mov eax, 7",
+        "kmovb k1, eax",
+        *POINTER_LOADS,
+        *("TRANSPOSE_HALF " + ", ".join(call) for call in expected_affine_calls()),
+        "vzeroupper",
+        "ret",
+    ]
+    if body != expected_body:
+        raise AssertionError("affine function body or instruction order changed")
     calls = parse_calls(body)
     if calls != expected_affine_calls():
         raise AssertionError(f"affine limb/half schedule changed: {calls!r}")
@@ -244,7 +263,22 @@ def certify_affine(text: str) -> None:
         transposed = tuple(tuple(rows[lane][coordinate] for lane in range(4)) for coordinate in range(4))
         for coordinate in range(3):
             for local_lane, token in enumerate(transposed[coordinate]):
-                output[coordinate, limb, lane_base + local_lane] = token
+                lane = lane_base + local_lane
+                key = (coordinate, limb, lane)
+                if key in output:
+                    raise AssertionError(f"affine output cell written twice: {key}")
+                actual_byte = coordinate * 320 + int(output_offset) + 8 * local_lane
+                expected_byte = coordinate * 320 + 64 * limb + 8 * lane
+                if actual_byte != expected_byte or actual_byte + 8 > 960:
+                    raise AssertionError(
+                        f"affine byte address {actual_byte} != {expected_byte} for {key}"
+                    )
+                source_byte = int(source_offset) + 8 * coordinate
+                if source_byte + 8 > 120:
+                    raise AssertionError(
+                        f"affine active-mask read exceeds entry: {source_byte}"
+                    )
+                output[key] = token
 
     for coordinate in range(3):
         for limb in range(5):
@@ -255,6 +289,8 @@ def certify_affine(text: str) -> None:
                     raise AssertionError(
                         f"affine output ({coordinate}, {limb}, {lane}) = {actual}, expected {expected}"
                     )
+    if len(output) != 120:
+        raise AssertionError(f"affine output coverage is {len(output)}, expected 120")
 
 
 def main() -> None:

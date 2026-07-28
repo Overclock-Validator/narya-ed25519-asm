@@ -1,9 +1,18 @@
 /* Copyright 2026 Overclock Validator; SPDX-License-Identifier: Apache-2.0 */
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__linux__)
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 enum { groups = 32 };
 
@@ -127,6 +136,83 @@ marshal(
     }
 }
 
+/*
+ * Put the final 120-byte affine entry immediately before a PROT_NONE page.
+ * Its last VMOVDQU64 addresses four qwords starting at byte 96, so qword 3
+ * lies in the guard page. EVEX masking must suppress that element's memory
+ * fault while qwords 0..2 still transpose exactly. A broken mask terminates
+ * this native test with SIGSEGV rather than silently weakening the check.
+ */
+static int
+check_affine_masked_tail_guard_page(void)
+{
+#if !defined(__linux__)
+    return 1;
+#else
+    const long page_size_long = sysconf(_SC_PAGESIZE);
+    if (page_size_long < 128)
+        return 0;
+    const size_t page_size = (size_t)page_size_long;
+    void *mapping[8] = {0};
+    const narya_affine_niels_micro_entry_x8 *source[8];
+    int ok = 0;
+
+    for (size_t lane = 0; lane < 8; lane++) {
+        mapping[lane] = mmap(
+            NULL,
+            2 * page_size,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS,
+            -1,
+            0);
+        if (mapping[lane] == MAP_FAILED) {
+            mapping[lane] = NULL;
+            goto cleanup;
+        }
+        uint8_t *guard = (uint8_t *)mapping[lane] + page_size;
+        narya_affine_niels_micro_entry_x8 *entry =
+            (narya_affine_niels_micro_entry_x8 *)(
+                guard - sizeof(narya_affine_niels_micro_entry_x8));
+        for (size_t limb = 0; limb < 5; limb++)
+            for (size_t coordinate = 0; coordinate < 3; coordinate++)
+                entry->limb[limb][coordinate] =
+                    (UINT64_C(0xa5) << 56) |
+                    ((uint64_t)lane << 32) |
+                    ((uint64_t)limb << 8) |
+                    (uint64_t)coordinate;
+        if (mprotect(guard, page_size, PROT_NONE) != 0)
+            goto cleanup;
+        source[lane] = entry;
+    }
+
+    narya_affine_niels_x8 output;
+    narya_affine_niels_transpose_x8_asm(&output, source);
+    const narya_r51x8 *coordinate_output[3] = {
+        &output.Y_plus_X,
+        &output.Y_minus_X,
+        &output.T2d,
+    };
+    for (size_t coordinate = 0; coordinate < 3; coordinate++)
+        for (size_t limb = 0; limb < 5; limb++)
+            for (size_t lane = 0; lane < 8; lane++) {
+                const uint64_t expected =
+                    (UINT64_C(0xa5) << 56) |
+                    ((uint64_t)lane << 32) |
+                    ((uint64_t)limb << 8) |
+                    (uint64_t)coordinate;
+                if (coordinate_output[coordinate]->limb[limb][lane] != expected)
+                    goto cleanup;
+            }
+    ok = 1;
+
+cleanup:
+    for (size_t lane = 0; lane < 8; lane++)
+        if (mapping[lane] != NULL)
+            (void)munmap(mapping[lane], 2 * page_size);
+    return ok;
+#endif
+}
+
 int
 main(int argc, char **argv)
 {
@@ -140,6 +226,10 @@ main(int argc, char **argv)
             return 1;
         puts("SKIP: AVX-512 IFMA unavailable");
         return 0;
+    }
+    if (!check_affine_masked_tail_guard_page()) {
+        fputs("affine transpose masked-tail guard-page check failed\n", stderr);
+        return 1;
     }
 
     fixture_entry fixture[groups][8] = {0};

@@ -26,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-transpose check-scalar-bounds check-sha512-schedule check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated formal-check
 
 all: $(LIB)
 
@@ -168,6 +168,7 @@ check-source:
 	$(MAKE) check-r51-mul-trace
 	$(MAKE) test-r51-mul-trace-mutations
 	$(MAKE) check-transpose
+	$(MAKE) test-transpose-mutations
 	$(MAKE) check-scalar-bounds
 	$(MAKE) check-sha512-schedule
 
@@ -179,6 +180,9 @@ test-r51-mul-trace-mutations:
 
 check-transpose:
 	python3 tools/check_transpose_schedule.py
+
+test-transpose-mutations:
+	python3 tools/test_transpose_schedule_mutations.py
 
 check-scalar-bounds:
 	python3 tools/check_scalar_reduce_bounds.py
