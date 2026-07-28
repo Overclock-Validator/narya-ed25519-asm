@@ -89,9 +89,11 @@ a fault-aware BitVec-to-Nat lane-refinement theorem with explicit range and
 linked-constant memory premises. A relational execution theorem proves that
 arbitrary caller values in ZMM28--31 cannot affect its five outputs. The five
 decoded output stores separately have permission-sensitive row/lane read-back
-and isolation theorems. Input-load composition, the complete memory/alias frame
-and System V return postcondition, downstream deployment identity, and
-correspondence to physical CPU behavior remain explicit open boundaries.
+and isolation theorems; the exact ten-load/eighteen-clear prefix now separately
+establishes the arithmetic precondition from explicit readable input rows. The
+complete memory/alias frame and System V return postcondition, downstream
+deployment identity, and correspondence to physical CPU behavior remain
+explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,

@@ -138,14 +138,19 @@ effect of `VZEROUPPER`.
    force: relational execution from an arbitrary caller state and a sanitized
    state proves equality of all five outputs, without assuming those four
    scratch registers enter as zero.
+   `X86InputRefinement.lean` separately executes the exact ten source loads and
+   eighteen self-XOR clears from arbitrary incoming ZMM state. Explicit
+   readable-row and little-endian selected-lane premises establish precisely
+   the ZMM0--27 relation consumed by the scratch-independent arithmetic theorem.
    `X86MemoryRefinement.lean` now additionally proves the five decoded stores
    execute under explicit permissions and place the selected lane's five
    arithmetic results in the exact output rows without cross-row corruption.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
-6. Add the complete input-load/output-store, ABI, memory-frame, and alias
-   corollaries. The byte-store frame lemma and the decoded all-loads-before-
+6. Compose the completed input-load and output-store results into the complete
+   ABI, memory-frame, and alias corollaries. The byte-store frame lemma and the
+   decoded all-loads-before-
    stores/store-map/epilogue properties are implemented prerequisites. Exact
    qword little-endian store/load round-trip and disjoint-qword frame lemmas are
    also implemented; compose them into the full ZMM/output postcondition.

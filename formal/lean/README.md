@@ -100,9 +100,11 @@ explicit writable permissions, preserve registers and permissions, do not
 cross-contaminate rows, and write the selected lane's proved limbs to the
 correct SysV output rows without modifying bytes outside them. Semantic
 noninterference now proves arbitrary caller values in ZMM28--31 cannot affect
-the five arithmetic results. The remaining gap is input-load composition,
-whole-program frame composition, return/ABI refinement, dispatch, and downstream
-deployment identity. The Lean
+the five arithmetic results. `X86InputRefinement.lean` additionally proves that
+the exact ten-load/eighteen-clear prefix establishes the required ZMM0--27
+relation from explicit readable input rows and arbitrary caller ZMM values. The
+remaining gap is whole-program frame composition, return/ABI refinement,
+dispatch, and downstream deployment identity. The Lean
 result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
@@ -162,8 +164,10 @@ connects the definite-assignment certificate to the machine semantics and
 proves that arbitrary entry values in ZMM28--31 cannot affect any of the five
 selected-lane outputs. [`X86MemoryRefinement.lean`](NaryaFormal/X86MemoryRefinement.lean)
 closes the five-store row-content and isolation theorem from the post-arithmetic
-lane relation, including its exact byte-write frame. Composing input loads,
-the whole-program frame, return behavior, and the System V postcondition
+lane relation, including its exact byte-write frame.
+[`X86InputRefinement.lean`](NaryaFormal/X86InputRefinement.lean) closes the
+fault-aware load/clear prefix and its memory/GPR preservation. Composing those
+pieces into the whole-program frame, return behavior, and System V postcondition
 remains open.
 
 The representation lemmas and most of the multiplication trace can be reused

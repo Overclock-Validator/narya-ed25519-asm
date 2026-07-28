@@ -35,6 +35,7 @@ AUDIT_ANCHORS = {
     "X86Noninterference.lean": (
         "run_arithmetic_core_ignores_undefined_scratch",
     ),
+    "X86InputRefinement.lean": ("run_prepare_phase",),
     "X86MemoryRefinement.lean": ("run_store_phase_refines",),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",

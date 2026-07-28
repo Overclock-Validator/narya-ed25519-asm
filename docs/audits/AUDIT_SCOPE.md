@@ -62,10 +62,11 @@ execution, exact row/lane read-back, disjoint-row preservation, and the exact
 five-row byte-write frame from that post-arithmetic relation. Semantic
 noninterference now connects the definite-assignment certificate to execution:
 arbitrary caller values in ZMM28--31 cannot change any selected-lane output.
-Input-load composition, whole-program frame composition, the System V
-return/postcondition, and identity with bytes in a downstream deployment remain
-open; this is not a general x86 decoder or a proof about an arbitrary consumer
-binary.
+The exact ten-load/eighteen-clear prefix now also establishes the arithmetic
+precondition from explicit readable source rows and arbitrary caller ZMM state.
+Whole-program frame composition, the System V return/postcondition, and identity
+with bytes in a downstream deployment remain open; this is not a general x86
+decoder or a proof about an arbitrary consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

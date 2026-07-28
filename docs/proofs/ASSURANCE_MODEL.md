@@ -46,7 +46,9 @@ lane mapping, disjoint-row preservation, and exact read-back of the arithmetic
 result, with no writes outside the five output rows. A relational execution
 theorem also proves that arbitrary caller values in ZMM28--31 cannot affect any
 of the five arithmetic outputs: ZMM28 and ZMM30 are overwritten before use,
-while ZMM29 and ZMM31 are never dependencies. Input loads, whole-program frame
+while ZMM29 and ZMM31 are never dependencies. Input loads and accumulator clears
+now separately refine explicit readable source rows into the partial register
+relation required by that theorem. Whole-program frame
 composition, System V return/postconditions, downstream deployment identity,
 and dispatch refinement remain separate open obligations.
 
