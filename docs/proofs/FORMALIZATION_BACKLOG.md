@@ -61,9 +61,11 @@ The selector transpose's source-level lane map is now machine checked in
 `NaryaFormal.Transpose`, and a fail-closed source parser checks the actual
 assembly macros, pointer assignments, limb invocations, and output offsets.
 The exact relocation-free assembled bytes for both symbols are also committed
-as generated Lean input. The remaining transpose obligation is to decode
-those bytes and connect their register/memory execution to the proved source
-model. See [`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
+as generated Lean input. Every assembled eight-instruction shuffle block now
+decodes in Lean to the proved 4×4 register transpose. The remaining transpose
+obligation is the surrounding GPR, masked/unmasked load, store, epilogue, and
+byte-memory execution needed for a whole-leaf ABI theorem. See
+[`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
 
 Before treating the complete r51 field layer as formally covered, add one
 generic trace family that is also useful to independent implementations:

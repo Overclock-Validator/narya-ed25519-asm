@@ -22,5 +22,6 @@ import NaryaFormal.X86BodyRefinement
 import NaryaFormal.X86EpilogueRefinement
 import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
+import NaryaFormal.TransposeX86Decoder
 import NaryaFormal.ScalarReduction
 import NaryaFormal.VerificationSpine

@@ -43,9 +43,11 @@ general performance claim.
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol
-bytes are now pinned as Lean input. Review still needs to confirm the source
-certificate's ISA model and the ELF extractor; those bytes are not yet decoded
-and executed by a restricted Lean semantics as the multiplier bytes are.
+bytes are pinned as Lean input, and every emitted shuffle block now decodes to
+the proved 4×4 register schedule. Review still needs to confirm the restricted
+shuffle semantics and ELF extractor. The surrounding pointer setup,
+masked/unmasked loads, output stores, and return are not yet decoded/executed
+as one whole-leaf Lean theorem.
 
 The r51 multiply's arithmetic theorem now consumes a trace mechanically
 generated from the assembly source. The extractor is fail-closed over the

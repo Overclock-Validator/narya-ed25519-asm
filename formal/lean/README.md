@@ -84,8 +84,10 @@ offsets. See the
 [transpose certificate](../../docs/proofs/TRANSPOSE_LANE_MAP.md) for the exact
 claim and trust boundary. `GeneratedTransposeObjectBytes.lean` now additionally
 pins both relocation-free assembled symbols, while `TransposeObjectBytes.lean`
-kernel-checks their extents and byte domains. Restricted opcode decoding and
-execution refinement of those bytes remain open.
+kernel-checks their extents and byte domains. `TransposeX86Decoder.lean`
+decodes all twenty emitted shuffle blocks and proves their generic register
+semantics equal the mathematical transpose. Surrounding GPR/memory/ABI
+execution remains open.
 
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389

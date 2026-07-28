@@ -89,8 +89,14 @@ the two ELF64 x86-64 objects and rejects any relocation section targeting
 their executable sections. Because these leaves contain no link-time
 references, those symbol bytes are link-stable. Lean kernel-checks both symbol
 extents and that every literal is an octet in `TransposeObjectBytes.lean`.
-This freezes the input for a restricted decoder; it does not decode or assign
-execution semantics to those bytes yet.
+This freezes the input for a restricted decoder. `TransposeX86Decoder.lean`
+now decodes every one of the ten eight-instruction shuffle blocks in each
+assembled symbol. It parses the VEX.256 unpack and EVEX.256 `VSHUFI64X2`
+register operands and immediates, requires the exact vector length/prefix/map
+forms used by the leaves, and proves that all twenty blocks equal the one
+expected register schedule. A small generic register interpreter then proves
+that schedule is the mathematical 4×4 transpose for arbitrary inputs and
+arbitrary incoming scratch-register values.
 
 The existing native selector tests provide a third layer: concrete unique
 tags traverse table selection and the assembly leaf under all lane masks,
@@ -133,8 +139,10 @@ The affine masked load's fourth qword is zero and is not stored as a coordinate.
 ## Remaining trust boundary
 
 This is stronger than a handwritten inspection and broader than a tagged test,
-but it is not yet an execution proof over decoded ELF machine code. Exact
-relocation-free assembled symbol bytes are pinned, but it still trusts:
+but it is not yet a whole-leaf execution proof over decoded ELF machine code.
+Exact relocation-free assembled symbol bytes are pinned and every shuffle
+block is decoded and semantically tied to the transpose theorem, but it still
+trusts:
 
 - the small Python source parser/interpreter;
 - the stated Intel instruction semantics;
@@ -143,7 +151,8 @@ relocation-free assembled symbol bytes are pinned, but it still trusts:
 - valid, non-overlapping source/output objects as required by the internal ABI;
 - the CPU's implementation of the instructions.
 
-Closing the remaining binary-refinement gap requires decoding the committed
-instruction bytes and proving their register/memory execution refines the Lean
+Closing the remaining binary-refinement gap requires decoding the surrounding
+GPR pointer setup, masked/unmasked loads, output stores, `VZEROUPPER`, and
+`RET`, then proving their byte-memory execution refines the source layout
 trace. That larger obligation is tracked separately and must not be inferred
-from the presence of an exact byte artifact.
+from the shuffle-block theorem.

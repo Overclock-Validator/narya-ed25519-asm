@@ -54,6 +54,11 @@ AUDIT_ANCHORS = {
         "projective_symbol_extent_exact",
         "affine_symbol_extent_exact",
     ),
+    "TransposeX86Decoder.lean": (
+        "projective_assembled_shuffle_blocks_decode",
+        "affine_assembled_shuffle_blocks_decode",
+        "expected_block_semantics",
+    ),
     "ScalarReduction.lean": (
         "fold_polynomial_exact",
         "radix12_fold_mod_order",
