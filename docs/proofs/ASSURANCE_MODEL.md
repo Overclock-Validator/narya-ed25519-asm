@@ -40,9 +40,12 @@ arithmetic result. Its 50-instruction product and 17-instruction combine phases
 also have checked BitVec no-wrap/lane refinements. The same is now true of the
 fold and normalize suffixes: their broadcasts use an explicit readable-memory
 contract, and the 94-instruction arithmetic core has one fault-aware lane
-refinement theorem with memory preservation. The surrounding input loads,
-output stores, complete System V memory/alias postcondition, downstream
-deployment identity, and dispatch refinement remain separate open obligations.
+refinement theorem with memory preservation. The exact five-store suffix now
+has an additional byte-memory theorem: explicit permissions, correct row and
+lane mapping, disjoint-row preservation, and exact read-back of the arithmetic
+result. Input loads, scratch-register semantic noninterference, the complete
+external-memory frame, System V return/postconditions, downstream deployment
+identity, and dispatch refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

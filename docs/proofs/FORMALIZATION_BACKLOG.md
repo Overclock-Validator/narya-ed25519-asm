@@ -24,7 +24,7 @@ has a fault-aware BitVec-to-Nat lane refinement, including the linked fold and
 mask constants. The remaining native multiplier work is memory and ABI
 refinement:
 
-1. compose the input loads, output stores, epilogue, and the proved arithmetic
+1. compose the input loads, proved output-store suffix, epilogue, and arithmetic
    core into the full SysV memory, alias, return, and register postcondition in
    [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
@@ -38,8 +38,10 @@ This closes the decoded Nat schedule. The BitVec/Nat arithmetic item is now
 also closed across product, combine, fold, and normalize: all 94 instructions
 refine the exact Nat states in an arbitrary selected lane, and the constant
 broadcasts are tied to an explicit read-only-memory contract. Finish the native
-item by proving the byte-memory load/store, alias, return, and System V
-postcondition. A prior monolithic 129-step
+item by proving input-memory preparation, semantic scratch independence, the
+complete external frame, return, and System V postcondition. The five-store
+suffix's permission, row-isolation, and selected-lane content theorem is now
+closed in `X86MemoryRefinement.lean`. A prior monolithic 129-step
 simplifier proof type-checked but was intentionally rejected because its
 serialized proof term was too large for a dependable audit/CI artifact.
 

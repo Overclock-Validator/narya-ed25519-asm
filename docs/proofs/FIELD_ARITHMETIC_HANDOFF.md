@@ -85,8 +85,8 @@ prove that they equal the checked source instruction trace. They do not yet
 execute that entire trace through a complete x86/System V theorem. The
 remaining refinement must cover:
 
-- composition of the proved 94-instruction arithmetic core with the ten input
-  loads, five output stores, and epilogue;
+- composition of the proved 94-instruction arithmetic core and proved
+  five-store suffix with the ten input loads and epilogue;
 - the final all-eight-lane and lane-noninterference corollaries from the
   arbitrary selected-lane theorem;
 - SysV register clobbers and return behavior;

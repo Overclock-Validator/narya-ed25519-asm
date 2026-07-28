@@ -106,8 +106,10 @@ link is now closed:
 
 This theorem includes the fold/mask broadcasts through an explicit readable
 constant-memory contract and proves the register-only core leaves memory
-unchanged. The remaining link composes input loads, output stores, alias/frame
-properties, and return/ABI behavior around that core.
+unchanged. A separate theorem now closes the five decoded output stores'
+permission-sensitive execution, row isolation, and selected-lane read-back.
+The remaining link composes input loads, semantic scratch independence, the
+complete external frame, and return/ABI behavior around that core.
 
 The present certificate still trusts the ELF extractor and source parser. It
 does not yet prove the complete System V call/return and memory-frame theorem,

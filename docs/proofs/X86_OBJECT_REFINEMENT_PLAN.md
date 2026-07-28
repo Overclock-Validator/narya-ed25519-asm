@@ -110,8 +110,9 @@ effect of `VZEROUPPER`.
    qword-lane semantics and generic bitvector-to-natural refinement lemmas for
    IFMA, add, shift, mask, and multiply. `X86Machine.lean` now adds
    byte-addressed little-endian memory, 512-bit vector layout, permission-aware
-   `RET`, and exact `VZEROUPPER` state changes. Canonical-address/CET behavior
-   and the full memory-frame/round-trip proofs remain open.
+   `RET`, exact `VZEROUPPER` state changes, and exact same-row/disjoint-row ZMM
+   store/read lemmas. Canonical-address/CET behavior and the complete external
+   memory-frame proof remain open.
 4. **Partially implemented:** `X86Execution.lean` executes every decoded form,
    `X86NatShadow.lean` supplies the one-lane unbounded interpreter, and
    `X86Refinement.lean` proves the local arithmetic refinements with explicit
@@ -136,6 +137,9 @@ effect of `VZEROUPPER`.
    dependencies. The next semantic composition should use that certificate to
    remove the current proof-engineering assumption that the prepared shadow
    agrees on otherwise irrelevant scratch registers.
+   `X86MemoryRefinement.lean` now additionally proves the five decoded stores
+   execute under explicit permissions and place the selected lane's five
+   arithmetic results in the exact output rows without cross-row corruption.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.

@@ -60,6 +60,10 @@ inductive Outcome (Other : Type)
 def addressAdd (base : Addr) (offset : Nat) : Addr :=
   base + BitVec.ofNat 64 offset
 
+theorem addressAdd_nested (base : Addr) (left right : Nat) :
+    addressAdd (addressAdd base left) right = addressAdd base (left + right) := by
+  simp [addressAdd, BitVec.ofNat_add, BitVec.add_assoc]
+
 def readableBytes (memory : Memory) (base : Addr) (count : Nat) : Bool :=
   (List.range count).all (fun offset => (memory.perm (addressAdd base offset)).read)
 
@@ -230,6 +234,18 @@ theorem storeZmm_permissions (memory : Memory) (base : Addr) (value : Zmm) :
   simp only [storeZmm]
   repeat' rw [storeQwordLE_permissions]
 
+theorem readableBytes_storeZmm (memory : Memory) (writeBase readBase : Addr)
+    (value : Zmm) (count : Nat) :
+    readableBytes (storeZmm memory writeBase value) readBase count =
+      readableBytes memory readBase count := by
+  simp only [readableBytes, storeZmm_permissions]
+
+theorem writableBytes_storeZmm (memory : Memory) (writeBase testBase : Addr)
+    (value : Zmm) (count : Nat) :
+    writableBytes (storeZmm memory writeBase value) testBase count =
+      writableBytes memory testBase count := by
+  simp only [writableBytes, storeZmm_permissions]
+
 theorem storeZmm_frame (memory : Memory) (base candidate : Addr) (value : Zmm)
     (hnot : candidate ∉ zmmWrittenAddresses base value) :
     (storeZmm memory base value).byte candidate = memory.byte candidate := by
@@ -320,6 +336,52 @@ theorem loadQwordLE_storeQwordLE_offset_disjoint (memory : Memory)
       loadQwordLE memory (addressAdd base readOffset) := by
   exact loadQwordLE_storeQwordLE_disjoint memory _ _ word
     (qwordRangesDisjoint_at_offsets base readOffset writeOffset hdisjoint hbound)
+
+/-- Storing a complete ZMM and loading it at the same base is exact. -/
+theorem loadZmm_storeZmm_same (memory : Memory) (base : Addr) (value : Zmm) :
+    loadZmm (storeZmm memory base value) base = value := by
+  funext lane
+  fin_cases lane <;>
+    simp only [loadZmm, storeZmm] <;>
+    repeat' first
+      | rw [loadQwordLE_storeQwordLE_same]
+      | rw [loadQwordLE_storeQwordLE_offset_disjoint] <;> norm_num
+  all_goals apply congrArg value; apply Fin.ext; rfl
+
+/--
+A complete ZMM store cannot change a disjoint 64-byte ZMM row. The explicit
+offset and no-wrap premises make the byte-addressed frame condition visible to
+callers rather than hiding it behind a mathematical array abstraction.
+-/
+theorem loadZmm_storeZmm_offset_disjoint (memory : Memory) (base : Addr)
+    (readOffset writeOffset : Nat) (value : Zmm)
+    (hdisjoint : readOffset + 64 ≤ writeOffset ∨
+      writeOffset + 64 ≤ readOffset)
+    (hbound : readOffset + 64 < 2 ^ 64 ∧ writeOffset + 64 < 2 ^ 64) :
+    loadZmm
+        (storeZmm memory (addressAdd base writeOffset) value)
+        (addressAdd base readOffset) =
+      loadZmm memory (addressAdd base readOffset) := by
+  have preserve (original : Memory) (readDelta writeDelta : Nat)
+      (word : QWord) (hreadDelta : readDelta + 8 ≤ 64)
+      (hwriteDelta : writeDelta + 8 ≤ 64) :
+      loadQwordLE
+          (storeQwordLE original (addressAdd base (writeOffset + writeDelta)) word)
+          (addressAdd base (readOffset + readDelta)) =
+        loadQwordLE original (addressAdd base (readOffset + readDelta)) := by
+    apply loadQwordLE_storeQwordLE_offset_disjoint
+    · omega
+    · omega
+  funext lane
+  simp only [loadZmm, storeZmm, addressAdd_nested]
+  rw [preserve _ (8 * lane.val) 56 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 48 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 40 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 32 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 24 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 16 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 8 _ (by omega) (by omega)]
+  rw [preserve _ (8 * lane.val) 0 _ (by omega) (by omega)]
 
 theorem loadZmm_lane (memory : Memory) (base : Addr) (lane : Fin 8) :
     loadZmm memory base lane =

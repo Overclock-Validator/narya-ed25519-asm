@@ -95,9 +95,13 @@ The exact canonical linked symbol is also connected to that source trace by a
 restricted, fail-closed decoder. The decoded 94-instruction arithmetic core is
 now executed in the fault-aware `BitVec 64` semantics and refined, in an
 arbitrary selected lane, to the independently generated radix-51 result. The
-remaining gap is the surrounding load/store/return and ABI refinement, plus
-dispatch and downstream deployment identity. The Lean result is not a verified
-decoder for arbitrary machine code.
+output-store suffix is now separately refined: all five decoded stores require
+explicit writable permissions, preserve registers and permissions, do not
+cross-contaminate rows, and write the selected lane's proved limbs to the
+correct SysV output rows. The remaining gap is input-load composition,
+scratch-register semantic noninterference, the complete external-memory frame,
+return/ABI refinement, dispatch, and downstream deployment identity. The Lean
+result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
 Its first artifact layer is now present:
@@ -151,8 +155,10 @@ readable-memory contract, and proves the register-only core preserves memory.
 The exact decoded
 program also kernel-checks that all ten source loads precede every output
 store, that the five store offsets/registers are exact, and that the epilogue
-is `VZEROUPPER; RET`. Composing the load and store semantics, alias/frame
-lemmas, return behavior, and System V postcondition remains open.
+is `VZEROUPPER; RET`. [`X86MemoryRefinement.lean`](NaryaFormal/X86MemoryRefinement.lean)
+closes the five-store row-content and isolation theorem from the post-arithmetic
+lane relation. Composing input loads, semantic scratch independence, the full
+external frame, return behavior, and the System V postcondition remains open.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires
