@@ -68,8 +68,9 @@ make check-source
 
 `make formal-check` first requires byte equality between the generated Lean
 traces and the assembly source, kernel-checks that the exact canonical linked
-multiplier bytes decode to the same 129 instructions, then checks the
-mathematical theorem over the source trace. `make check-source` also
+multiplier bytes decode to the same 129 instructions, checks the mathematical
+theorem over the source trace, and checks the restricted complete-leaf System
+V refinement. `make check-source` also
 mutation-tests the extractor and asks Clang to parse the GNU assembly for an
 x86-64 ELF target. Neither gate is an external audit or a complete
 instruction-execution proof.
@@ -80,18 +81,19 @@ exact input/output aliasing, and reject a source limb equal to `2^52`.
 
 ## What this does not prove
 
-The Lean files now decode the canonical proof ELF's exact multiplier bytes and
-prove that they equal the checked source instruction trace. They do not yet
-execute that entire trace through a complete x86/System V theorem. The
-remaining refinement must cover:
+The Lean files decode the canonical proof ELF's exact multiplier bytes, prove
+that they equal the checked source instruction trace, and execute the entire
+trace through a restricted x86/System V theorem. The capstone covers an
+arbitrary selected lane, semantic scratch independence, source/output aliasing,
+the exact output frame, a disjoint stack return word, and return behavior.
+It does not yet cover:
 
-- composition of the proved 94-instruction arithmetic core and proved
-  five-store suffix with the ten input loads and epilogue;
-- the final all-eight-lane and lane-noninterference corollaries from the
-  arbitrary selected-lane theorem;
-- SysV register clobbers and return behavior;
-- all-source-loads-before-output-stores alias safety; and
-- the checked wrapper's CPU/OS feature gate and source-range validation.
+- a single vector-valued all-eight-lane corollary (the theorem is universally
+  quantified over an arbitrary selected lane);
+- the checked wrapper's CPU/OS feature gate and source-range validation;
+- identity between the canonical proof ELF and a downstream deployment binary;
+- concurrent memory mutation or physical CPU correctness; or
+- the rest of the Ed25519 verifier outside this field leaf.
 
 The add, subtract, and negate leaves now have generated, fail-closed source
 traces and Lean proofs of their exact `4p` biases, non-underflow, no-wrap,

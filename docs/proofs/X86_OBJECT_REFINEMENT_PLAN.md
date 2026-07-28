@@ -106,13 +106,14 @@ effect of `VZEROUPPER`.
 2. **Implemented:** `X86Decoder.lean` fail-closed decodes the exact 800 symbol
    bytes, and `X86ObjectRefinement.lean` proves by kernel reduction that the
    result is the independently source-generated 129-instruction list.
-3. **Partially implemented:** `X86VectorSemantics.lean` defines exact
+3. **Implemented for the restricted leaf:** `X86VectorSemantics.lean` defines exact
    qword-lane semantics and generic bitvector-to-natural refinement lemmas for
    IFMA, add, shift, mask, and multiply. `X86Machine.lean` now adds
    byte-addressed little-endian memory, 512-bit vector layout, permission-aware
    `RET`, exact `VZEROUPPER` state changes, and exact same-row/disjoint-row ZMM
-   store/read lemmas. Canonical-address/CET behavior and the complete external
-   memory-frame proof remain open.
+   store/read lemmas. The leaf theorem assumes ordinary readable/writable byte
+   ranges and nonwrapping `Nat` addresses; canonical-address faults, CET, and
+   asynchronous/concurrent mutation remain outside the restricted model.
 4. **Partially implemented:** `X86Execution.lean` executes every decoded form,
    `X86NatShadow.lean` supplies the one-lane unbounded interpreter, and
    `X86Refinement.lean` proves the local arithmetic refinements with explicit
@@ -148,14 +149,16 @@ effect of `VZEROUPPER`.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
-6. **Partially implemented:** `X86BodyRefinement.lean` composes the input-load,
+6. **Implemented for the canonical proof leaf:** `X86BodyRefinement.lean` composes the input-load,
    clear, arithmetic, and output-store phases. It proves the selected-lane
    mathematical output, GPR/permission preservation, and exact byte frame with
    no source/output disjointness premise. `X86EpilogueRefinement.lean` separately
    proves the exact `VZEROUPPER; RET` effects and composes them after any body
-   whose return slot remains readable. Add the stack/output non-overlap theorem
-   that derives this premise and the final single System V capstone. The decoded
-   epilogue shape is source- and byte-linked.
+   whose return slot remains readable. `run_r51_multiplier_refines` supplies
+   the final stack/output non-overlap argument and one System V leaf capstone:
+   mathematical selected-lane output, exact output frame, permission
+   preservation, preserved entry return word, RSP+8, and return RIP. The
+   decoded epilogue shape is source- and byte-linked.
 7. Regenerate and rebuild the Lean artifact in CI whenever the final binary
    changes.
 

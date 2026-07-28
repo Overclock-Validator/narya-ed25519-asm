@@ -91,12 +91,12 @@ arbitrary caller values in ZMM28--31 cannot affect its five outputs. The five
 decoded output stores separately have permission-sensitive row/lane read-back
 and isolation theorems; the exact ten-load/eighteen-clear prefix now separately
 establishes the arithmetic precondition from explicit readable input rows. A
-single theorem composes the entire non-returning body with no source/output
-disjointness premise and retains its exact output frame. The decoded
-`VZEROUPPER; RET` effects and normal return are separately refined; deriving
-return-slot preservation from stack/output non-overlap, downstream deployment
-identity, and correspondence to physical CPU behavior remain explicit open
-boundaries.
+single theorem now composes the entire decoded multiplier leaf with no
+source/output disjointness premise, retains its exact output frame, preserves
+a disjoint entry return word through the stores, and proves the decoded
+`VZEROUPPER; RET`, RSP+8, and return-RIP effects. Downstream deployment
+identity, wrapper/dispatch refinement, concurrent mutation, and correspondence
+to physical CPU behavior remain explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,

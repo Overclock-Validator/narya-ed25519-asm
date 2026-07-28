@@ -64,13 +64,14 @@ noninterference now connects the definite-assignment certificate to execution:
 arbitrary caller values in ZMM28--31 cannot change any selected-lane output.
 The exact ten-load/eighteen-clear prefix now also establishes the arithmetic
 precondition from explicit readable source rows and arbitrary caller ZMM state.
-The non-returning decoded body composes that prefix, the arithmetic core, and
-the stores with no source/output disjointness premise, while retaining the
-mathematical output and exact byte frame. The `VZEROUPPER; RET`/System V
-effects are also refined and compose under a post-body readable-return-slot
-premise. Deriving that premise from an explicit stack/output non-overlap
-contract and identity with bytes in a downstream deployment remain open; this
-is not a general x86 decoder or a proof about an arbitrary consumer binary.
+The complete decoded leaf composes that prefix, the arithmetic core, stores,
+`VZEROUPPER`, and `RET` with no source/output disjointness premise. Its final
+theorem requires explicit output/return-slot disjointness, proves that the
+entry return word survives the five stores, retains the mathematical output
+and exact byte frame, advances RSP by eight, and returns to the entry word.
+Identity with bytes in a downstream deployment, wrapper dispatch, and physical
+CPU correctness remain open; this is not a general x86 decoder or a proof
+about an arbitrary consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

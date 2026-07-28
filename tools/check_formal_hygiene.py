@@ -38,7 +38,10 @@ AUDIT_ANCHORS = {
     "X86InputRefinement.lean": ("run_prepare_phase",),
     "X86MemoryRefinement.lean": ("run_store_phase_refines",),
     "X86BodyRefinement.lean": ("run_decoded_body_refines",),
-    "X86EpilogueRefinement.lean": ("run_expected_program_after_body",),
+    "X86EpilogueRefinement.lean": (
+        "run_expected_program_after_body",
+        "run_r51_multiplier_refines",
+    ),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",
         "arithmetic_core_definite_assignment",

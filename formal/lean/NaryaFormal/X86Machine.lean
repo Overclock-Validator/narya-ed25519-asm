@@ -383,6 +383,33 @@ theorem loadZmm_storeZmm_offset_disjoint (memory : Memory) (base : Addr)
   rw [preserve _ (8 * lane.val) 8 _ (by omega) (by omega)]
   rw [preserve _ (8 * lane.val) 0 _ (by omega) (by omega)]
 
+/-- Byte-level disjointness between one eight-byte qword and one ZMM row. -/
+def qwordZmmRangesDisjoint (qwordBase zmmBase : Addr) : Prop :=
+  ∀ qwordOffset zmmOffset,
+    qwordOffset < 8 → zmmOffset < 64 →
+      addressAdd qwordBase qwordOffset ≠ addressAdd zmmBase zmmOffset
+
+/-- A disjoint 64-byte vector store preserves an eight-byte return word. -/
+theorem loadQwordLE_storeZmm_disjoint (memory : Memory)
+    (qwordBase zmmBase : Addr) (value : Zmm)
+    (hdisjoint : qwordZmmRangesDisjoint qwordBase zmmBase) :
+    loadQwordLE (storeZmm memory zmmBase value) qwordBase =
+      loadQwordLE memory qwordBase := by
+  have hqword (delta : Nat) (hdelta : delta + 8 ≤ 64) :
+      qwordRangesDisjoint qwordBase (addressAdd zmmBase delta) := by
+    intro qwordOffset zmmOffset hqwordOffset hzmmOffset
+    simpa [addressAdd_nested, Nat.add_comm delta zmmOffset] using
+      hdisjoint qwordOffset (delta + zmmOffset) hqwordOffset (by omega)
+  simp only [storeZmm]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 56 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 48 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 40 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 32 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 24 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 16 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 8 (by omega))]
+  rw [loadQwordLE_storeQwordLE_disjoint _ _ _ _ (hqword 0 (by omega))]
+
 theorem loadZmm_lane (memory : Memory) (base : Addr) (lane : Fin 8) :
     loadZmm memory base lane =
       loadQwordLE memory (addressAdd base (8 * lane.val)) := by

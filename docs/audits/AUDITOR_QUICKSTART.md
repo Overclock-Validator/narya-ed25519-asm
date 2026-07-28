@@ -107,14 +107,12 @@ machine-checked entry point for each formalized claim.
 
 ## 6. Current formal stopping points
 
-The strongest byte-linked proof currently covers the decoded r51 multiplier's
-arithmetic core, semantic independence from arbitrary ZMM28--31 entry values,
-exact ten-load/eighteen-clear preparation, and exact five-store suffix. It also
-composes the complete non-returning body without requiring source/output
-disjointness, and separately proves the exact `VZEROUPPER; RET` effects. It
-still stops before deriving return-slot preservation from stack/output
-non-overlap, physical CPU correctness, and identity with a downstream deployment
-binary.
+The strongest byte-linked proof, `run_r51_multiplier_refines`, covers the
+complete decoded r51 multiplier leaf: preparation, arithmetic, stores,
+semantic independence from arbitrary ZMM28--31 entry values, source/output
+aliasing, preserved disjoint return word, `VZEROUPPER`, and `RET`. It stops
+before wrapper/dispatch refinement, physical CPU correctness, concurrent
+memory mutation, and identity with a downstream deployment binary.
 
 The transpose, scalar reducer, SHA-512 leaf, decoder, point formulas, and
 complete verifier have narrower source certificates, algebraic lemmas, tests,

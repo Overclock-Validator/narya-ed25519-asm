@@ -3,9 +3,10 @@
 This directory contains the machine-checked algebraic and restricted-machine
 layers for Narya's consensus-critical arithmetic. A successful Lean build now
 proves that the exact multiplier bytes in the canonical proof ELF decode to the
-independently source-generated trace, in addition to the mathematical claims
-below. It does not yet prove the complete execution/ABI refinement, identity
-with a downstream binary, or correctness of a physical processor.
+independently source-generated trace and that the complete decoded leaf refines
+its mathematical and restricted System V contract. It does not prove identity
+with a downstream binary, wrapper/dispatch correctness, concurrent mutation,
+or correctness of a physical processor.
 
 Auditors can begin with the repository's
 [formal evidence index](../../docs/proofs/FORMAL_EVIDENCE_INDEX.md), which maps
@@ -106,9 +107,10 @@ relation from explicit readable input rows and arbitrary caller ZMM values. The
 non-returning load/clear/arithmetic/store composition, including source/output
 aliasing and its exact write frame, is closed by `X86BodyRefinement.lean`. The
 exact `VZEROUPPER; RET` effects and normal-return composition are closed by
-`X86EpilogueRefinement.lean`. The remaining machine gap is deriving return-slot
-preservation from stack/output non-overlap; dispatch and downstream deployment
-identity also remain open. The Lean
+`X86EpilogueRefinement.lean`; its `run_r51_multiplier_refines` capstone derives
+return-slot preservation from explicit stack/output non-overlap and covers the
+complete 129-instruction leaf. Dispatch and downstream deployment identity
+remain open. The Lean
 result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
@@ -142,9 +144,10 @@ little-endian memory, explicit read/write permissions, 512-bit load/store
 layout, the architectural `VZEROUPPER` effect on registers 0--15, and the
 stack read, stack advance, and control transfer performed by `RET`. Its
 permission-sensitive transitions fail closed. These are reusable semantics
-and local lemmas; the checked 800 bytes have been decoded, and its arithmetic
-core is proved in the BitVec machine, but the complete load-to-return machine
-trace is not yet a single exported theorem.
+and local lemmas. The checked 800 bytes have been decoded, and
+`run_r51_multiplier_refines` exports the complete load-to-return machine
+theorem under explicit memory, range, constant, and stack-disjointness
+premises.
 
 [`X86Execution.lean`](NaryaFormal/X86Execution.lean) gives every decoded
 instruction a fault-aware machine-state transition and rejects a return with
@@ -174,10 +177,11 @@ fault-aware load/clear prefix and its memory/GPR preservation. Composing those
 pieces through the five stores is closed in
 [`X86BodyRefinement.lean`](NaryaFormal/X86BodyRefinement.lean), with no
 source/output disjointness premise. Return behavior and the final System V
-postcondition are separately refined in
+postcondition are refined in
 [`X86EpilogueRefinement.lean`](NaryaFormal/X86EpilogueRefinement.lean). Its
-composition premise—post-store readability of the return slot—still needs the
-explicit stack/output non-overlap corollary.
+`run_r51_multiplier_refines` theorem composes the complete leaf and discharges
+post-store return-slot readability and value preservation from explicit
+stack/output non-overlap.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

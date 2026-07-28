@@ -108,11 +108,13 @@ This theorem includes the fold/mask broadcasts through an explicit readable
 constant-memory contract and proves the register-only core leaves memory
 unchanged. A separate theorem now closes the five decoded output stores'
 permission-sensitive execution, row isolation, and selected-lane read-back.
-The remaining link composes input loads, semantic scratch independence, the
-complete external frame, and return/ABI behavior around that core.
+`run_r51_multiplier_refines` composes input loads, semantic scratch
+independence, output stores, the exact external frame, a disjoint return word,
+`VZEROUPPER`, and `RET` around that core.
 
-The present certificate still trusts the ELF extractor and source parser. It
-does not yet prove the complete System V call/return and memory-frame theorem,
-CPUID/XCR0 dispatch, or that a downstream executable contains the canonical
-proof ELF's bytes. Native exact-output, alias, and lane differentials remain
+The present certificate still trusts the ELF extractor, source parser, and
+restricted instruction semantics. It proves the complete restricted System V
+leaf contract, but not CPUID/XCR0 dispatch, concurrent mutation, physical CPU
+correctness, or that a downstream executable contains the canonical proof
+ELF's bytes. Native exact-output, alias, and lane differentials remain
 independent evidence for those boundaries.

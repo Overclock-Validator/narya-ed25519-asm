@@ -36,6 +36,11 @@ def outputWrittenAddresses {Other : Type} (state : MachineState Other) :
   zmmWrittenAddresses (addressAdd (state.gpr .rdi) 192) (state.zmm 13) ++
   zmmWrittenAddresses (addressAdd (state.gpr .rdi) 256) (state.zmm 14)
 
+/-- The ABI-forbidden overlap: an output row may not cover the return slot. -/
+def stackOutputRowsDisjoint {Other : Type} (state : MachineState Other) : Prop :=
+  ∀ limb : Fin 5,
+    qwordZmmRangesDisjoint (state.gpr .rsp) (outputRowAddress state limb)
+
 /-- Every written output row reads back the exact source ZMM. -/
 theorem stored_output_rows_exact {Other : Type}
     (state : MachineState Other) (limb : Fin 5) :
@@ -77,6 +82,40 @@ theorem stored_output_registers_preserved {Other : Type}
       (storedR51OutputState state).opmask = state.opmask := by
   simp only [storedR51OutputState, vmovdqu64Store]
   exact ⟨True.intro, True.intro, True.intro⟩
+
+theorem stored_output_return_readability {Other : Type}
+    (state : MachineState Other) :
+    readableBytes (storedR51OutputState state).mem (state.gpr .rsp) 8 =
+      readableBytes state.mem (state.gpr .rsp) 8 := by
+  unfold readableBytes
+  rw [stored_output_permissions_preserved]
+
+/-- Five output rows preserve a disjoint eight-byte stack return word. -/
+theorem stored_output_return_word {Other : Type} (state : MachineState Other)
+    (hdisjoint : stackOutputRowsDisjoint state) :
+    loadQwordLE (storedR51OutputState state).mem (state.gpr .rsp) =
+      loadQwordLE state.mem (state.gpr .rsp) := by
+  have h0 : qwordZmmRangesDisjoint (state.gpr .rsp)
+      (addressAdd (state.gpr .rdi) 0) := by
+    simpa [outputRowAddress] using hdisjoint 0
+  have h1 : qwordZmmRangesDisjoint (state.gpr .rsp)
+      (addressAdd (state.gpr .rdi) 64) := by
+    simpa [outputRowAddress] using hdisjoint 1
+  have h2 : qwordZmmRangesDisjoint (state.gpr .rsp)
+      (addressAdd (state.gpr .rdi) 128) := by
+    simpa [outputRowAddress] using hdisjoint 2
+  have h3 : qwordZmmRangesDisjoint (state.gpr .rsp)
+      (addressAdd (state.gpr .rdi) 192) := by
+    simpa [outputRowAddress] using hdisjoint 3
+  have h4 : qwordZmmRangesDisjoint (state.gpr .rsp)
+      (addressAdd (state.gpr .rdi) 256) := by
+    simpa [outputRowAddress] using hdisjoint 4
+  simp only [storedR51OutputState, vmovdqu64Store]
+  rw [loadQwordLE_storeZmm_disjoint _ _ _ _ h4]
+  rw [loadQwordLE_storeZmm_disjoint _ _ _ _ h3]
+  rw [loadQwordLE_storeZmm_disjoint _ _ _ _ h2]
+  rw [loadQwordLE_storeZmm_disjoint _ _ _ _ h1]
+  rw [loadQwordLE_storeZmm_disjoint _ _ _ _ h0]
 
 /-- The exact decoded five-store phase succeeds under explicit row permissions. -/
 theorem run_store_phase {Other : Type} (state : MachineState Other)

@@ -18,15 +18,13 @@ The multiply assembly source is now connected to the theorem by the generated,
 fail-closed trace described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). A source
 edit changes a Lean proof input or fails extraction. The exact 800-byte
-canonical linked multiplier now also kernel-decodes to the independently
-expanded 129-instruction source trace. Its 94-instruction arithmetic core now
-has a fault-aware BitVec-to-Nat lane refinement, including the linked fold and
-mask constants. The remaining native multiplier work is memory and ABI
-refinement:
-
-1. compose the input loads, proved output-store suffix, epilogue, and arithmetic
-   core into the full SysV memory, alias, return, and register postcondition in
-   [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
+canonical linked multiplier kernel-decodes to the independently expanded
+129-instruction source trace. Its 94-instruction arithmetic core has a
+fault-aware BitVec-to-Nat lane refinement, including the linked fold and mask
+constants. Input preparation, output memory, aliasing, return-address
+preservation, `VZEROUPPER`, and `RET` now compose into the single
+`run_r51_multiplier_refines` System V leaf theorem described in
+[`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
 The paired interpreters and local arithmetic refinement lemmas now exist.
 They expose every u52/no-wrap premise rather than assuming machine arithmetic
@@ -45,10 +43,10 @@ clears, with explicit row permissions and selected-lane values. The
 non-returning decoded body is now composed without a
 source/output disjointness premise and preserves the exact five-row byte frame;
 the exact `VZEROUPPER; RET` semantics and normal-return composition are also
-closed. The remaining native step is deriving post-store return-slot
-readability/value from an explicit stack/output non-overlap contract. The
-five-store suffix's permissions, row isolation, selected-lane content, and
-exact byte frame are now closed in `X86MemoryRefinement.lean`. A prior
+closed. The five-store suffix's permissions, row isolation, selected-lane
+content, exact byte frame, and disjoint return-word preservation are closed in
+`X86MemoryRefinement.lean`; `X86EpilogueRefinement.lean` exports the full leaf
+capstone. A prior
 monolithic 129-step
 simplifier proof type-checked but was intentionally rejected because its
 serialized proof term was too large for a dependable audit/CI artifact.

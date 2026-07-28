@@ -30,6 +30,9 @@ theorem run_decoded_body_refines {Other : Type}
       writableBytes state.mem (outputRowAddress state limb) 64 = true) :
     ∃ arithmetic next : MachineState Other,
       runMachinePhase decodedBody state = .ok next ∧
+      next = storedR51OutputState arithmetic ∧
+      arithmetic.mem = state.mem ∧
+      arithmetic.gpr = state.gpr ∧
       (∀ limb : Fin 5,
         (loadZmm next.mem (outputRowAddress state limb) lane).toNat =
           (storedNatShadowState environment).output limb) ∧
@@ -81,7 +84,8 @@ theorem run_decoded_body_refines {Other : Type}
     rw [stored_output_rows_exact arithmetic limb]
     rw [houtput limb]
     exact normalized_output_register environment limb
-  refine ⟨arithmetic, next, ?_, hrows, ?_, ?_, ?_⟩
+  refine ⟨arithmetic, next, ?_, rfl, harithmeticMem.trans hprepareMem,
+    harithmeticGpr.trans hprepareGpr, hrows, ?_, ?_, ?_⟩
   · have hsplit : decodedBody =
         (GeneratedR51InstructionTrace.loadPhase ++
           GeneratedR51InstructionTrace.clearPhase) ++
