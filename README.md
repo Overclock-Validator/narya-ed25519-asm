@@ -86,11 +86,12 @@ independently source-generated 129-instruction trace. The exact decoded program
 also executes in the unbounded-natural shadow semantics to the independently
 generated radix-51 result. The decoded 94-instruction arithmetic core also has
 a fault-aware BitVec-to-Nat lane-refinement theorem with explicit range and
-linked-constant memory premises. The five decoded output stores separately
-have permission-sensitive row/lane read-back and isolation theorems. Input-load
-composition, the complete memory/alias frame and System V return postcondition,
-downstream deployment identity, and correspondence to physical CPU behavior
-remain explicit open boundaries.
+linked-constant memory premises. A relational execution theorem proves that
+arbitrary caller values in ZMM28--31 cannot affect its five outputs. The five
+decoded output stores separately have permission-sensitive row/lane read-back
+and isolation theorems. Input-load composition, the complete memory/alias frame
+and System V return postcondition, downstream deployment identity, and
+correspondence to physical CPU behavior remain explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,

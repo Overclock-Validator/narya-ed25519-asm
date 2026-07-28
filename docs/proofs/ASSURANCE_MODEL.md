@@ -43,10 +43,12 @@ contract, and the 94-instruction arithmetic core has one fault-aware lane
 refinement theorem with memory preservation. The exact five-store suffix now
 has an additional byte-memory theorem: explicit permissions, correct row and
 lane mapping, disjoint-row preservation, and exact read-back of the arithmetic
-result, with no writes outside the five output rows. Input loads,
-scratch-register semantic noninterference, whole-program frame composition,
-System V return/postconditions, downstream deployment identity, and dispatch
-refinement remain separate open obligations.
+result, with no writes outside the five output rows. A relational execution
+theorem also proves that arbitrary caller values in ZMM28--31 cannot affect any
+of the five arithmetic outputs: ZMM28 and ZMM30 are overwritten before use,
+while ZMM29 and ZMM31 are never dependencies. Input loads, whole-program frame
+composition, System V return/postconditions, downstream deployment identity,
+and dispatch refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

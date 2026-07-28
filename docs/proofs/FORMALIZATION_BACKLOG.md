@@ -37,9 +37,11 @@ transition from input loads through the returned stored output, and
 This closes the decoded Nat schedule. The BitVec/Nat arithmetic item is now
 also closed across product, combine, fold, and normalize: all 94 instructions
 refine the exact Nat states in an arbitrary selected lane, and the constant
-broadcasts are tied to an explicit read-only-memory contract. Finish the native
-item by proving input-memory preparation, semantic scratch independence,
-whole-program frame composition, return, and the System V postcondition. The
+broadcasts are tied to an explicit read-only-memory contract. Semantic scratch
+independence is also closed: a relational machine theorem proves arbitrary
+entry values in ZMM28--31 cannot affect the five outputs. Finish the native
+item by proving input-memory preparation, whole-program frame composition,
+return, and the System V postcondition. The
 five-store suffix's permissions, row isolation, selected-lane content, and
 exact byte frame are now closed in `X86MemoryRefinement.lean`. A prior
 monolithic 129-step

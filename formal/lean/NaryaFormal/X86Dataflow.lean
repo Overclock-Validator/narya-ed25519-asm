@@ -122,4 +122,17 @@ theorem arithmetic_core_definite_assignment :
     arithmeticCoreScratchDefined = true := by
   native_decide
 
+/--
+The exact arithmetic core is dependency-safe from the ABI-realistic initial
+set ZMM0--27 and leaves all five output registers semantically defined.
+-/
+theorem arithmetic_core_defined_outputs :
+    ∃ after,
+      propagateDefined GeneratedR51InstructionTrace.arithmeticCorePhase
+          (registersBelow 28) = some after ∧
+      after ⟨10, by decide⟩ = true ∧ after ⟨11, by decide⟩ = true ∧
+      after ⟨12, by decide⟩ = true ∧ after ⟨13, by decide⟩ = true ∧
+      after ⟨14, by decide⟩ = true := by
+  native_decide
+
 end NaryaFormal.X86

@@ -108,10 +108,10 @@ machine-checked entry point for each formalized claim.
 ## 6. Current formal stopping points
 
 The strongest byte-linked proof currently covers the decoded r51 multiplier's
-arithmetic core and exact five-store suffix. It still stops before input-load
-composition, semantic independence from arbitrary scratch-register entry
-values, the whole-program memory frame, `RET`/System V postconditions, physical
-CPU correctness, and identity with a downstream deployment binary.
+arithmetic core, semantic independence from arbitrary ZMM28--31 entry values,
+and exact five-store suffix. It still stops before input-load composition, the
+whole-program memory frame, `RET`/System V postconditions, physical CPU
+correctness, and identity with a downstream deployment binary.
 
 The transpose, scalar reducer, SHA-512 leaf, decoder, point formulas, and
 complete verifier have narrower source certificates, algebraic lemmas, tests,

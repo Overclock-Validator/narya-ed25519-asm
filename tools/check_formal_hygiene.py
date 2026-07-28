@@ -32,6 +32,9 @@ AUDIT_ANCHORS = {
     ),
     "X86NatShadow.lean": ("runR51NatShadow_correct",),
     "X86Refinement.lean": ("run_arithmetic_core_refines",),
+    "X86Noninterference.lean": (
+        "run_arithmetic_core_ignores_undefined_scratch",
+    ),
     "X86MemoryRefinement.lean": ("run_store_phase_refines",),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",

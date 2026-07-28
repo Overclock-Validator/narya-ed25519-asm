@@ -134,17 +134,17 @@ effect of `VZEROUPPER`.
    `X86Dataflow.lean` additionally checks definite assignment over the exact
    load/clear/arithmetic/store body from an empty caller-ZMM assumption. It
    proves ZMM28 and ZMM30 are written before first use and ZMM29/ZMM31 are never
-   dependencies. The next semantic composition should use that certificate to
-   remove the current proof-engineering assumption that the prepared shadow
-   agrees on otherwise irrelevant scratch registers.
+   dependencies. `X86Noninterference.lean` now gives that certificate semantic
+   force: relational execution from an arbitrary caller state and a sanitized
+   state proves equality of all five outputs, without assuming those four
+   scratch registers enter as zero.
    `X86MemoryRefinement.lean` now additionally proves the five decoded stores
    execute under explicit permissions and place the selected lane's five
    arithmetic results in the exact output rows without cross-row corruption.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
-6. Add the complete input-load/output-store, ABI, memory-frame,
-   lane-noninterference, and alias
+6. Add the complete input-load/output-store, ABI, memory-frame, and alias
    corollaries. The byte-store frame lemma and the decoded all-loads-before-
    stores/store-map/epilogue properties are implemented prerequisites. Exact
    qword little-endian store/load round-trip and disjoint-qword frame lemmas are

@@ -59,11 +59,13 @@ executes in the fault-aware BitVec machine and refines, under explicit u52,
 no-wrap, and linked-constant memory premises, to that Nat trace in an arbitrary
 lane. The decoded five-store suffix separately proves permission-sensitive
 execution, exact row/lane read-back, disjoint-row preservation, and the exact
-five-row byte-write frame from that post-arithmetic relation. Input-load
-composition, scratch-register semantic noninterference, whole-program frame
-composition, the System V return/postcondition, and identity with bytes in a
-downstream deployment remain open; this is not a general x86 decoder or a
-proof about an arbitrary consumer binary.
+five-row byte-write frame from that post-arithmetic relation. Semantic
+noninterference now connects the definite-assignment certificate to execution:
+arbitrary caller values in ZMM28--31 cannot change any selected-lane output.
+Input-load composition, whole-program frame composition, the System V
+return/postcondition, and identity with bytes in a downstream deployment remain
+open; this is not a general x86 decoder or a proof about an arbitrary consumer
+binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

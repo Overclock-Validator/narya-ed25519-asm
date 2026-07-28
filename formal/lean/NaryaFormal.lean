@@ -15,6 +15,7 @@ import NaryaFormal.X86Execution
 import NaryaFormal.X86Dataflow
 import NaryaFormal.X86NatShadow
 import NaryaFormal.X86Refinement
+import NaryaFormal.X86Noninterference
 import NaryaFormal.X86MemoryRefinement
 import NaryaFormal.Transpose
 import NaryaFormal.ScalarReduction
