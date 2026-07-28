@@ -49,6 +49,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Reject proof escapes and missing audit anchors
+        run: make check-formal-hygiene
       - name: Build pinned formal project
         uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
         with:

@@ -33,6 +33,7 @@ particular run, never general performance or correctness claims.
 ## Proofs and assurance
 
 - [Assurance model](proofs/ASSURANCE_MODEL.md)
+- [Formal evidence index](proofs/FORMAL_EVIDENCE_INDEX.md)
 - [r51 field contract](proofs/R51_FIELD_CONTRACT.md)
 - [r51 multiply assembly-source refinement](proofs/R51_SOURCE_TRACE_REFINEMENT.md)
 - [Byte-linked x86-64 refinement plan](proofs/X86_OBJECT_REFINEMENT_PLAN.md)

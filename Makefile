@@ -29,7 +29,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
 
 all: $(LIB)
 
@@ -222,11 +222,10 @@ check-sha512-schedule:
 check-generated:
 	python3 tools/check_generated.py
 
-formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace
-	@if grep -R -n -E '\b(sorry|admit|axiom)\b' formal/lean \
-		--include='*.lean' --exclude-dir='.lake'; then \
-		echo 'untrusted Lean placeholder or custom axiom found' >&2; exit 1; \
-	fi
+check-formal-hygiene:
+	python3 tools/check_formal_hygiene.py
+
+formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-formal-hygiene
 	cd formal/lean && $(LAKE) build
 
 clean:

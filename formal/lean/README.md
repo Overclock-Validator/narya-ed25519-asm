@@ -7,6 +7,12 @@ independently source-generated trace, in addition to the mathematical claims
 below. It does not yet prove the complete execution/ABI refinement, identity
 with a downstream binary, or correctness of a physical processor.
 
+Auditors can begin with the repository's
+[formal evidence index](../../docs/proofs/FORMAL_EVIDENCE_INDEX.md), which maps
+the stable capstone theorem names to their exact claim boundaries. CI runs
+`make check-formal-hygiene` before the build to reject proof placeholders and
+missing audit anchors.
+
 The first completed target is the five-limb radix-`2^51` field multiplier:
 
 - exact reconstruction of a 52-bit IFMA low/high pair;
