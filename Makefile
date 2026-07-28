@@ -26,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-transpose check-generated formal-check
 
 all: $(LIB)
 
@@ -165,6 +165,10 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/affine_niels_transpose_x8.S -o /tmp/narya-affine-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/fixed_base_comb_data.S -o /tmp/narya-fixed-base-comb-data.o
+	$(MAKE) check-transpose
+
+check-transpose:
+	python3 tools/check_transpose_schedule.py
 
 check-generated:
 	python3 tools/check_generated.py

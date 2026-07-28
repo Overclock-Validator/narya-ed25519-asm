@@ -24,7 +24,7 @@
  *   stores from that half.
  *
  * Source schedule: Narya Go commit 13dc06d4a5f0ad8be62412a89de3a44de57bd504.
- * Proof boundary: docs/architecture/FIXED_BASE_COMB.md.
+ * Proof boundary: docs/proofs/TRANSPOSE_LANE_MAP.md.
  */
 .intel_syntax noprefix
 .text

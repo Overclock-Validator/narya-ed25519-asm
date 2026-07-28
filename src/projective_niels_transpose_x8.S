@@ -34,6 +34,8 @@
  *
  * This is a SysV/GAS translation of Narya's reviewed Go-ABI selector at
  * commit 13dc06d4a5f0ad8be62412a89de3a44de57bd504.
+ * Machine-checked lane map and source binding:
+ *   docs/proofs/TRANSPOSE_LANE_MAP.md
  */
 
 .intel_syntax noprefix

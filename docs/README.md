@@ -37,6 +37,7 @@ particular run, never general performance or correctness claims.
 - [Field-arithmetic evidence handoff](proofs/FIELD_ARITHMETIC_HANDOFF.md)
 - [Machine-checked radix-51 Lean layer](../formal/lean/README.md)
 - [Scalar-reduction contract](proofs/SCALAR_REDUCTION_CONTRACT.md)
+- [x8 transpose lane-map certificate](proofs/TRANSPOSE_LANE_MAP.md)
 - [Formalization backlog](proofs/FORMALIZATION_BACKLOG.md)
 
 ## Audits and security review

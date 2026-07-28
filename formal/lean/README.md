@@ -17,6 +17,15 @@ The first completed target is the five-limb radix-`2^51` field multiplier:
 - the more general unsigned weak-carry theorem from arbitrary u64 limbs to
   reusable u52 limbs.
 
+The second completed source-level target is the x8 selector transpose:
+
+- ISA-level models of the YMM `VPUNPCKLQDQ`, `VPUNPCKHQDQ`, and
+  `VSHUFI64X2` operations used by the assembly;
+- a generic theorem that the eight-instruction network is exactly a 4×4
+  transpose;
+- two-half x8 theorems for all projective and affine coordinates; and
+- explicit treatment of the affine mask-zeroed fourth qword.
+
 [`Radix51.lean`](NaryaFormal/Radix51.lean) contains the representation-level
 algebra. [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean) mirrors the
 assembly's row-major `MUL_PAIR` order and degree grouping. Its main theorem,
@@ -24,10 +33,17 @@ assembly's row-major `MUL_PAIR` order and degree grouping. Its main theorem,
 u52 output contract from only the real source precondition: every input limb
 is below `2^52`. The prior abstract folded-schedule hypothesis is discharged.
 
+[`Transpose.lean`](NaryaFormal/Transpose.lean) contains the generic lane
+theorems. `tools/check_transpose_schedule.py` binds those semantics to the
+actual assembly source's macros, pointer map, five limb rows, and output
+offsets. See the
+[transpose certificate](../../docs/proofs/TRANSPOSE_LANE_MAP.md) for the exact
+claim and trust boundary.
+
 The remaining gap is binary/ISA refinement: proving that the assembled x86
-instructions implement this scalar trace, plus the eight-lane map theorem,
-SysV ABI checks, and load-before-store memory theorem. The Lean result is not
-a verified decoder for arbitrary machine code and does not prove CPU dispatch.
+instructions implement these source-level traces, plus SysV ABI checks and
+load-before-store memory theorems. The Lean result is not a verified decoder
+for arbitrary machine code and does not prove CPU dispatch.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

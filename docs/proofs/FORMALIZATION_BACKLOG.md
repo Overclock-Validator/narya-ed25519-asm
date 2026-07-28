@@ -12,6 +12,13 @@ The remaining native multiplier work is one refinement layer:
    SysV AVX-512 leaf to that scalar operation, including lane noninterference
    and load-before-store alias safety.
 
+The selector transpose's source-level lane map is now machine checked in
+`NaryaFormal.Transpose`, and a fail-closed source parser checks the actual
+assembly macros, pointer assignments, limb invocations, and output offsets.
+The remaining transpose obligation is the same binary-refinement layer:
+decode the emitted instructions and connect their register/memory trace to the
+proved source model. See [`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
+
 Before treating the complete r51 field layer as formally covered, add two
 generic trace families that are also useful to independent implementations:
 

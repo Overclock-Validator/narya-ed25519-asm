@@ -41,6 +41,10 @@ general performance claim.
 8. Does digit-level negation preserve exact signed-integer semantics for
    mixed-order public keys?
 
+Question 5 now has a source-level Lean theorem and assembly-source certificate
+covering both transpose leaves. Review still needs to confirm the certificate's
+ISA model and eventually close the documented assembled-binary refinement gap.
+
 ## Before release
 
 The scope must expand to long native fuzz soaks, independent regeneration of
