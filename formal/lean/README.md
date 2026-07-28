@@ -126,7 +126,11 @@ normal return and prove that the five stored limbs equal the independently
 generated 25-product arithmetic trace.
 [`X86Refinement.lean`](NaryaFormal/X86Refinement.lean) proves local
 machine-to-shadow refinements for XOR, AND, add, multiply, shifts, and both
-IFMA halves; every u52 and no-wrap premise is explicit. The exact decoded
+IFMA halves; every u52 and no-wrap premise is explicit. Its compositional
+machine runner now proves the complete decoded product and combine phases
+lane-by-lane under the public u52 input contract. The fold and normalize
+phases remain separate because their broadcasts require explicit memory
+premises. The exact decoded
 program also kernel-checks that all ten source loads precede every output
 store, that the five store offsets/registers are exact, and that the epilogue
 is `VZEROUPPER; RET`. The BitVec-to-Nat range-premise composition and final

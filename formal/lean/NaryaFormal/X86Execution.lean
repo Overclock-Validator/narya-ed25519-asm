@@ -83,6 +83,61 @@ def runProgram {Other : Type} :
           if rest.isEmpty then .ok (.returned returnState)
           else .error .badDecode
 
+/--
+Execute a machine-proof phase that must not contain `RET`. The empty list is
+the identity, so independently audited schedule phases compose without
+unfolding the full linked program into one proof term.
+-/
+def runMachinePhase {Other : Type} :
+    List Instruction → MachineState Other → Except Fault (MachineState Other)
+  | [], state => .ok state
+  | instruction :: rest, state =>
+      match executeInstruction instruction state with
+      | .error fault => .error fault
+      | .ok (.next nextState) => runMachinePhase rest nextState
+      | .ok (.returned _) => .error .badDecode
+
+theorem runMachinePhase_append {Other : Type} (first second : List Instruction)
+    (state : MachineState Other) :
+    runMachinePhase (first ++ second) state = (do
+      let middle ← runMachinePhase first state
+      runMachinePhase second middle) := by
+  induction first generalizing state with
+  | nil => rfl
+  | cons instruction rest ih =>
+      simp only [List.cons_append, runMachinePhase]
+      cases hstep : executeInstruction instruction state with
+      | error fault =>
+          simp only [hstep]
+          rfl
+      | ok outcome =>
+          cases outcome with
+          | returned returnState =>
+              simp only [hstep]
+              rfl
+          | next nextState => simp [hstep, ih]
+
+/-- Peel a successfully executed non-returning prefix from normal execution. -/
+theorem runProgram_append_of_runMachinePhase {Other : Type}
+    (first suffix : List Instruction) (state middle : MachineState Other)
+    (hphase : runMachinePhase first state = .ok middle) :
+    runProgram (first ++ suffix) state = runProgram suffix middle := by
+  induction first generalizing state middle with
+  | nil =>
+      simp only [runMachinePhase] at hphase
+      cases hphase
+      rfl
+  | cons instruction rest ih =>
+      simp only [runMachinePhase] at hphase
+      cases hstep : executeInstruction instruction state with
+      | error fault => simp [hstep] at hphase
+      | ok outcome =>
+          cases outcome with
+          | returned returnState => simp [hstep] at hphase
+          | next nextState =>
+              simp [hstep] at hphase
+              simpa [runProgram, hstep] using ih nextState middle hphase
+
 theorem execute_vpxorq {Other : Type} (state : MachineState Other)
     (destination source1 source2 : ZReg) :
     executeInstruction (.vpxorq destination source1 source2) state =

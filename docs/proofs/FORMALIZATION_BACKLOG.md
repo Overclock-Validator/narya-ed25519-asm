@@ -34,7 +34,11 @@ transition from input loads through the returned stored output, and
 `runR51NatShadow_correct` composes them into the exact decoded-program result.
 This closes the decoded Nat schedule. Finish the native item by discharging
 the BitVec/Nat no-wrap premises phase by phase, then prove the byte-memory,
-alias, return, and System V postcondition. A prior monolithic 129-step
+alias, return, and System V postcondition. The product and combine phase
+certificates are now closed: all 50 IFMA updates and 17 shift/add operations
+refine the exact Nat states in an arbitrary selected lane. Fold and normalize
+remain because their constant broadcasts need an explicit read-only-memory
+contract. A prior monolithic 129-step
 simplifier proof type-checked but was intentionally rejected because its
 serialized proof term was too large for a dependable audit/CI artifact.
 

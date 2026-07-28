@@ -211,6 +211,20 @@ theorem storeQwordLE_frame (memory : Memory) (base candidate : Addr)
     (storeQwordLE memory base word).byte candidate = memory.byte candidate := by
   exact storeBytes_frame memory base candidate (qwordBytes word) hnot
 
+theorem qwordOfNat_mul (x y : Nat) :
+    BitVec.ofNat 64 (x * y) = BitVec.ofNat 64 x * BitVec.ofNat 64 y := by
+  apply BitVec.eq_of_toNat_eq
+  simp [Nat.mul_mod]
+
+/-- A little-endian qword store is read back exactly at the same address. -/
+theorem loadQwordLE_storeQwordLE_same (memory : Memory) (base : Addr)
+    (word : QWord) :
+    loadQwordLE (storeQwordLE memory base word) base = word := by
+  simp [loadQwordLE, storeQwordLE, storeBytes, storeByte, qwordBytes,
+    qwordByte, addressAdd, Finset.sum_range_succ]
+  simp only [BitVec.ofNat_add, qwordOfNat_mul, BitVec.ofNat_toNat]
+  bv_decide
+
 theorem storeZmm_permissions (memory : Memory) (base : Addr) (value : Zmm) :
     (storeZmm memory base value).perm = memory.perm := by
   simp only [storeZmm]
@@ -230,6 +244,82 @@ theorem storeZmm_frame (memory : Memory) (base candidate : Addr) (value : Zmm)
   rw [storeQwordLE_frame _ _ _ _ h2]
   rw [storeQwordLE_frame _ _ _ _ h1]
   rw [storeQwordLE_frame _ _ _ _ h0]
+
+theorem addressAdd_injective_below (base : Addr) {left right : Nat}
+    (hleft : left < 2 ^ 64) (hright : right < 2 ^ 64)
+    (hequal : addressAdd base left = addressAdd base right) : left = right := by
+  have hequal' : BitVec.ofNat 64 left = BitVec.ofNat 64 right := by
+    simpa [addressAdd] using congrArg (fun value => value - base) hequal
+  have hnat := congrArg BitVec.toNat hequal'
+  simp only [BitVec.toNat_ofNat] at hnat
+  rw [Nat.mod_eq_of_lt hleft, Nat.mod_eq_of_lt hright] at hnat
+  exact hnat
+
+def qwordRangesDisjoint (left right : Addr) : Prop :=
+  ∀ leftOffset rightOffset,
+    leftOffset < 8 → rightOffset < 8 →
+      addressAdd left leftOffset ≠ addressAdd right rightOffset
+
+theorem qwordRangesDisjoint_at_offsets (base : Addr) (left right : Nat)
+    (hleft : left + 8 ≤ right ∨ right + 8 ≤ left)
+    (hbound : left + 8 < 2 ^ 64 ∧ right + 8 < 2 ^ 64) :
+    qwordRangesDisjoint (addressAdd base left) (addressAdd base right) := by
+  intro leftOffset rightOffset hleftOffset hrightOffset hequal
+  have hequal' : addressAdd base (left + leftOffset) =
+      addressAdd base (right + rightOffset) := by
+    simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using hequal
+  have hoffset := addressAdd_injective_below base
+    (left := left + leftOffset) (right := right + rightOffset)
+    (by omega) (by omega) hequal'
+  omega
+
+theorem loadQwordLE_storeQwordLE_disjoint (memory : Memory)
+    (readBase writeBase : Addr) (word : QWord)
+    (hdisjoint : qwordRangesDisjoint readBase writeBase) :
+    loadQwordLE (storeQwordLE memory writeBase word) readBase =
+      loadQwordLE memory readBase := by
+  unfold loadQwordLE
+  congr 1
+  apply Finset.sum_congr rfl
+  intro offset hoffset
+  rw [storeQwordLE_frame]
+  simp only [qwordBytes, storeAddresses, List.mem_cons, List.mem_singleton,
+    List.not_mem_nil, or_false, not_or]
+  constructor
+  · simpa [addressAdd] using
+      hdisjoint offset 0 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 1 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 2 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 3 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 4 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 5 (Finset.mem_range.mp hoffset) (by omega)
+  constructor
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 6 (Finset.mem_range.mp hoffset) (by omega)
+  · simpa [addressAdd, BitVec.ofNat_add, BitVec.add_assoc] using
+      hdisjoint offset 7 (Finset.mem_range.mp hoffset) (by omega)
+
+theorem loadQwordLE_storeQwordLE_offset_disjoint (memory : Memory)
+    (base : Addr) (readOffset writeOffset : Nat) (word : QWord)
+    (hdisjoint : readOffset + 8 ≤ writeOffset ∨
+      writeOffset + 8 ≤ readOffset)
+    (hbound : readOffset + 8 < 2 ^ 64 ∧ writeOffset + 8 < 2 ^ 64) :
+    loadQwordLE
+        (storeQwordLE memory (addressAdd base writeOffset) word)
+        (addressAdd base readOffset) =
+      loadQwordLE memory (addressAdd base readOffset) := by
+  exact loadQwordLE_storeQwordLE_disjoint memory _ _ word
+    (qwordRangesDisjoint_at_offsets base readOffset writeOffset hdisjoint hbound)
 
 theorem loadZmm_lane (memory : Memory) (base : Addr) (lane : Fin 8) :
     loadZmm memory base lane =

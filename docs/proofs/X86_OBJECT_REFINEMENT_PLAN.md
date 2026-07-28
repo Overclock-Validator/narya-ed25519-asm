@@ -120,14 +120,19 @@ effect of `VZEROUPPER`.
    phases, validates each phase's opcode vocabulary, and emits their exact
    lengths. `runNatPhase_append` supplies the compositional interpreter law,
    and checked phase theorems characterize every register transition through
-   the returned stored output. The remaining work here is to compose the
-   BitVec/Nat refinement premises from the accumulator, fold, and carry bounds.
+   the returned stored output. `runMachinePhase_append` supplies the matching
+   fault-aware machine law. The 50-instruction product and 17-instruction
+   combine phases now have decoded per-step u52/no-wrap certificates and
+   checked lane refinements into their exact Nat phase states. The remaining
+   arithmetic work is the constant-backed fold and normalize phases.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
 6. Add the complete ABI, memory-frame, lane-noninterference, and alias
    corollaries. The byte-store frame lemma and the decoded all-loads-before-
-   stores/store-map/epilogue properties are implemented prerequisites.
+   stores/store-map/epilogue properties are implemented prerequisites. Exact
+   qword little-endian store/load round-trip and disjoint-qword frame lemmas are
+   also implemented; compose them into the full ZMM/output postcondition.
 7. Regenerate and rebuild the Lean artifact in CI whenever the final binary
    changes.
 

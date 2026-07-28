@@ -36,9 +36,11 @@ the hand-maintained source/model mirror. A separate restricted Lean decoder
 consumes the exact 800-byte canonical linked symbol and kernel-checks that it
 equals the independently expanded 129-instruction source trace. The decoded
 program's unbounded-natural execution is proved equal to the generated
-arithmetic result. BitVec no-wrap composition, the complete System V
-memory/alias postcondition, downstream deployment identity, and dispatch
-refinement remain separate open obligations.
+arithmetic result. Its 50-instruction product and 17-instruction combine phases
+also have checked BitVec no-wrap/lane refinements. Constant-backed fold and
+normalize refinement, the complete System V memory/alias postcondition,
+downstream deployment identity, and dispatch refinement remain separate open
+obligations.
 
 ## 4. Differential and adversarial testing
 
