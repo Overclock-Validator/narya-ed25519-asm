@@ -21,11 +21,11 @@
  * SIGNED ARITHMETIC
  *   The reduction deliberately uses signed 64-bit radix-2^21 limbs. VPSRAQ
  *   implements the arithmetic shifts used by the public-domain ref10
- *   schedule. VPMULLQ returns the low 64 bits of a two's-complement product;
- *   docs/proofs/SCALAR_REDUCTION_CONTRACT.md specifies the still-open
- *   instruction-level obligation that every exact intermediate fit int64_t,
- *   so truncation cannot change the integer result. Differential tests are
- *   evidence for this leaf; they are not a completed range certificate.
+ *   schedule. VPMULLQ returns the low 64 bits of a two's-complement product.
+ *   tools/check_scalar_reduce_bounds.py parses this source and proves all 389
+ *   arithmetic intermediates fit int64_t; the widest bound is 49 bits. That
+ *   source certificate does not replace assembled-opcode refinement or the
+ *   still-open relational proof of final canonical range.
  *
  * MODULAR FOLD
  *   For a high limb x at position i >= 12, 2^(21i) is replaced using

@@ -2,11 +2,13 @@
 
 ## Status
 
-This document is the specification for `narya_scalar_reduce_x8`, not a claim
-that its machine proof is complete. The native implementation is covered by
-independent differential and boundary tests. The interval certificate,
-instruction-level refinement, and wrapper memory proof listed below remain
-formalization work.
+This document specifies `narya_scalar_reduce_x8`. The source-level signed
+interval certificate is now executable and checked in CI. It proves the real
+assembly schedule cannot overflow signed 64-bit intermediates under the stated
+radix-parser bounds, and that every fold/carry preserves the represented
+scalar modulo `l`. It does **not** yet prove final canonical range, the C
+parser/packer refinement, or assembled-binary instruction refinement. Native
+differential and boundary tests cover those claims only over finite corpora.
 
 ## Claim
 
@@ -79,7 +81,9 @@ multiplication by `B^(i-12)`, then clears the consumed high coefficient. The
 schedule folds coefficients 23 through 18, performs centered carries, folds
 17 through 12, and performs two final fold/carry passes.
 
-The identity above should be the basic machine-checked fold lemma.
+`NaryaFormal.ScalarReduction.fold_polynomial_exact` machine-checks this exact
+identity, and `radix12_fold_mod_order` proves the resulting congruence modulo
+`l`.
 
 ## Carry semantics
 
@@ -117,9 +121,11 @@ In both cases the adjacent-coefficient update
 (x_i, x_(i+1)) -> (x_i - q*B, x_(i+1) + q)
 ```
 
-preserves the represented integer exactly. The centered proof must also show
-that adding `2^20` does not overflow. Both proofs must show that the shift or
-multiplication used to reconstruct `q*B` is exact.
+preserves the represented integer exactly. `NaryaFormal.ScalarReduction`
+proves both quotient/residual decompositions, both residual ranges, and the
+generic adjacent-coefficient preservation theorem. The source certificate
+separately proves that adding `2^20` and reconstructing `q*B` stay within
+signed int64 for every occurrence in the real schedule.
 
 ## Canonical range and packing
 
@@ -149,22 +155,52 @@ LE256(output) = Y.
 Parsing, modular preservation, canonical range, and exact packing together
 establish that the output is `X mod l`.
 
-## Machine obligations
+## Source-level machine-range certificate
 
 The assembly leaf uses `VPMULLQ`, signed `VPSRAQ`, `VPADDQ`, `VPSUBQ`, and
-fixed shifts. An instruction-level interval certificate must expose bounds
-after every instruction and prove:
+fixed shifts. [`check_scalar_reduce_bounds.py`](../../tools/check_scalar_reduce_bounds.py)
+parses the actual macros, constants, limb loads/stores, and macro-call order.
+It exposes bounds after every arithmetic instruction and proves:
 
 1. for every `VPMULLQ`, the intended signed product is in
    `[-2^63,2^63-1]`, so its low 64-bit two's-complement result is exact;
 2. every partial addition and subtraction also remains in that interval;
 3. adding the centered-carry bias and reconstructing `q*B` cannot overflow;
 4. each arithmetic right shift implements the specified floor division;
-5. every fold preserves the represented value modulo `l`;
-6. the final reconstructed value is in `[0,l)` and packing preserves bit 252.
+5. every fold preserves the represented value modulo `l`.
 
 It is insufficient to bound only the final node of a fold or carry: every
-partial multiplication and accumulation must be certified.
+partial multiplication and accumulation is certified. The current source has
+389 checked intermediates. The largest absolute bound is
+`537126723016406` (49 bits), at the subtraction of `683901*zmm21` from
+`zmm14`, leaving more than fourteen signed bits of headroom.
+
+Run the concise gate with:
+
+```sh
+make check-scalar-bounds
+```
+
+or emit every interval and transfer rule as JSON with:
+
+```sh
+python3 tools/check_scalar_reduce_bounds.py --json
+```
+
+The final independent intervals are `0..2^21-1` for limbs 0 through 10,
+`-1..2^21` for limb 11, and zero at limb 12. The true output is canonical,
+as the differential tests indicate, but the limb-11 interval demonstrates
+why independent intervals alone cannot prove it: the remaining correlation
+between limbs is load-bearing. The still-open relational proof must establish
+the reconstructed value in `[0,l)` and exact packing, including bit 252.
+
+## Remaining machine obligations
+
+The source certificate does not decode the emitted instruction bytes. A full
+instruction-refinement proof must still show that the assembled opcodes and
+register map implement the certified macro trace. The C boundary also needs
+proof that parsing establishes the certificate's initial bounds and packing
+preserves the proved canonical integer.
 
 ## Lane and wrapper obligations
 

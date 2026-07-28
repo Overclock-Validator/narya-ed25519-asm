@@ -26,6 +26,15 @@ The second completed source-level target is the x8 selector transpose:
 - two-half x8 theorems for all projective and affine coordinates; and
 - explicit treatment of the affine mask-zeroed fourth qword.
 
+The scalar-reduction foundation now also machine-checks:
+
+- the exact six-constant radix-`2^21` fold identity modulo the group order;
+- ordinary carry decomposition and the residual range `[0, 2^21)`;
+- centered carry decomposition and the residual range
+  `[-2^20, 2^20)`; and
+- exact represented-integer preservation when a carry moves to the adjacent
+  coefficient.
+
 [`Radix51.lean`](NaryaFormal/Radix51.lean) contains the representation-level
 algebra. [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean) mirrors the
 assembly's row-major `MUL_PAIR` order and degree grouping. Its main theorem,
@@ -39,6 +48,12 @@ actual assembly source's macros, pointer map, five limb rows, and output
 offsets. See the
 [transpose certificate](../../docs/proofs/TRANSPOSE_LANE_MAP.md) for the exact
 claim and trust boundary.
+
+[`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
+and relational carry theorems. The assembly-source checker supplies all 389
+per-instruction signed intervals. The full schedule/canonical-range theorem
+and binary refinement remain open; see the
+[scalar-reduction contract](../../docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 
 The remaining gap is binary/ISA refinement: proving that the assembled x86
 instructions implement these source-level traces, plus SysV ABI checks and
