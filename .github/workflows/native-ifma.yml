@@ -1,0 +1,42 @@
+name: Native IFMA gates
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ifma-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native:
+    # This workflow intentionally requires a real, administratively managed
+    # AVX-512 IFMA host. SDE and hosted compilation are useful correctness
+    # evidence but cannot replace native execution or support performance
+    # claims. Register the runner with all four labels before dispatching.
+    runs-on: [self-hosted, linux, x64, narya-ifma]
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Record CPU and toolchain
+        run: |
+          uname -a
+          lscpu
+          cc --version
+          clang --version
+      - name: Reproduce generated artifacts
+        run: make check-generated
+      - name: Run native warning-as-error suite
+        run: |
+          make clean
+          make CC=clang CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror' test-native
+      - name: Run ASan and UBSan on native paths
+        run: make CC=clang test-sanitize
+      - name: Run deterministic fuzz smoke
+        run: |
+          make CLANG=clang fuzz-build
+          ./build/fuzz_verify_strict_x8 -runs=50000 tests/fuzz/corpus/verify_strict_x8
+

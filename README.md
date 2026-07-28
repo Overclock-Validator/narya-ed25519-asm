@@ -30,8 +30,10 @@ boundary are frozen.
   tests; and a machine-checked Lean scalar trace for the radix-51 IFMA
   multiplier, including the exact product order, per-instruction no-wrap,
   fold, carry, modular result, and reusable-range lemmas.
-- In progress: broader external differential corpora, long fuzzing, complete
-  performance measurement, and fusion of remaining C-scheduled point layers.
+- In progress: long native fuzzing, complete performance measurement, further
+  formal refinement, and fusion of remaining C-scheduled point layers. The
+  checked-in external corpus covers RFC 8032, CCTV, Wycheproof, and derived
+  predicate-boundary cases.
 - Supported verification target: eight independent cold Ed25519 equations
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
@@ -66,6 +68,7 @@ make
 make test
 make test-native
 make test-sanitize
+make check-generated
 make formal-check
 ```
 
@@ -76,6 +79,13 @@ target and is useful on a non-x86 development host.
 It proves the exact scalar arithmetic trace mirrored from the multiply leaf;
 it does not yet decode the System V x86 binary or prove that its register and
 memory execution refines that trace.
+
+Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
+generated artifacts, validates the external corpus, builds the fuzz target,
+and checks the Lean project. The separately dispatched native workflow is
+pinned to a self-hosted runner labeled `narya-ifma`; it runs the real native,
+sanitizer, and fuzz gates. Hosted or emulated success is never presented as a
+native performance result.
 
 ## Audit orientation
 

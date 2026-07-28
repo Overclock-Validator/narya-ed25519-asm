@@ -149,37 +149,14 @@ byte_precheck(
     return live;
 }
 
-static void
-canonical_lane(uint64_t output[5], const narya_r51x8 *input, size_t lane)
-{
-    const uint64_t mask = (UINT64_C(1) << 51) - 1;
-    for (size_t limb = 0; limb < 5; limb++)
-        output[limb] = input->limb[limb][lane];
-    for (size_t round = 0; round < 4; round++) {
-        for (size_t limb = 0; limb < 4; limb++) {
-            const uint64_t carry = output[limb] >> 51;
-            output[limb] &= mask;
-            output[limb + 1] += carry;
-        }
-        const uint64_t carry = output[4] >> 51;
-        output[4] &= mask;
-        output[0] += 19 * carry;
-    }
-    if (output[1] == mask && output[2] == mask && output[3] == mask &&
-        output[4] == mask && output[0] >= mask - 18) {
-        output[0] -= mask - 18;
-        output[1] = output[2] = output[3] = output[4] = 0;
-    }
-}
-
 static uint8_t
 field_equal_mask(const narya_r51x8 *a, const narya_r51x8 *b)
 {
     uint8_t equal = 0;
     for (size_t lane = 0; lane < 8; lane++) {
         uint64_t left[5], right[5], difference = 0;
-        canonical_lane(left, a, lane);
-        canonical_lane(right, b, lane);
+        narya_r51x8_canonical_lane(left, a, lane);
+        narya_r51x8_canonical_lane(right, b, lane);
         for (size_t limb = 0; limb < 5; limb++)
             difference |= left[limb] ^ right[limb];
         if (difference == 0)

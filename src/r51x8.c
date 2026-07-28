@@ -15,6 +15,37 @@ narya_r51x8_is_u52(const narya_r51x8 *x)
     return bad == 0;
 }
 
+void
+narya_r51x8_canonical_lane(
+    uint64_t output[5],
+    const narya_r51x8 *input,
+    size_t lane)
+{
+    const uint64_t mask51 = (UINT64_C(1) << 51) - 1;
+    for (size_t limb = 0; limb < 5; limb++)
+        output[limb] = input->limb[limb][lane];
+
+    /* Four sequential passes are sufficient from the composable u52 domain. */
+    for (size_t round = 0; round < 4; round++) {
+        for (size_t limb = 0; limb < 4; limb++) {
+            const uint64_t carry = output[limb] >> 51;
+            output[limb] &= mask51;
+            output[limb + 1] += carry;
+        }
+        const uint64_t carry = output[4] >> 51;
+        output[4] &= mask51;
+        output[0] += 19 * carry;
+    }
+
+    /* Now 0 <= value < 2^255=p+19; only p..p+18 need subtraction. */
+    if (output[1] == mask51 && output[2] == mask51 &&
+        output[3] == mask51 && output[4] == mask51 &&
+        output[0] >= mask51 - 18) {
+        output[0] -= mask51 - 18;
+        output[1] = output[2] = output[3] = output[4] = 0;
+    }
+}
+
 narya_status
 narya_r51x8_mul(narya_r51x8 *out, const narya_r51x8 *x, const narya_r51x8 *y)
 {

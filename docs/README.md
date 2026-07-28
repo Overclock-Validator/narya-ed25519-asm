@@ -46,6 +46,7 @@ particular run, never general performance or correctness claims.
 ## Performance
 
 - [Benchmarking rules](performance/BENCHMARKING.md)
+- [Open optimization investigations](performance/OPEN_OPTIMIZATIONS.md)
 
 ## Reproducibility
 

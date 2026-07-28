@@ -6,3 +6,9 @@ build/
 *.dll
 *.exe
 formal/lean/.lake/
+crash-*
+leak-*
+oom-*
+slow-unit-*
+timeout-*
+*.profraw

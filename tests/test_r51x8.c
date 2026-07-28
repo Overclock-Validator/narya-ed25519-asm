@@ -269,6 +269,17 @@ dump_mismatch(const narya_r51x8 *got, const narya_r51x8 *want)
 static int
 check_case(const narya_r51x8 *x, const narya_r51x8 *y)
 {
+    for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+        uint64_t got_canonical[5];
+        uint64_t want_canonical[5];
+        narya_r51x8_canonical_lane(got_canonical, x, lane);
+        reference_r51x8_canonical_lane(want_canonical, x, lane);
+        if (memcmp(got_canonical, want_canonical, sizeof(got_canonical)) != 0) {
+            fprintf(stderr, "canonicalization mismatch lane=%zu\n", lane);
+            return 0;
+        }
+    }
+
     narya_r51x8 got;
     narya_r51x8 want;
     reference_r51x8_mul(&want, x, y);

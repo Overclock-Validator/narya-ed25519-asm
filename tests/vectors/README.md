@@ -1,5 +1,32 @@
 # Fixture provenance
 
+## External strict-verification corpus
+
+`narya_external_strict_v1.jsonl` contains 2,954 language-neutral records:
+
+- all five plain-Ed25519 RFC 8032 section 7.1 vectors;
+- 914 C2SP CCTV `ed25519vectors` cases;
+- 133 Project Wycheproof Ed25519 verification cases; and
+- 1,902 independently derived small-order, nearby-mutation, noncanonical-y,
+  scalar-boundary, and deterministic valid cases.
+
+Each record contains the original public-key, signature, and message bytes plus
+the exact Narya `DalekStrict` verdict. It was exported by
+`TestExportAgaveV4OracleCorpus` from Narya Ed25519 commit
+`851e550fedec0c349ce8595a8f90db420009b2d8`. The exporter calls the generic
+mathematical profile oracle, not an IFMA helper. Its output SHA-256 is:
+
+```text
+c18c229799ba137dc04377ccdcb173646f8e533d528b5433e40310737605bd38
+```
+
+The native C test validates the schema and fixed case count on every machine;
+on IFMA hardware it evaluates the complete strict verifier in heterogeneous
+x8 groups and compares every lane with the committed verdict. Regeneration is
+an explicit review event because it changes both the upstream snapshots and
+the pinned predicate oracle. CCTV and Wycheproof redistribution terms are
+preserved in the repository `NOTICE`.
+
 `narya_permissive_decode_v1.txt` pins 256 compressed-input decisions and full
 extended Edwards coordinates from Narya's scalar radix-2^51 decoder.  The
 fixture intentionally includes canonical encodings, every possible

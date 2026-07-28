@@ -22,7 +22,7 @@ The standalone port therefore proceeds by proof boundary:
    review seams; fused scheduling remains a performance follow-up);
 5. scalar recoding, table construction, and Straus DSM;
 6. projective final comparison and independent lane masks;
-7. a checked public C wrapper and fault-contained fallback policy.
+7. a checked public C wrapper and explicit unsupported-CPU/error policy.
 
 Each stage must pass bit-exact differential tests before its result may become
 an input to the next stage. This keeps a representation error from being
@@ -38,8 +38,9 @@ hidden by a later canonical encoding.
 - Checked C entry points own feature and input validation. Internal assembly
   leaves are unchecked and may only be called after range proofs establish
   their contracts.
-- No public API is exposed for an incomplete verifier. Low-level field entry
-  points exist now so the port can be tested independently.
+- The complete ABI-zero strict verifier and selected low-level review seams are
+  public. ABI zero remains intentionally unstable; incomplete experimental
+  verifier variants are not exported.
 
 ## Source boundary
 

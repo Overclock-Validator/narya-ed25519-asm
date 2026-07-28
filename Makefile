@@ -26,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize check check-source formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-generated formal-check
 
 all: $(LIB)
 
@@ -114,7 +114,10 @@ $(BUILD)/test_verify_strict_x8: tests/test_verify_strict_x8.c tests/vectors/nary
 $(BUILD)/test_fixed_base_comb: tests/test_fixed_base_comb.c tests/vectors/narya_fixed_base_scalar_v1.txt $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
-test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8
+$(BUILD)/test_external_vectors: tests/test_external_vectors.c tests/vectors/narya_external_strict_v1.jsonl $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
+
+test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
 	$(BUILD)/test_r51x8
 	$(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	$(BUILD)/test_sha512x8
@@ -124,8 +127,9 @@ test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(
 	$(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
 	$(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
 	$(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
+	$(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
 
-test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8
+test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
@@ -135,14 +139,22 @@ test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha5
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
 
 test-sanitize:
 	$(MAKE) clean
 	$(MAKE) CFLAGS='-O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined' test-native
 
-check: check-source formal-check
+fuzz-build:
 	$(MAKE) clean
-	$(MAKE) CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror' test
+	$(MAKE) CC=$(CLANG) CFLAGS='-O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined' $(LIB)
+	$(CLANG) $(CPPFLAGS) -O1 -g -std=c11 -Wall -Wextra -Wpedantic \
+		-fno-omit-frame-pointer -fsanitize=fuzzer,address,undefined \
+		tests/fuzz_verify_strict_x8.c $(LIB) -o $(BUILD)/fuzz_verify_strict_x8
+
+check: check-source check-generated formal-check
+	$(MAKE) clean
+	$(MAKE) CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror' test-native
 
 # This target is useful on non-x86 development hosts. It checks the standalone
 # assembly parser without trying to link or execute the resulting ELF object.
@@ -152,8 +164,16 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/scalar_reduce_x8.S -o /tmp/narya-scalar-reduce-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/affine_niels_transpose_x8.S -o /tmp/narya-affine-niels-transpose-x8.o
+	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/fixed_base_comb_data.S -o /tmp/narya-fixed-base-comb-data.o
+
+check-generated:
+	python3 tools/check_generated.py
 
 formal-check:
+	@if grep -R -n -E '\b(sorry|admit|axiom)\b' formal/lean \
+		--include='*.lean' --exclude-dir='.lake'; then \
+		echo 'untrusted Lean placeholder or custom axiom found' >&2; exit 1; \
+	fi
 	cd formal/lean && $(LAKE) build
 
 clean:

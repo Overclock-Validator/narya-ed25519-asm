@@ -12,14 +12,17 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
 - SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
 - canonical scalar reduction and exact signed radix-32 recoding;
 - pre-signed projective-Niels table construction and assembly transpose;
-- variable-base scalar multiplication and complete `[S]B-[k]A` evaluation;
+- variable-base scalar multiplication, an immutable radix-256 basepoint comb,
+  and complete `[S]B-[k]A` evaluation;
 - canonical-S, exact small-order A/R, canonical-R, projective equality, and
   independent lane verdicts;
 - scalar differential oracles and native Zen 5 evidence.
 
-The fixed-base term deliberately uses the variable-base engine in this
-checkpoint. That is slower but predicate-equivalent. Performance claims must
-wait for the radix-256 fixed-base replacement and dedicated benchmarks.
+The fixed-base term uses the checked-in radix-256 comb and its independently
+generated affine-Niels table. The table generator, binary payload, scalar
+fixtures, native active-mask sweep, and checksummed Zen 5 execution record are
+part of the current review boundary. These are correctness artifacts, not a
+general performance claim.
 
 ## High-priority review questions
 
@@ -40,7 +43,9 @@ wait for the radix-256 fixed-base replacement and dedicated benchmarks.
 
 ## Before release
 
-The scope must expand to CCTV and Wycheproof ingestion, committed fuzz seeds,
-long native fuzz soaks, independent regeneration of all byte classifiers,
-fixed-base-comb evidence, ABI-version review, fault containment, benchmark
-artifacts, and at least one independent implementation audit.
+The scope must expand to long native fuzz soaks, independent regeneration of
+all byte classifiers, ABI-version review, fault containment, complete
+performance artifacts, and at least one independent implementation audit.
+RFC 8032, CCTV, Wycheproof, deterministic edge cases, committed fuzz seeds,
+and fixed-base-comb evidence are checked in; their presence does not replace
+the remaining independent review.

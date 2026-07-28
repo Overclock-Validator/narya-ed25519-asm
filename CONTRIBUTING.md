@@ -10,6 +10,9 @@ Consensus-visible arithmetic changes require more than a passing benchmark.
 6. Preserve exact commands, environments, raw output, and checksums.
 7. Report complete-verifier performance; leaf-only wins remain experimental.
 8. Update `NOTICE` for copied code, adapted schedules, fixtures, or datasets.
+9. Run `make check-generated`; project-owned deterministic artifacts must
+   reproduce byte-for-byte without network access. Externally sourced corpus
+   snapshots require a pinned provenance and checksum update.
 
 Named range states are documentation shorthand, not proof. When an operation
 leaves the immediately reusable u52 domain, record per-limb intervals for the

@@ -4,11 +4,12 @@ The project treats assurance as several linked but non-substitutable layers.
 
 ## 1. Protocol predicate
 
-The complete library will state the accepted byte language: canonical scalar,
+The library states the accepted byte language: canonical scalar,
 permissive public-key decoding, original bytes in the challenge hash,
 canonical signature-point encoding, pure small-order A/R rejection, and the
-cofactorless verification equation. This must be differentially matched to the
-pinned Go Narya `DalekStrict` oracle.
+cofactorless verification equation. The checked-in external corpus is
+differentially matched to the pinned Go Narya `DalekStrict` oracle; that
+finite comparison is evidence, not a universal proof of equivalence.
 
 ## 2. Algebraic model
 
@@ -27,8 +28,8 @@ aliasing, and CPU feature assumptions.
 Required corpora include RFC vectors, CCTV, Wycheproof, permissive aliases,
 small-order encodings, invalid decompressions, scalar boundaries, every lane
 position, every active mask, and mutations around every special constant.
-Fuzz seeds are committed; long native fuzz runs are preserved as checksummed
-evidence.
+Deterministic fuzz seeds are committed. Long native fuzz runs must be
+preserved as checksummed evidence before a reviewed release.
 
 ## 5. Hardware execution
 

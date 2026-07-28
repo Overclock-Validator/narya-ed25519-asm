@@ -25,6 +25,18 @@ void narya_r51x8_sub_ifma(
     const narya_r51x8 *y);
 void narya_r51x8_neg_ifma(narya_r51x8 *out, const narya_r51x8 *x);
 
+/*
+ * Canonicalizes one lane from the composable u52 domain into five radix-51
+ * limbs representing the unique integer in [0,p). This is the single shared
+ * implementation used by decoder sign/equality decisions and final
+ * projective equality; duplicating it would duplicate consensus-visible
+ * reduction policy.
+ */
+void narya_r51x8_canonical_lane(
+    uint64_t output[5],
+    const narya_r51x8 *input,
+    size_t lane);
+
 void narya_sha512_compress_x8_asm(
     narya_sha512_state_x8 *state,
     const narya_sha512_block_x8 *block);

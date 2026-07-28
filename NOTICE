@@ -48,3 +48,67 @@ implementation, profiling analysis, mathematical proof planning, tests,
 documentation, and review. Project-owned tests, machine-checked statements,
 reproducible measurements, and independent human review—not model output—are
 the evidence for claims made by this repository.
+
+
+=======================================================================
+TEST CORPORA — tests/vectors/narya_external_strict_v1.jsonl
+=======================================================================
+
+Contains all five plain-Ed25519 vectors from RFC 8032 section 7.1, cases from
+the C2SP CCTV `ed25519vectors` corpus, and Ed25519 verification cases from
+Project Wycheproof. The language-neutral snapshot was exported from the
+independent generic predicate oracle in Narya Ed25519 commit:
+
+  https://github.com/Overclock-Validator/narya-ed25519/commit/851e550fedec0c349ce8595a8f90db420009b2d8
+
+CCTV source snapshot:
+
+  https://github.com/firedancer-io/firedancer/blob/3ed37488372b7e50bb03ca30477be48508ee7022/src/ballet/ed25519/test_ed25519_cctv.c
+
+Upstream project:
+
+  https://github.com/C2SP/CCTV
+
+The CCTV portion is distributed under the following terms:
+
+    Copyright 2019 Google LLC
+    Copyright 2022 Filippo Valsorda
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+       * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+       * Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following disclaimer
+    in the documentation and/or other materials provided with the
+    distribution.
+       * Neither the name of Google LLC nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Project Wycheproof source snapshot:
+
+  https://github.com/firedancer-io/firedancer/blob/3ed37488372b7e50bb03ca30477be48508ee7022/src/ballet/ed25519/test_ed25519_wycheproof.c
+
+Upstream project:
+
+  https://github.com/C2SP/wycheproof
+
+The Wycheproof portion is Copyright Google LLC and distributed under the
+Apache License 2.0. The RFC vectors are specification test material from:
+
+  https://www.rfc-editor.org/rfc/rfc8032#section-7.1

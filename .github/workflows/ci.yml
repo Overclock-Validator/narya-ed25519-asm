@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  c-build:
+    name: C and assembly (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Reproduce generated artifacts
+        run: make check-generated
+      - name: Parse all AMD64 assembly leaves
+        run: make check-source
+      - name: Build with warnings as errors
+        run: >-
+          make CC=${{ matrix.compiler }}
+          CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror'
+      - name: Run portable gates and validate external corpus
+        run: >-
+          make CC=${{ matrix.compiler }}
+          CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror'
+          test
+      - name: Build the libFuzzer target
+        if: matrix.compiler == 'clang'
+        run: make fuzz-build
+
+  lean:
+    name: Lean proof build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build pinned formal project
+        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
+        with:
+          lake-package-directory: formal/lean
+

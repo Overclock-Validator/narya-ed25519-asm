@@ -93,32 +93,6 @@ decode_y(narya_r51x8 *out, const uint8_t encoded[8 * 32], uint8_t active)
     }
 }
 
-static void
-canonicalize_lane(uint64_t out[5], const narya_r51x8 *in, size_t lane)
-{
-    for (size_t i = 0; i < 5; i++)
-        out[i] = in->limb[i][lane];
-
-    /* Four sequential passes are sufficient from the composable u52 domain. */
-    for (unsigned int round = 0; round < 4; round++) {
-        for (size_t i = 0; i < 4; i++) {
-            const uint64_t carry = out[i] >> 51;
-            out[i] &= mask51;
-            out[i + 1] += carry;
-        }
-        const uint64_t carry = out[4] >> 51;
-        out[4] &= mask51;
-        out[0] += 19 * carry;
-    }
-
-    /* Now 0 <= value < 2^255=p+19; only p..p+18 need subtraction. */
-    if (out[1] == mask51 && out[2] == mask51 && out[3] == mask51 &&
-        out[4] == mask51 && out[0] >= mask51 - 18) {
-        out[0] -= mask51 - 18;
-        out[1] = out[2] = out[3] = out[4] = 0;
-    }
-}
-
 static uint8_t
 equal_mask(const narya_r51x8 *x, const narya_r51x8 *y)
 {
@@ -126,8 +100,8 @@ equal_mask(const narya_r51x8 *x, const narya_r51x8 *y)
     for (size_t lane = 0; lane < 8; lane++) {
         uint64_t a[5];
         uint64_t b[5];
-        canonicalize_lane(a, x, lane);
-        canonicalize_lane(b, y, lane);
+        narya_r51x8_canonical_lane(a, x, lane);
+        narya_r51x8_canonical_lane(b, y, lane);
         uint64_t diff = 0;
         for (size_t limb = 0; limb < 5; limb++)
             diff |= a[limb] ^ b[limb];
@@ -143,7 +117,7 @@ negative_mask(const narya_r51x8 *x)
     uint8_t mask = 0;
     for (size_t lane = 0; lane < 8; lane++) {
         uint64_t canonical[5];
-        canonicalize_lane(canonical, x, lane);
+        narya_r51x8_canonical_lane(canonical, x, lane);
         mask |= (uint8_t)(canonical[0] & 1) << lane;
     }
     return mask;
@@ -198,7 +172,7 @@ static uint8_t
 sqrt_ratio(narya_r51x8 *out, const narya_r51x8 *u, const narya_r51x8 *v)
 {
     narya_r51x8 uv, power, root, root2, check, neg_u;
-    narya_r51x8 root_i, neg_ui, root_times_i;
+    narya_r51x8 root_i, root_times_i;
     broadcast(&root_i, sqrt_m1);
     narya_r51x8_mul_ifma(&uv, u, v);
     pow22523(&power, &uv);
@@ -206,13 +180,19 @@ sqrt_ratio(narya_r51x8 *out, const narya_r51x8 *u, const narya_r51x8 *v)
     narya_r51x8_mul_ifma(&root2, &root, &root);
     narya_r51x8_mul_ifma(&check, v, &root2);
     narya_r51x8_neg_ifma(&neg_u, u);
-    narya_r51x8_mul_ifma(&neg_ui, &neg_u, &root_i);
 
     const uint8_t correct = equal_mask(&check, u);
     const uint8_t flipped = equal_mask(&check, &neg_u);
-    const uint8_t flipped_i = equal_mask(&check, &neg_ui);
     narya_r51x8_mul_ifma(&root_times_i, &root, &root_i);
-    select_lanes(&root, &root, &root_times_i, flipped | flipped_i);
+    select_lanes(&root, &root, &root_times_i, flipped);
+
+    /*
+     * A generic Ristretto-style sqrt-ratio helper also selects root*i when
+     * check == -u*i to define an output for nonsquare ratios. This helper is
+     * decoder-only: such a lane is rejected by `correct | flipped` and later
+     * replaced with the identity, so computing that unused quartic branch
+     * would add consensus-irrelevant work and obscure the validity rule.
+     */
 
     /* The decoder's preferred root is the nonnegative canonical root. */
     narya_r51x8_neg_ifma(&neg_u, &root);
