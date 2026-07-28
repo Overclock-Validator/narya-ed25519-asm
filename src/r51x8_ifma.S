@@ -43,14 +43,20 @@
  * COMBINE_HIGH, FOLD_INTO, NORMALIZE_5 arguments, constants, loads, and stores
  * into GeneratedR51MulTrace.lean. AssemblyTrace.lean consumes that generated
  * output, and radix51_mul_assembly_trace_correct proves the modular result and
- * no-wrap bounds. This closes the source/model mirror, not the remaining
- * emitted-object/x86/ABI refinement. See
- * docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md.
+ * no-wrap bounds. A second, restricted Lean decoder consumes the exact 800
+ * bytes of the canonical linked proof symbol and proves that they decode to
+ * the independently expanded 129-instruction source trace. The decoded trace
+ * is then executed phase by phase in an unbounded-natural shadow semantics and
+ * proved equal to the generated arithmetic output. BitVec range-premise
+ * composition, the System V memory/alias theorem, and downstream deployment
+ * identity remain open. See
+ * docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md and
+ * docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md.
  *
  * The add/subtract/negate leaves below are independently extracted by
  * tools/generate_r51_linear_trace.py. LinearTrace.lean proves their exact 4p
  * biases, non-underflow/no-wrap, modular semantics, and composable-u52 output
- * contract. Their emitted-object boundary is the same open obligation; see
+ * contract. Their emitted-object boundary remains an open obligation; see
  * docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md.
  *
  * This is a SysV/GAS translation of Narya's reviewed Go-ABI Plan 9 leaf at

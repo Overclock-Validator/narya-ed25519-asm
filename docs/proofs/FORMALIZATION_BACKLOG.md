@@ -28,9 +28,15 @@ is execution and ABI refinement:
 
 The paired interpreters and local arithmetic refinement lemmas now exist.
 They expose every u52/no-wrap premise rather than assuming machine arithmetic
-is unbounded. Finish this item with small phase theorems; a prior monolithic
-129-step simplifier proof type-checked but was intentionally rejected because
-its serialized proof term was too large for a dependable audit/CI artifact.
+is unbounded. The generated instruction list is partitioned into eight checked
+semantic phases. Small phase theorems now prove every unbounded register
+transition from input loads through the returned stored output, and
+`runR51NatShadow_correct` composes them into the exact decoded-program result.
+This closes the decoded Nat schedule. Finish the native item by discharging
+the BitVec/Nat no-wrap premises phase by phase, then prove the byte-memory,
+alias, return, and System V postcondition. A prior monolithic 129-step
+simplifier proof type-checked but was intentionally rejected because its
+serialized proof term was too large for a dependable audit/CI artifact.
 
 The add, subtract, and negate leaves now have the same fail-closed source-link
 property. `GeneratedR51LinearTrace.lean` mirrors their exact instruction

@@ -115,10 +115,16 @@ effect of `VZEROUPPER`.
 4. **Partially implemented:** `X86Execution.lean` executes every decoded form,
    `X86NatShadow.lean` supplies the one-lane unbounded interpreter, and
    `X86Refinement.lean` proves the local arithmetic refinements with explicit
-   u52/no-wrap premises. Compact phase theorems must still discharge those
-   premises from the accumulator, fold, and carry bounds.
-5. Prove the decoded Nat execution equals the generated 25-product source
-   trace.
+   u52/no-wrap premises. The source generator now partitions the exact trace
+   into load, clear, product, combine, fold, normalize, store, and epilogue
+   phases, validates each phase's opcode vocabulary, and emits their exact
+   lengths. `runNatPhase_append` supplies the compositional interpreter law,
+   and checked phase theorems characterize every register transition through
+   the returned stored output. The remaining work here is to compose the
+   BitVec/Nat refinement premises from the accumulator, fold, and carry bounds.
+5. **Implemented:** the exact decoded Nat execution equals the generated
+   25-product source trace. `runR51NatShadow_correct` is the compact capstone;
+   it is assembled from the phase theorems rather than a monolithic reduction.
 6. Add the complete ABI, memory-frame, lane-noninterference, and alias
    corollaries. The byte-store frame lemma and the decoded all-loads-before-
    stores/store-map/epilogue properties are implemented prerequisites.

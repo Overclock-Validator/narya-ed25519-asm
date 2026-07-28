@@ -52,10 +52,12 @@ straight-line leaf and has mutation tests for each major schedule class. A
 separate fail-closed restricted decoder consumes the exact 800-byte symbol from
 the canonical linked proof ELF, and Lean kernel reduction proves that it equals
 the independently source-generated 129-instruction list. Audit must review both
-parsers and the restricted instruction semantics. Whole-program execution,
-range-premise composition, the System V memory/alias postcondition, and identity
-with bytes in a downstream deployment remain open; this is not a general x86
-decoder or a proof about an arbitrary consumer binary.
+parsers and the restricted instruction semantics. Whole-program execution in
+the unbounded-natural shadow is now checked phase by phase and equals the
+generated arithmetic trace. BitVec range-premise composition, the System V
+memory/alias postcondition, and identity with bytes in a downstream deployment
+remain open; this is not a general x86 decoder or a proof about an arbitrary
+consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

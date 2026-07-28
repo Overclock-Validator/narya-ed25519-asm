@@ -115,18 +115,21 @@ layout, the architectural `VZEROUPPER` effect on registers 0--15, and the
 stack read, stack advance, and control transfer performed by `RET`. Its
 permission-sensitive transitions fail closed. These are reusable semantics
 and local lemmas; the checked 800 bytes have been decoded but the full trace
-has not yet been executed through them.
+has not yet been executed through the BitVec machine semantics.
 
 [`X86Execution.lean`](NaryaFormal/X86Execution.lean) gives every decoded
 instruction a fault-aware machine-state transition and rejects a return with
 trailing decoded instructions. [`X86NatShadow.lean`](NaryaFormal/X86NatShadow.lean)
-defines the paired unbounded-natural interpreter for one SIMD lane.
+defines the paired unbounded-natural interpreter for one SIMD lane. Its phase
+theorems execute the exact decoded 129-instruction program from loads through
+normal return and prove that the five stored limbs equal the independently
+generated 25-product arithmetic trace.
 [`X86Refinement.lean`](NaryaFormal/X86Refinement.lean) proves local
 machine-to-shadow refinements for XOR, AND, add, multiply, shifts, and both
 IFMA halves; every u52 and no-wrap premise is explicit. The exact decoded
 program also kernel-checks that all ten source loads precede every output
 store, that the five store offsets/registers are exact, and that the epilogue
-is `VZEROUPPER; RET`. The whole-program range-premise composition and final
+is `VZEROUPPER; RET`. The BitVec-to-Nat range-premise composition and final
 memory/ABI theorem remain open.
 
 The representation lemmas and most of the multiplication trace can be reused

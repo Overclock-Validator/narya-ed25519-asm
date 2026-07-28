@@ -81,9 +81,11 @@ It first regenerates and compares the multiply leaf's source trace, then proves
 the arithmetic and range theorem over that generated output. It also rebuilds
 a deterministic linked ELF, decodes the exact 800-byte multiplier symbol with
 a fail-closed restricted x86-64 decoder, and proves that the result is the
-independently source-generated 129-instruction trace. Whole-program execution,
-the complete System V memory/alias theorem, downstream deployment identity,
-and correspondence to physical CPU behavior remain explicit open boundaries.
+independently source-generated 129-instruction trace. The exact decoded program
+also executes in the unbounded-natural shadow semantics to the independently
+generated radix-51 result. BitVec no-wrap composition, the complete System V
+memory/alias theorem, downstream deployment identity, and correspondence to
+physical CPU behavior remain explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,

@@ -34,9 +34,11 @@ For the r51 multiply, a fail-closed extractor now generates the Lean proof
 input from the assembly source and rejects unmodeled statements. This closes
 the hand-maintained source/model mirror. A separate restricted Lean decoder
 consumes the exact 800-byte canonical linked symbol and kernel-checks that it
-equals the independently expanded 129-instruction source trace. Instruction
-execution, the complete System V memory/alias postcondition, downstream
-deployment identity, and dispatch refinement remain separate open obligations.
+equals the independently expanded 129-instruction source trace. The decoded
+program's unbounded-natural execution is proved equal to the generated
+arithmetic result. BitVec no-wrap composition, the complete System V
+memory/alias postcondition, downstream deployment identity, and dispatch
+refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

@@ -22,6 +22,20 @@ from generate_r51_mul_trace import SOURCE, fail, function_body, render, source_s
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED = ROOT / "formal/lean/NaryaFormal/GeneratedR51InstructionTrace.lean"
 
+# These are mathematical schedule phases, not arbitrary formatting chunks.
+# Keep the boundary assertions below: a source edit must be classified before
+# it can silently move across a proof boundary.
+PHASES = (
+    ("loadPhase", 0, 10),
+    ("clearPhase", 10, 28),
+    ("productPhase", 28, 78),
+    ("combinePhase", 78, 95),
+    ("foldPhase", 95, 106),
+    ("normalizePhase", 106, 122),
+    ("storePhase", 122, 127),
+    ("epiloguePhase", 127, 129),
+)
+
 
 def zmm(value: str | int) -> str:
     number = int(value)
@@ -131,6 +145,14 @@ def expand_statement(statement: str) -> list[str]:
     fail(f"unmodeled expanded instruction statement: {statement!r}")
 
 
+def render_instruction_list(name: str, instructions: list[str]) -> list[str]:
+    lines = [f"def {name} : List Instruction := ["]
+    lines.extend(f"  {instruction}," for instruction in instructions[:-1])
+    lines.append(f"  {instructions[-1]}")
+    lines.extend(["]", ""])
+    return lines
+
+
 def generate() -> str:
     source = SOURCE.read_text(encoding="ascii")
     # Reuse every source-shape, register, constant, and range-routing check in
@@ -142,6 +164,27 @@ def generate() -> str:
         instructions.extend(expand_statement(statement))
     if len(instructions) != 129:
         fail(f"expanded instruction count changed: {len(instructions)} != 129")
+
+    phase_instructions: dict[str, list[str]] = {
+        name: instructions[start:end] for name, start, end in PHASES
+    }
+    if [item for name, _, _ in PHASES for item in phase_instructions[name]] != instructions:
+        fail("proof-phase boundaries no longer partition the instruction trace")
+
+    expected_phase_shapes = {
+        "loadPhase": {".vmovdqu64Load"},
+        "clearPhase": {".vpxorq"},
+        "productPhase": {".vpmadd52luq", ".vpmadd52huq"},
+        "combinePhase": {".vpsllq", ".vpaddq"},
+        "foldPhase": {".vpbroadcastq", ".vpmullq", ".vpaddq"},
+        "normalizePhase": {".vpbroadcastq", ".vpsrlq", ".vpandq", ".vpaddq", ".vpmadd52luq"},
+        "storePhase": {".vmovdqu64Store"},
+        "epiloguePhase": {".vzeroUpper", ".ret"},
+    }
+    for name, phase in phase_instructions.items():
+        opcodes = {instruction.split(maxsplit=1)[0] for instruction in phase}
+        if not opcodes <= expected_phase_shapes[name]:
+            fail(f"{name} has an instruction outside its proof vocabulary: {sorted(opcodes)}")
 
     lines = [
         "/-",
@@ -158,13 +201,22 @@ def generate() -> str:
         "",
         "namespace NaryaFormal.X86.GeneratedR51InstructionTrace",
         "",
-        "def expectedProgram : List Instruction := [",
     ]
-    lines.extend(f"  {instruction}," for instruction in instructions[:-1])
-    lines.append(f"  {instructions[-1]}")
+    for name, _, _ in PHASES:
+        lines.extend(render_instruction_list(name, phase_instructions[name]))
     lines.extend(
         [
-            "]",
+            "def expectedProgram : List Instruction :=",
+            "  loadPhase ++ clearPhase ++ productPhase ++ combinePhase ++",
+            "  foldPhase ++ normalizePhase ++ storePhase ++ epiloguePhase",
+            "",
+            "set_option maxRecDepth 4096 in",
+            "theorem phase_lengths :",
+            "    loadPhase.length = 10 ∧ clearPhase.length = 18 ∧",
+            "    productPhase.length = 50 ∧ combinePhase.length = 17 ∧",
+            "    foldPhase.length = 11 ∧ normalizePhase.length = 16 ∧",
+            "    storePhase.length = 5 ∧ epiloguePhase.length = 2 := by",
+            "  decide",
             "",
             "set_option maxRecDepth 4096 in",
             "theorem expected_instruction_count : expectedProgram.length = 129 := by",
