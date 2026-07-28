@@ -83,9 +83,12 @@ and binary refinement remain open; see the
 
 The r51 multiply now has a fail-closed assembly-source-to-Lean link; see the
 [source refinement certificate](../../docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md).
-The remaining gap is binary/ISA refinement: proving that the emitted x86
-object implements the checked source trace, plus complete SysV ABI and dispatch
-theorems. The Lean result is not a verified decoder for arbitrary machine code.
+The exact canonical linked symbol is also connected to that source trace by a
+restricted, fail-closed decoder. The remaining gap is instruction-execution
+and ABI refinement: composing the semantics over the decoded trace, proving
+the memory/alias/register postcondition, and separately covering dispatch and
+downstream deployment identity. The Lean result is not a verified decoder for
+arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
 Its first artifact layer is now present:
@@ -94,7 +97,12 @@ contains the exact 800-byte multiplier symbol and resolved read-only constants
 from a deterministic linked ELF, while
 [`ObjectBytes.lean`](NaryaFormal/ObjectBytes.lean) kernel-checks their extents,
 byte ranges, and constant values. No instruction decoding or execution claim
-is made by that artifact alone.
+is made by that artifact alone. [`X86Decoder.lean`](NaryaFormal/X86Decoder.lean)
+accepts only the EVEX/VEX/RET forms used by the leaf, while
+[`GeneratedR51InstructionTrace.lean`](NaryaFormal/GeneratedR51InstructionTrace.lean)
+is independently expanded from assembly source.
+[`X86ObjectRefinement.lean`](NaryaFormal/X86ObjectRefinement.lean) proves by
+kernel reduction that the exact 800 bytes decode to that 129-instruction list.
 
 [`X86VectorSemantics.lean`](NaryaFormal/X86VectorSemantics.lean) defines the
 exact lane-local `BitVec 64` meaning of the vector arithmetic subset used by
@@ -104,8 +112,8 @@ little-endian memory, explicit read/write permissions, 512-bit load/store
 layout, the architectural `VZEROUPPER` effect on registers 0--15, and the
 stack read, stack advance, and control transfer performed by `RET`. Its
 permission-sensitive transitions fail closed. These are reusable semantics
-and local lemmas; the checked 800 bytes have not yet been decoded into and
-executed through them.
+and local lemmas; the checked 800 bytes have been decoded but the full trace
+has not yet been executed through them.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

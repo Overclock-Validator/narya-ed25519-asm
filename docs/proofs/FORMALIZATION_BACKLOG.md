@@ -17,13 +17,14 @@ hypotheses rather than introduce parallel, incompatible abstractions.
 The multiply assembly source is now connected to the theorem by the generated,
 fail-closed trace described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). A source
-edit changes a Lean proof input or fails extraction. The remaining native
-multiplier work is one refinement layer:
+edit changes a Lean proof input or fails extraction. The exact 800-byte
+canonical linked multiplier now also kernel-decodes to the independently
+expanded 129-instruction source trace. The remaining native multiplier work
+is execution and ABI refinement:
 
-1. implement the restricted final-byte-linked decoder and paired BitVec/Nat
-   execution proof in
-   [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md), including
-   full SysV behavior and the assembler/encoding boundary.
+1. compose the existing BitVec/Nat instruction lemmas over that decoded trace
+   and prove the full SysV memory, alias, return, and register postcondition in
+   [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
 The add, subtract, and negate leaves now have the same fail-closed source-link
 property. `GeneratedR51LinearTrace.lean` mirrors their exact instruction

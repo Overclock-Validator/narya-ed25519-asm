@@ -67,10 +67,12 @@ make check-source
 ```
 
 `make formal-check` first requires byte equality between the generated Lean
-trace and the assembly source, then checks the mathematical theorem over that
-trace. `make check-source` also mutation-tests the extractor and asks Clang to
-parse the GNU assembly for an x86-64 ELF target. Neither gate is an external
-audit or an emitted-object proof.
+traces and the assembly source, kernel-checks that the exact canonical linked
+multiplier bytes decode to the same 129 instructions, then checks the
+mathematical theorem over the source trace. `make check-source` also
+mutation-tests the extractor and asks Clang to parse the GNU assembly for an
+x86-64 ELF target. Neither gate is an external audit or a complete
+instruction-execution proof.
 
 Native tests additionally compare the exact redundant output limbs against an
 independent `__uint128_t` oracle, exercise all eight lanes independently, test
@@ -78,12 +80,13 @@ exact input/output aliasing, and reject a source limb equal to `2^52`.
 
 ## What this does not prove
 
-The Lean files do not decode an ELF object or execute a complete x86 semantics.
-The source extractor checks the register schedule and rejects unmodeled source
-instructions; the remaining refinement must connect emitted object bytes to
-that checked source trace and cover:
+The Lean files now decode the canonical proof ELF's exact multiplier bytes and
+prove that they equal the checked source instruction trace. They do not yet
+execute that entire trace through a complete x86/System V theorem. The
+remaining refinement must cover:
 
-- `VPMADD52LUQ/HUQ`, `VPMULLQ`, shifts, masks, and additions as bitvectors;
+- composition of the existing per-instruction bitvector semantics over all
+  129 decoded instructions;
 - the mapping of eight ZMM lanes to eight independent scalar traces;
 - SysV register clobbers and constant loads;
 - all-source-loads-before-output-stores alias safety; and

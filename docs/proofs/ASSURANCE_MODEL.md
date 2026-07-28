@@ -32,8 +32,11 @@ aliasing, and CPU feature assumptions.
 
 For the r51 multiply, a fail-closed extractor now generates the Lean proof
 input from the assembly source and rejects unmodeled statements. This closes
-the hand-maintained source/model mirror. Emitted-object decoding and full x86,
-ABI, and dispatch refinement remain separate open obligations.
+the hand-maintained source/model mirror. A separate restricted Lean decoder
+consumes the exact 800-byte canonical linked symbol and kernel-checks that it
+equals the independently expanded 129-instruction source trace. Instruction
+execution, the complete System V memory/alias postcondition, downstream
+deployment identity, and dispatch refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

@@ -89,19 +89,22 @@ the formal gate fail.
 
 ## Remaining trust boundary
 
-The following link is still open:
+The first object-code link is now closed for the canonical proof ELF:
 
 ```text
-emitted object bytes -> decoded x86 instructions -> checked assembly source trace
+exact 800 linked bytes -> restricted decoder -> 129 source instructions
 ```
 
-The present certificate trusts Clang/GAS translation, the extractor's parser,
-and the scalar semantics assigned to the accepted x86 mnemonics. It does not
-model CPUID/XCR0 dispatch, the System V call boundary, faults, or arbitrary
-partial memory overlap. Native exact-output, alias, and lane differentials are
-independent evidence for those boundaries.
+`X86ObjectRefinement.lean` kernel-checks that equality. The decoder rejects
+unmodeled maps, opcodes, masks, vector widths, ModRM modes, and displacement
+forms; it is not a general x86 decoder. The next open link is execution:
 
-A future object-code certificate should decode the linked leaf and show the
-same register/memory trace, or verify that object directly with a suitable
-bit-vector/ISA tool. Building a general x86 semantics inside this repository
-is explicitly not required for the current source-level claim.
+```text
+decoded instruction trace -> BitVec/memory execution -> scalar source trace
+```
+
+The present certificate still trusts the ELF extractor and source parser. It
+does not yet prove the complete System V call/return and memory-frame theorem,
+CPUID/XCR0 dispatch, or that a downstream executable contains the canonical
+proof ELF's bytes. Native exact-output, alias, and lane differentials remain
+independent evidence for those boundaries.

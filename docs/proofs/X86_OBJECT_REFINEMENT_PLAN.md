@@ -103,8 +103,9 @@ effect of `VZEROUPPER`.
 1. **Implemented:** extract the canonical final-linked symbol bytes, symbol
    size, and resolved constant bytes into a generated Lean artifact, and
    reproduce them in Linux CI. The Python ELF extractor remains trusted.
-2. Prove by kernel reduction that the restricted decoder yields the checked
-   instruction list.
+2. **Implemented:** `X86Decoder.lean` fail-closed decodes the exact 800 symbol
+   bytes, and `X86ObjectRefinement.lean` proves by kernel reduction that the
+   result is the independently source-generated 129-instruction list.
 3. **Partially implemented:** `X86VectorSemantics.lean` defines exact
    qword-lane semantics and generic bitvector-to-natural refinement lemmas for
    IFMA, add, shift, mask, and multiply. `X86Machine.lean` now adds
