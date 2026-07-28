@@ -41,6 +41,7 @@
  *
  * This is a SysV/GAS translation of Narya's x8 rolling-register kernel at Go
  * source commit 13dc06d4a5f0ad8be62412a89de3a44de57bd504.
+ * Source certificate: docs/proofs/SHA512_SOURCE_SCHEDULE.md.
  * See docs/architecture/SHA512_X8.md for its integration boundary.
  */
 

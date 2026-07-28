@@ -26,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-transpose check-scalar-bounds check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-transpose check-scalar-bounds check-sha512-schedule check-generated formal-check
 
 all: $(LIB)
 
@@ -167,12 +167,16 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/fixed_base_comb_data.S -o /tmp/narya-fixed-base-comb-data.o
 	$(MAKE) check-transpose
 	$(MAKE) check-scalar-bounds
+	$(MAKE) check-sha512-schedule
 
 check-transpose:
 	python3 tools/check_transpose_schedule.py
 
 check-scalar-bounds:
 	python3 tools/check_scalar_reduce_bounds.py
+
+check-sha512-schedule:
+	python3 tools/check_sha512_schedule.py
 
 check-generated:
 	python3 tools/check_generated.py

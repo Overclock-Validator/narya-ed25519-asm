@@ -45,6 +45,11 @@ Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Review still needs to confirm the certificate's
 ISA model and eventually close the documented assembled-binary refinement gap.
 
+The SHA-512 leaf now has a fail-closed source certificate for every FIPS
+constant, rotation, ternary truth table, rolling message word, working-register
+rotation, and feed-forward store. Independent review must still validate that
+model and close the assembled-binary and C padding-scheduler refinement gaps.
+
 ## Before release
 
 The scope must expand to long native fuzz soaks, independent regeneration of

@@ -38,6 +38,7 @@ particular run, never general performance or correctness claims.
 - [Machine-checked radix-51 Lean layer](../formal/lean/README.md)
 - [Scalar-reduction contract](proofs/SCALAR_REDUCTION_CONTRACT.md)
 - [x8 transpose lane-map certificate](proofs/TRANSPOSE_LANE_MAP.md)
+- [SHA-512 x8 source-schedule certificate](proofs/SHA512_SOURCE_SCHEDULE.md)
 - [Formalization backlog](proofs/FORMALIZATION_BACKLOG.md)
 
 ## Audits and security review

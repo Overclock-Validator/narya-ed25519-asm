@@ -89,4 +89,10 @@ that 32 balanced radix-256 digits reconstruct `s`, define
 result by `2^8`, then accumulating even columns equals `[s]B`. Separately
 prove that each generated table record is the affine-Niels representation of
 `[m]P_i` for `m in 1..128`; the binary-to-assembly obligation is its pinned
-SHA-256 plus the three-coordinate transpose refinement.
+   SHA-256 plus the three-coordinate transpose refinement.
+
+The SHA-512 assembly's full source schedule is now mechanically checked against
+FIPS 180-4 by `tools/check_sha512_schedule.py`, including rolling `a..h` and
+`W[t mod 16]` maps. Remaining formal work is emitted-opcode refinement and a
+wrapper theorem for byte gathering, big-endian words, padding/length encoding,
+unequal-lane completion, and digest capture.
