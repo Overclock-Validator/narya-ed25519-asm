@@ -2,18 +2,20 @@
 
 This note states the obligations enforced by `narya_r51x8_mul_ifma`.
 
-The algebraic foundation is machine-checked in
-[`formal/lean/NaryaFormal/Radix51.lean`](../../formal/lean/NaryaFormal/Radix51.lean).
-That layer proves the 52-bit IFMA split identity, positioned 25-product
-convolution, the `2^255 = 19 (mod p)` monomial fold, ordinary carry
-preservation, folded-u61 bounds, and composable-u52 output bounds. It also
-provides an end-to-end composition theorem whose explicit hypothesis is that
-the assembly's grouped accumulator trace produces the modeled folded value
-within the proved u61 ranges.
+The representation algebra is machine-checked in
+[`Radix51.lean`](../../formal/lean/NaryaFormal/Radix51.lean). The exact scalar
+trace corresponding to `narya_r51x8_mul_ifma` is checked in
+[`AssemblyTrace.lean`](../../formal/lean/NaryaFormal/AssemblyTrace.lean).
+Together they prove the 52-bit IFMA split identity, the assembly's row-major
+25-product grouping, every accumulator prefix bound, `COMBINE_HIGH`, the
+`2^255 = 19 (mod p)` fold and its machine-word bounds, carry preservation,
+and the composable-u52 output contract. The main theorem is
+`radix51_mul_assembly_trace_correct`.
 
-Consequently this remains an audit contract rather than a complete assembly
-proof. Instruction ordering, per-instruction no-wrap, lane mapping, and the
-System V load/store trace still require a bit-vector or ISA refinement.
+This is still not a complete binary proof. A bit-vector or ISA refinement must
+connect the decoded x86 instruction stream to the checked scalar trace and
+establish register allocation, eight-lane mapping, SysV clobbers, and the
+load/store alias argument.
 
 ## Representation
 
@@ -38,7 +40,9 @@ product = l + 2^52 h = l + 2 h B.
 The low half is accumulated at convolution degree `i+j`; twice the high half
 is accumulated at degree `i+j+1`. This reconstructs the exact integer product.
 The portable test oracle expresses this with `__uint128_t`, independently of
-the native instruction schedule.
+the native instruction schedule. `AssemblyTrace.lean` separately lists the
+terms in the exact row-major update order; its prefix theorems prove that every
+intermediate accumulator, not only the final sum, fits in u64.
 
 ## Reduction and bounds
 

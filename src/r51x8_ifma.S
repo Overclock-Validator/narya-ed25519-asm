@@ -39,7 +39,11 @@
  *   uint64; this is integer arithmetic, not a wrapping shortcut.
  *
  * The longer proof obligations live in docs/proofs/R51_FIELD_CONTRACT.md.
- * Keep this audit map and that note synchronized when changing the schedule.
+ * formal/lean/NaryaFormal/AssemblyTrace.lean mirrors the 25 MUL_PAIR updates,
+ * COMBINE_HIGH, FOLD_INTO, and NORMALIZE_5 scalar semantics. Its theorem
+ * radix51_mul_assembly_trace_correct proves the modular result and no-wrap
+ * bounds. It does not replace the remaining x86/register/memory refinement.
+ * Keep the code, audit map, contract, and Lean trace synchronized.
  *
  * This is a SysV/GAS translation of Narya's reviewed Go-ABI Plan 9 leaf at
  * source commit eff4c8ddafdfe0448eb50f2eafc723a42b95fe2c.  The instruction

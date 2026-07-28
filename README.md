@@ -27,8 +27,9 @@ boundary are frozen.
   scalar multiplication; an immutable radix-256 basepoint comb with a masked
   affine-Niels transpose leaf; the complete x8 `DalekStrict` equation and
   public workspace ABI; alias, lane-independence, known-answer, and range
-  tests; and a first machine-checked Lean layer for radix-51 IFMA product,
-  fold, carry, and reusable-range lemmas.
+  tests; and a machine-checked Lean scalar trace for the radix-51 IFMA
+  multiplier, including the exact product order, per-instruction no-wrap,
+  fold, carry, modular result, and reusable-range lemmas.
 - In progress: broader external differential corpora, long fuzzing, complete
   performance measurement, and fusion of remaining C-scheduled point layers.
 - Supported verification target: eight independent cold Ed25519 equations
@@ -51,8 +52,9 @@ make formal-check
 target and is useful on a non-x86 development host.
 
 `make formal-check` uses the pinned Lean/mathlib project under `formal/lean`.
-It proves the arithmetic model; it does not yet prove that the System V x86
-instruction trace refines that model.
+It proves the exact scalar arithmetic trace mirrored from the multiply leaf;
+it does not yet decode the System V x86 binary or prove that its register and
+memory execution refines that trace.
 
 ## Audit orientation
 
@@ -68,8 +70,8 @@ The assembly is intentionally heavily commented. Each leaf records:
 The field proof obligations are collected in
 [`docs/proofs/R51_FIELD_CONTRACT.md`](docs/proofs/R51_FIELD_CONTRACT.md), and
 the checked Lean source is under [`formal/lean`](formal/lean/README.md). The
-current theorem explicitly leaves the assembly-grouping/range trace as a
-named refinement hypothesis. The signed scalar-reduction boundary is documented in
+current theorem discharges the assembly-grouping/range hypothesis; the
+remaining boundary is x86/ABI refinement. The signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).
