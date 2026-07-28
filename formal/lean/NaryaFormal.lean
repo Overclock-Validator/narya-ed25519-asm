@@ -7,6 +7,7 @@ import NaryaFormal.Radix51
 import NaryaFormal.AssemblyTrace
 import NaryaFormal.LinearTrace
 import NaryaFormal.ObjectBytes
+import NaryaFormal.X86VectorSemantics
 import NaryaFormal.Transpose
 import NaryaFormal.ScalarReduction
 import NaryaFormal.VerificationSpine

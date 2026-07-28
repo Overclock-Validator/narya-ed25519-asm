@@ -105,8 +105,10 @@ effect of `VZEROUPPER`.
    reproduce them in Linux CI. The Python ELF extractor remains trusted.
 2. Prove by kernel reduction that the restricted decoder yields the checked
    instruction list.
-3. Prove generic bitvector-to-natural refinement lemmas for IFMA, add, shift,
-   mask, multiply, load/store, `VZEROUPPER`, and `RET`.
+3. **Partially implemented:** `X86VectorSemantics.lean` defines exact
+   qword-lane semantics and generic bitvector-to-natural refinement lemmas for
+   IFMA, add, shift, mask, and multiply. Byte memory, `VZEROUPPER`, and `RET`
+   remain open.
 4. Compose those lemmas over the decoded list using the existing accumulator,
    fold, and carry bounds.
 5. Prove the decoded Nat execution equals the generated 25-product source
