@@ -39,11 +39,13 @@
  *   uint64; this is integer arithmetic, not a wrapping shortcut.
  *
  * The longer proof obligations live in docs/proofs/R51_FIELD_CONTRACT.md.
- * formal/lean/NaryaFormal/AssemblyTrace.lean mirrors the 25 MUL_PAIR updates,
- * COMBINE_HIGH, FOLD_INTO, and NORMALIZE_5 scalar semantics. Its theorem
- * radix51_mul_assembly_trace_correct proves the modular result and no-wrap
- * bounds. It does not replace the remaining x86/register/memory refinement.
- * Keep the code, audit map, contract, and Lean trace synchronized.
+ * tools/generate_r51_mul_trace.py extracts the 25 MUL_PAIR updates,
+ * COMBINE_HIGH, FOLD_INTO, NORMALIZE_5 arguments, constants, loads, and stores
+ * into GeneratedR51MulTrace.lean. AssemblyTrace.lean consumes that generated
+ * output, and radix51_mul_assembly_trace_correct proves the modular result and
+ * no-wrap bounds. This closes the source/model mirror, not the remaining
+ * emitted-object/x86/ABI refinement. See
+ * docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md.
  *
  * This is a SysV/GAS translation of Narya's reviewed Go-ABI Plan 9 leaf at
  * source commit eff4c8ddafdfe0448eb50f2eafc723a42b95fe2c.  The instruction

@@ -2,45 +2,45 @@
 Copyright 2026 Overclock Validator
 SPDX-License-Identifier: Apache-2.0
 
-Arithmetic trace model for `narya_r51x8_mul_ifma`. The product lists below
-follow the assembly's row-major MUL_PAIR order. This layer proves arithmetic
-grouping and machine-word bounds; it does not model registers, memory, CPUID,
-or the System V ABI.
+Arithmetic trace model for `narya_r51x8_mul_ifma`. The product lists and
+register expressions are generated from the assembly source, then consumed by
+the proofs below. This layer proves source-level arithmetic grouping and
+machine-word bounds; it does not decode the emitted object, model the CPU, or
+prove the System V ABI.
 -/
 
-import NaryaFormal.Radix51
+import NaryaFormal.GeneratedR51MulTrace
 
 namespace NaryaFormal.Radix51.AssemblyTrace
 
-def lowTerms (x y : FiveLimbs) : ℕ → List ℕ
-  | 0 => [lo52 (x 0) (y 0)]
-  | 1 => [lo52 (x 0) (y 1), lo52 (x 1) (y 0)]
-  | 2 => [lo52 (x 0) (y 2), lo52 (x 1) (y 1), lo52 (x 2) (y 0)]
-  | 3 => [lo52 (x 0) (y 3), lo52 (x 1) (y 2), lo52 (x 2) (y 1),
-      lo52 (x 3) (y 0)]
-  | 4 => [lo52 (x 0) (y 4), lo52 (x 1) (y 3), lo52 (x 2) (y 2),
-      lo52 (x 3) (y 1), lo52 (x 4) (y 0)]
-  | 5 => [lo52 (x 1) (y 4), lo52 (x 2) (y 3), lo52 (x 3) (y 2),
-      lo52 (x 4) (y 1)]
-  | 6 => [lo52 (x 2) (y 4), lo52 (x 3) (y 3), lo52 (x 4) (y 2)]
-  | 7 => [lo52 (x 3) (y 4), lo52 (x 4) (y 3)]
-  | 8 => [lo52 (x 4) (y 4)]
-  | _ => []
+open NaryaFormal.Radix51.GeneratedR51MulTrace
 
-def highTerms (x y : FiveLimbs) : ℕ → List ℕ
-  | 0 => [hi52 (x 0) (y 0)]
-  | 1 => [hi52 (x 0) (y 1), hi52 (x 1) (y 0)]
-  | 2 => [hi52 (x 0) (y 2), hi52 (x 1) (y 1), hi52 (x 2) (y 0)]
-  | 3 => [hi52 (x 0) (y 3), hi52 (x 1) (y 2), hi52 (x 2) (y 1),
-      hi52 (x 3) (y 0)]
-  | 4 => [hi52 (x 0) (y 4), hi52 (x 1) (y 3), hi52 (x 2) (y 2),
-      hi52 (x 3) (y 1), hi52 (x 4) (y 0)]
-  | 5 => [hi52 (x 1) (y 4), hi52 (x 2) (y 3), hi52 (x 3) (y 2),
-      hi52 (x 4) (y 1)]
-  | 6 => [hi52 (x 2) (y 4), hi52 (x 3) (y 3), hi52 (x 4) (y 2)]
-  | 7 => [hi52 (x 3) (y 4), hi52 (x 4) (y 3)]
-  | 8 => [hi52 (x 4) (y 4)]
-  | _ => []
+/-!
+These equalities are the proof-side acceptance boundary for the generated
+source trace. Regenerating after changing a load/store offset, fold constant,
+mask, accumulator route, fold route, normalize argument, or output store must
+still discharge them and the arithmetic theorems below.
+-/
+theorem generated_constants_correct :
+    foldConstant = 19 ∧ traceMask = B - 1 := by
+  norm_num [foldConstant, traceMask, B]
+
+theorem loose5_ext {a b : Loose5}
+    (h0 : a.l0 = b.l0) (h1 : a.l1 = b.l1) (h2 : a.l2 = b.l2)
+    (h3 : a.l3 = b.l3) (h4 : a.l4 = b.l4) : a = b := by
+  cases a
+  cases b
+  simp_all
+
+theorem folded_grouped_eq_fold_degrees (x y : FiveLimbs) :
+    foldedGrouped x y =
+      foldDegrees
+        (groupedDegree x y 0) (groupedDegree x y 1)
+        (groupedDegree x y 2) (groupedDegree x y 3)
+        (groupedDegree x y 4) (groupedDegree x y 5)
+        (groupedDegree x y 6) (groupedDegree x y 7)
+        (groupedDegree x y 8) (groupedDegree x y 9) := by
+  rfl
 
 /-!
 `LimbsU52` is the actual source-operand contract of VPMADD52.  The lists above
@@ -197,19 +197,6 @@ theorem high_accumulator_shift_u64 (x y : FiveLimbs)
       (Nat.mul_le_mul_right U52 hcount)
     _ < 2 ^ 64 := by norm_num [U52]
 
-def groupedDegree (x y : FiveLimbs) : ℕ → ℕ
-  | 0 => (lowTerms x y 0).sum
-  | 1 => (lowTerms x y 1).sum + 2 * (highTerms x y 0).sum
-  | 2 => (lowTerms x y 2).sum + 2 * (highTerms x y 1).sum
-  | 3 => (lowTerms x y 3).sum + 2 * (highTerms x y 2).sum
-  | 4 => (lowTerms x y 4).sum + 2 * (highTerms x y 3).sum
-  | 5 => (lowTerms x y 5).sum + 2 * (highTerms x y 4).sum
-  | 6 => (lowTerms x y 6).sum + 2 * (highTerms x y 5).sum
-  | 7 => (lowTerms x y 7).sum + 2 * (highTerms x y 6).sum
-  | 8 => (lowTerms x y 8).sum + 2 * (highTerms x y 7).sum
-  | 9 => 2 * (highTerms x y 8).sum
-  | _ => 0
-
 def groupedConvolution (x y : FiveLimbs) : ℕ :=
   ∑ degree ∈ Finset.range 10, groupedDegree x y degree * B ^ degree
 
@@ -282,13 +269,6 @@ def highPolynomial (x y : FiveLimbs) : ℕ :=
     groupedDegree x y 7 * B ^ 2 + groupedDegree x y 8 * B ^ 3 +
     groupedDegree x y 9 * B ^ 4
 
-def foldedGrouped (x y : FiveLimbs) : Loose5 :=
-  foldDegrees
-    (groupedDegree x y 0) (groupedDegree x y 1) (groupedDegree x y 2)
-    (groupedDegree x y 3) (groupedDegree x y 4) (groupedDegree x y 5)
-    (groupedDegree x y 6) (groupedDegree x y 7) (groupedDegree x y 8)
-    (groupedDegree x y 9)
-
 theorem grouped_polynomial_decomposition (x y : FiveLimbs) :
     groupedConvolution x y =
       lowPolynomial x y + B ^ 5 * highPolynomial x y := by
@@ -298,7 +278,8 @@ theorem grouped_polynomial_decomposition (x y : FiveLimbs) :
 theorem folded_polynomial_decomposition (x y : FiveLimbs) :
     looseValue (foldedGrouped x y) =
       lowPolynomial x y + 19 * highPolynomial x y := by
-  simp [foldedGrouped, foldDegrees, looseValue, lowPolynomial, highPolynomial]
+  rw [folded_grouped_eq_fold_degrees]
+  simp [foldDegrees, looseValue, lowPolynomial, highPolynomial]
   ring
 
 theorem folded_grouped_preserves_mod (x y : FiveLimbs) :
@@ -364,6 +345,7 @@ theorem folded_grouped_u61 (x y : FiveLimbs)
       (foldedGrouped x y).l2 < 2 ^ 61 ∧
       (foldedGrouped x y).l3 < 2 ^ 61 ∧
       (foldedGrouped x y).l4 < 2 ^ 61 := by
+  rw [folded_grouped_eq_fold_degrees]
   apply folded_degrees_u61
   · simpa [groupedMultiplier] using
       grouped_degree_bound x y hx hy (degree := 0) (by norm_num)
@@ -386,6 +368,16 @@ theorem folded_grouped_u61 (x y : FiveLimbs)
   · simpa [groupedMultiplier] using
       grouped_degree_bound x y hx hy (degree := 9) (by norm_num)
 
+theorem assembly_output_eq_normalized
+    (x y : FiveLimbs) (hx : LimbsU52 x) (hy : LimbsU52 y) :
+    assemblyOutput x y = normalized (foldedGrouped x y) := by
+  obtain ⟨_, _, _, _, h4⟩ := folded_grouped_u61 x y hx hy
+  have hcarry := final_carry_ifma_low_exact h4
+  simp [foldedGrouped, traceCarry, carry, foldConstant, B] at hcarry
+  apply loose5_ext <;>
+    simp [assemblyOutput, foldedGrouped, normalized, traceRemainder, traceCarry,
+      remainder, carry, foldConstant, B, hcarry]
+
 /-!
 End-to-end refinement theorem for one lane of `narya_r51x8_mul_ifma`.
 
@@ -403,13 +395,14 @@ Together with `low_accumulator_prefix_u64` and
 -/
 theorem radix51_mul_assembly_trace_correct
     (x y : FiveLimbs) (hx : LimbsU52 x) (hy : LimbsU52 y) :
-    looseValue (normalized (foldedGrouped x y)) % P =
+    looseValue (assemblyOutput x y) % P =
         (radixValue x * radixValue y) % P ∧
-      (normalized (foldedGrouped x y)).l0 < U52 ∧
-      (normalized (foldedGrouped x y)).l1 < U52 ∧
-      (normalized (foldedGrouped x y)).l2 < U52 ∧
-      (normalized (foldedGrouped x y)).l3 < U52 ∧
-      (normalized (foldedGrouped x y)).l4 < U52 := by
+      (assemblyOutput x y).l0 < U52 ∧
+      (assemblyOutput x y).l1 < U52 ∧
+      (assemblyOutput x y).l2 < U52 ∧
+      (assemblyOutput x y).l3 < U52 ∧
+      (assemblyOutput x y).l4 < U52 := by
+  rw [assembly_output_eq_normalized x y hx hy]
   obtain ⟨h0, h1, h2, h3, h4⟩ := folded_grouped_u61 x y hx hy
   apply radix51_mul_correct_of_folded_schedule x y (foldedGrouped x y)
   · calc

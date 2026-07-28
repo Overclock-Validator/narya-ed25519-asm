@@ -4,7 +4,8 @@ This note states the obligations enforced by `narya_r51x8_mul_ifma`.
 
 The representation algebra is machine-checked in
 [`Radix51.lean`](../../formal/lean/NaryaFormal/Radix51.lean). The exact scalar
-trace corresponding to `narya_r51x8_mul_ifma` is checked in
+trace for `narya_r51x8_mul_ifma` is generated from the assembly source and
+checked in
 [`AssemblyTrace.lean`](../../formal/lean/NaryaFormal/AssemblyTrace.lean).
 Together they prove the 52-bit IFMA split identity, the assembly's row-major
 25-product grouping, every accumulator prefix bound, `COMBINE_HIGH`, the
@@ -12,10 +13,11 @@ Together they prove the 52-bit IFMA split identity, the assembly's row-major
 and the composable-u52 output contract. The main theorem is
 `radix51_mul_assembly_trace_correct`.
 
-This is still not a complete binary proof. A bit-vector or ISA refinement must
-connect the decoded x86 instruction stream to the checked scalar trace and
-establish register allocation, eight-lane mapping, SysV clobbers, and the
-load/store alias argument.
+The source/model connection is described in
+[`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). This is
+still not a complete binary proof. A bit-vector or ISA refinement must connect
+the emitted x86 object to the checked source trace and finish the assembler,
+SysV, and runtime-dispatch boundary.
 
 ## Representation
 
@@ -40,9 +42,9 @@ product = l + 2^52 h = l + 2 h B.
 The low half is accumulated at convolution degree `i+j`; twice the high half
 is accumulated at degree `i+j+1`. This reconstructs the exact integer product.
 The portable test oracle expresses this with `__uint128_t`, independently of
-the native instruction schedule. `AssemblyTrace.lean` separately lists the
-terms in the exact row-major update order; its prefix theorems prove that every
-intermediate accumulator, not only the final sum, fits in u64.
+the native instruction schedule. The generated Lean trace lists terms in the
+assembly source's exact row-major update order; its prefix theorems prove that
+every intermediate accumulator, not only the final sum, fits in u64.
 
 ## Reduction and bounds
 

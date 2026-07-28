@@ -9,7 +9,7 @@ needed to adapt the idea to another radix or instruction schedule.
 
 Let `p = 2^255 - 19`, `B = 2^51`, and let each input be five nonnegative
 limbs strictly below `2^52`. For one logical SIMD lane, the scalar trace
-mirroring `narya_r51x8_mul_ifma`:
+generated from `narya_r51x8_mul_ifma`:
 
 1. accumulates all 25 products with `VPMADD52LUQ/HUQ` semantics;
 2. rebases each high half using `2^52 = 2B`;
@@ -22,7 +22,10 @@ Every low/high accumulator prefix, high-half shift, combined degree, `×19`
 fold product, fold addition, and final carry is bounded so the modeled u64
 instruction does not wrap.
 
-The end-to-end Lean theorem is
+The assembly source/model mirror is no longer manual. The fail-closed extractor
+and generated Lean input are documented in
+[`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). The
+end-to-end Lean theorem is
 [`radix51_mul_assembly_trace_correct`](../../formal/lean/NaryaFormal/AssemblyTrace.lean).
 Its only arithmetic hypotheses are the two input u52 contracts. The theorem
 does not assume the grouped fold is correct; that obligation is discharged by
@@ -62,9 +65,11 @@ make formal-check
 make check-source
 ```
 
-`make formal-check` checks the mathematical trace. `make check-source` asks
-Clang to parse the GNU assembly for an x86-64 ELF target. These are distinct
-gates and neither should be represented as an external audit.
+`make formal-check` first requires byte equality between the generated Lean
+trace and the assembly source, then checks the mathematical theorem over that
+trace. `make check-source` also mutation-tests the extractor and asks Clang to
+parse the GNU assembly for an x86-64 ELF target. Neither gate is an external
+audit or an emitted-object proof.
 
 Native tests additionally compare the exact redundant output limbs against an
 independent `__uint128_t` oracle, exercise all eight lanes independently, test
@@ -72,9 +77,10 @@ exact input/output aliasing, and reject a source limb equal to `2^52`.
 
 ## What this does not prove
 
-The Lean files do not decode an ELF object or execute an x86 semantics. The
-remaining refinement must connect the assembled instructions and register
-allocation to the scalar trace and cover:
+The Lean files do not decode an ELF object or execute a complete x86 semantics.
+The source extractor checks the register schedule and rejects unmodeled source
+instructions; the remaining refinement must connect emitted object bytes to
+that checked source trace and cover:
 
 - `VPMADD52LUQ/HUQ`, `VPMULLQ`, shifts, masks, and additions as bitvectors;
 - the mapping of eight ZMM lanes to eight independent scalar traces;
@@ -152,8 +158,8 @@ architecture, but it needs a new trace instantiated from its actual schedule.
 4. Prove the dedicated square trace, linear operations, and every fused
    point-formula range schedule. Record per-node intervals rather than relying
    on one coarse “wide” bound.
-5. Add an object-code/ISA refinement or a mechanically generated trace check
-   so an assembly edit cannot silently diverge from the proof model.
+5. Retain the mechanically generated source trace, and add object-code/ISA
+   refinement so assembler or encoding divergence cannot evade it.
 6. Differential-test on native Zen 4 and Zen 5 hardware, including maximum
    legal limbs, all lanes, exact aliasing, and mutations of every fold/bias
    constant.

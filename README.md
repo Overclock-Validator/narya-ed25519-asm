@@ -27,9 +27,10 @@ boundary are frozen.
   scalar multiplication; an immutable radix-256 basepoint comb with a masked
   affine-Niels transpose leaf; the complete x8 `DalekStrict` equation and
   public workspace ABI; alias, lane-independence, known-answer, and range
-  tests; and a machine-checked Lean scalar trace for the radix-51 IFMA
-  multiplier, including the exact product order, per-instruction no-wrap,
-  fold, carry, modular result, and reusable-range lemmas.
+  tests; and a machine-checked Lean scalar trace generated from the radix-51
+  IFMA multiply source, including the exact product order and register route,
+  per-instruction no-wrap, fold, carry, modular result, and reusable-range
+  lemmas.
 - In progress: long native fuzzing, complete performance measurement, further
   formal refinement, and fusion of remaining C-scheduled point layers. The
   checked-in external corpus covers RFC 8032, CCTV, Wycheproof, and derived
@@ -76,9 +77,9 @@ make formal-check
 target and is useful on a non-x86 development host.
 
 `make formal-check` uses the pinned Lean/mathlib project under `formal/lean`.
-It proves the exact scalar arithmetic trace mirrored from the multiply leaf;
-it does not yet decode the System V x86 binary or prove that its register and
-memory execution refines that trace.
+It first regenerates and compares the multiply leaf's source trace, then proves
+the arithmetic and range theorem over that generated output. It does not yet
+decode the emitted System V x86 object or verify the assembler and CPU model.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,
@@ -103,8 +104,9 @@ The field proof obligations are collected in
 the concise external evidence map is
 [`docs/proofs/FIELD_ARITHMETIC_HANDOFF.md`](docs/proofs/FIELD_ARITHMETIC_HANDOFF.md).
 The checked Lean source is under [`formal/lean`](formal/lean/README.md). The
-current theorem discharges the assembly-grouping/range hypothesis; the
-remaining boundary is x86/ABI refinement. The signed scalar-reduction boundary is documented in
+[source-refinement certificate](docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md)
+explains how assembly edits reach the theorem. The remaining boundary is
+emitted-object/x86/ABI refinement. The signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).

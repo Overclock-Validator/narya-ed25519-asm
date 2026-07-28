@@ -26,7 +26,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-transpose check-scalar-bounds check-sha512-schedule check-generated formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check check-source check-r51-mul-trace test-r51-mul-trace-mutations check-transpose check-scalar-bounds check-sha512-schedule check-generated formal-check
 
 all: $(LIB)
 
@@ -165,9 +165,17 @@ check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/affine_niels_transpose_x8.S -o /tmp/narya-affine-niels-transpose-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/fixed_base_comb_data.S -o /tmp/narya-fixed-base-comb-data.o
+	$(MAKE) check-r51-mul-trace
+	$(MAKE) test-r51-mul-trace-mutations
 	$(MAKE) check-transpose
 	$(MAKE) check-scalar-bounds
 	$(MAKE) check-sha512-schedule
+
+check-r51-mul-trace:
+	python3 tools/generate_r51_mul_trace.py --check
+
+test-r51-mul-trace-mutations:
+	python3 tools/test_r51_mul_trace_mutations.py
 
 check-transpose:
 	python3 tools/check_transpose_schedule.py
@@ -181,7 +189,7 @@ check-sha512-schedule:
 check-generated:
 	python3 tools/check_generated.py
 
-formal-check:
+formal-check: check-r51-mul-trace
 	@if grep -R -n -E '\b(sorry|admit|axiom)\b' formal/lean \
 		--include='*.lean' --exclude-dir='.lake'; then \
 		echo 'untrusted Lean placeholder or custom axiom found' >&2; exit 1; \

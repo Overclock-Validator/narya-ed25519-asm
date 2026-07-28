@@ -45,6 +45,12 @@ Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Review still needs to confirm the certificate's
 ISA model and eventually close the documented assembled-binary refinement gap.
 
+The r51 multiply's arithmetic theorem now consumes a trace mechanically
+generated from the assembly source. The extractor is fail-closed over the
+straight-line leaf and has mutation tests for each major schedule class. Audit
+must review that parser and still close the emitted-object/ISA boundary; this
+is stronger than a hand-maintained mirror but is not a verified x86 decoder.
+
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register
 rotation, and feed-forward store. Independent review must still validate that

@@ -40,6 +40,11 @@ def require_equal(path: Path, generated: bytes) -> None:
 
 
 def main() -> None:
+    require_equal(
+        ROOT / "formal/lean/NaryaFormal/GeneratedR51MulTrace.lean",
+        run("tools/generate_r51_mul_trace.py"),
+    )
+
     external = ROOT / "tests/vectors/narya_external_strict_v1.jsonl"
     external_sha256 = hashlib.sha256(external.read_bytes()).hexdigest()
     expected_external_sha256 = (

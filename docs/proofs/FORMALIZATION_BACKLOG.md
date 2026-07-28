@@ -6,11 +6,15 @@ lemmas cover split-product reconstruction, the exact row-major accumulator
 grouping, every partial accumulator bound, `COMBINE_HIGH`, the modular fold
 and its no-wrap bounds, carry preservation, and the final u52 contract.
 
-The remaining native multiplier work is one refinement layer:
+The multiply assembly source is now connected to the theorem by the generated,
+fail-closed trace described in
+[`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). A source
+edit changes a Lean proof input or fails extraction. The remaining native
+multiplier work is one refinement layer:
 
-1. add an instruction-level theorem or bitvector certificate connecting the
-   SysV AVX-512 leaf to that scalar operation, including lane noninterference
-   and load-before-store alias safety.
+1. decode the emitted object and add an instruction-level theorem or bitvector
+   certificate connecting it to the checked source trace, including full SysV
+   behavior and the assembler/encoding boundary.
 
 The selector transpose's source-level lane map is now machine checked in
 `NaryaFormal.Transpose`, and a fail-closed source parser checks the actual

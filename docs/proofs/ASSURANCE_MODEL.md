@@ -23,6 +23,11 @@ field values—where exactness is part of the next operation's range contract.
 Instruction-level review covers register clobbers, lane movement, masks,
 aliasing, and CPU feature assumptions.
 
+For the r51 multiply, a fail-closed extractor now generates the Lean proof
+input from the assembly source and rejects unmodeled statements. This closes
+the hand-maintained source/model mirror. Emitted-object decoding and full x86,
+ABI, and dispatch refinement remain separate open obligations.
+
 ## 4. Differential and adversarial testing
 
 Required corpora include RFC vectors, CCTV, Wycheproof, permissive aliases,

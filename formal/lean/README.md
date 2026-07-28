@@ -36,8 +36,10 @@ The scalar-reduction foundation now also machine-checks:
   coefficient.
 
 [`Radix51.lean`](NaryaFormal/Radix51.lean) contains the representation-level
-algebra. [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean) mirrors the
-assembly's row-major `MUL_PAIR` order and degree grouping. Its main theorem,
+algebra. [`GeneratedR51MulTrace.lean`](NaryaFormal/GeneratedR51MulTrace.lean)
+is mechanically extracted from the multiply assembly source and supplies its
+row-major `MUL_PAIR` order, register routing, fold, normalization, and output
+mapping to [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean). Its main theorem,
 `radix51_mul_assembly_trace_correct`, proves the modular product and reusable
 u52 output contract from only the real source precondition: every input limb
 is below `2^52`. The prior abstract folded-schedule hypothesis is discharged.
@@ -55,10 +57,11 @@ per-instruction signed intervals. The full schedule/canonical-range theorem
 and binary refinement remain open; see the
 [scalar-reduction contract](../../docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 
-The remaining gap is binary/ISA refinement: proving that the assembled x86
-instructions implement these source-level traces, plus SysV ABI checks and
-load-before-store memory theorems. The Lean result is not a verified decoder
-for arbitrary machine code and does not prove CPU dispatch.
+The r51 multiply now has a fail-closed assembly-source-to-Lean link; see the
+[source refinement certificate](../../docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md).
+The remaining gap is binary/ISA refinement: proving that the emitted x86
+object implements the checked source trace, plus complete SysV ABI and dispatch
+theorems. The Lean result is not a verified decoder for arbitrary machine code.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires
