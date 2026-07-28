@@ -1,55 +1,230 @@
 # Scalar-reduction contract
 
+## Status
+
+This document is the specification for `narya_scalar_reduce_x8`, not a claim
+that its machine proof is complete. The native implementation is covered by
+independent differential and boundary tests. The interval certificate,
+instruction-level refinement, and wrapper memory proof listed below remain
+formalization work.
+
 ## Claim
 
-`narya_scalar_reduce_x8` maps each active 512-bit little-endian input to the
-unique 32-byte little-endian representative in `[0,l)`, where
+For each active lane, `narya_scalar_reduce_x8` interprets the 64-byte input as
+an unsigned 512-bit little-endian integer `X` and writes the unique 32-byte
+little-endian integer `Y` satisfying
 
 ```text
+0 <= Y < l
+Y = X (mod l)
 l = 2^252 + 27742317777372353535851937790883648493.
 ```
 
-Inactive outputs are zero and lanes are independent.
+Canonical outputs may use bit 252; bits 253 through 255 are zero. In
+particular, `l-1` has bit 252 set and must not be truncated to 252 bits.
+Inactive output rows are zero. Logical lanes are independent.
+
+The top-level arithmetic theorem is:
+
+```text
+for every X in [0, 2^512), ReduceSchedule(X) = X mod l,
+with ReduceSchedule(X) in [0, l).
+```
+
+## Radix parsing
+
+Let `B = 2^21`. The C wrapper constructs positional coefficients
+`s[0]..s[23]` such that
+
+```text
+X = sum(s[i] * B^i, i=0..23).
+```
+
+The exact initial bounds are
+
+```text
+0 <= s[i] < B       for 0 <= i <= 22
+0 <= s[23] < 2^29.
+```
+
+The wider top coefficient is load-bearing: 23 ordinary 21-bit positions
+cover only 483 bits. A parsing proof must refine the byte loads and shifts in
+`load_radix21_x8`; it must not infer these bounds merely from the intended
+layout.
 
 ## Reduction identity
 
-The native leaf stores 24 signed radix-`2^21` limbs in ZMM registers. For a
-coefficient at position `i >= 12`, it uses the exact congruence
+Let
 
 ```text
-2^252 =
-  666643 + 470296*2^21 + 654183*2^42 - 997805*2^63
-  + 136657*2^84 - 683901*2^105                    (mod l).
+c = l - 2^252.
 ```
 
-The schedule folds limbs 23 through 18, performs centered signed carries,
-folds limbs 17 through 12, then performs two final fold/carry passes. The last
-pass leaves twelve nonnegative limbs which the wrapper packs into 252 bits.
+The constants obey the exact integer identity
+
+```text
+666643 + 470296*B + 654183*B^2 - 997805*B^3
+       + 136657*B^4 - 683901*B^5 = -c.
+```
+
+Therefore
+
+```text
+B^12 = 666643 + 470296*B + 654183*B^2 - 997805*B^3
+       + 136657*B^4 - 683901*B^5                    (mod l).
+```
+
+For a coefficient at position `i >= 12`, `FOLD` applies this congruence after
+multiplication by `B^(i-12)`, then clears the consumed high coefficient. The
+schedule folds coefficients 23 through 18, performs centered carries, folds
+17 through 12, and performs two final fold/carry passes.
+
+The identity above should be the basic machine-checked fold lemma.
+
+## Carry semantics
+
+The native schedule uses two distinct transformations.
+
+A centered carry computes
+
+```text
+q = floor((x + 2^20) / B)
+r = x - q*B,
+```
+
+and establishes
+
+```text
+-2^20 <= r < 2^20.
+```
+
+An ordinary carry computes
+
+```text
+q = floor(x / B)
+r = x - q*B,
+```
+
+and establishes
+
+```text
+0 <= r < B.
+```
+
+In both cases the adjacent-coefficient update
+
+```text
+(x_i, x_(i+1)) -> (x_i - q*B, x_(i+1) + q)
+```
+
+preserves the represented integer exactly. The centered proof must also show
+that adding `2^20` does not overflow. Both proofs must show that the shift or
+multiplication used to reconstruct `q*B` is exact.
+
+## Canonical range and packing
+
+After the final schedule, define
+
+```text
+Y = sum(s[i] * B^i, i=0..11).
+```
+
+Canonicality is the independent theorem
+
+```text
+0 <= Y < l.
+```
+
+It must not be inferred merely from limb widths. Assuming
+`0 <= s[i] < B` for `i < 11`, the top coefficient may satisfy
+`0 <= s[11] <= B`; when `s[11] = B`, the lower reconstruction must be below
+`c`. This is how values in `[2^252,l)`, including `l-1`, are represented.
+
+The separate packing theorem is
+
+```text
+LE256(output) = Y.
+```
+
+Parsing, modular preservation, canonical range, and exact packing together
+establish that the output is `X mod l`.
 
 ## Machine obligations
 
-The source leaf uses `VPMULLQ`, signed `VPSRAQ`, additions, and subtractions.
-Its proof obligations are:
+The assembly leaf uses `VPMULLQ`, signed `VPSRAQ`, `VPADDQ`, `VPSUBQ`, and
+fixed shifts. An instruction-level interval certificate must expose bounds
+after every instruction and prove:
 
-1. every mathematical intermediate fits signed 64-bit, so low-product
-   truncation is exact;
-2. arithmetic right shift implements floor division by `2^21` for negative
-   as well as positive limbs;
-3. every fold preserves the input modulo `l`;
-4. final limbs pack to a value below `l`;
-5. no instruction mixes lanes;
-6. the wrapper parses all input before publishing output, establishing exact
-   input/output alias safety and error atomicity.
+1. for every `VPMULLQ`, the intended signed product is in
+   `[-2^63,2^63-1]`, so its low 64-bit two's-complement result is exact;
+2. every partial addition and subtraction also remains in that interval;
+3. adding the centered-carry bias and reconstructing `q*B` cannot overflow;
+4. each arithmetic right shift implements the specified floor division;
+5. every fold preserves the represented value modulo `l`;
+6. the final reconstructed value is in `[0,l)` and packing preserves bit 252.
 
-Tests exercise edge values, all 256 active masks, exact aliasing, and 10,000
-random x8 inputs. Their oracle performs 512 shift-and-conditional-subtract
-steps against the literal order and shares none of the native fold constants,
-radix limbs, carry schedule, or packing expressions.
+It is insufficient to bound only the final node of a fold or carry: every
+partial multiplication and accumulation must be certified.
 
-## Formalization target
+## Lane and wrapper obligations
 
-This schedule is the second recommended machine-checked target after the r51
-field multiply. A useful Lean theorem should prove the six obligations above
-over arbitrary eight-tuples, followed by a bitvector refinement from the
-assembly instructions to the signed-limb model. See
+The arithmetic leaf is lane-separable: each ZMM lane computes the same scalar
+schedule and no leaf instruction mixes lanes. This is distinct from the C
+wrapper theorem. The wrapper must prove that:
+
+1. its byte-to-radix parsing preserves each logical lane;
+2. inactive lanes are zeroed before entering the leaf and before publication;
+3. all argument and CPU checks occur before the first output store;
+4. every input byte needed by every active lane is materialized before the
+   first output store;
+5. after publication begins, no error is possible;
+6. on error, the entire destination remains unchanged.
+
+The current wrapper materializes all 512 input bytes into private limb state
+and builds a private result before one final `memcpy`. Its intended ABI is
+therefore safe for arbitrary overlap between the 256-byte output range and
+the 512-byte input range, not only exact start-address aliasing. The memory
+proof remains separate from the scalar arithmetic proof.
+
+## Executable evidence
+
+`tests/test_scalar_reduce.c` uses a bit-at-a-time modulo-`l` oracle that
+shares none of the leaf's fold constants, radix limbs, carries, or packing
+expressions. Deterministic coverage includes:
+
+- `0`, `1`, `2^252-1`, `2^252`, `l-2`, `l-1`, `l`, `l+1`, `2l-1`, `2l`, and
+  `2^512-1`;
+- isolated maximum radix coefficients, including `s[23]=2^29-1`;
+- eight distinct adversarial lanes under all 256 active masks;
+- inactive-output zeroing, arbitrary source/output overlap, and error
+  atomicity;
+- 10,000 random x8 inputs.
+
+The `l-1` regression additionally asserts that output bit 252 survives.
+These tests are evidence, not a substitute for the formal range and memory
+proofs.
+
+## Formalization split
+
+The recommended theorem boundaries are:
+
+```text
+parse_radix21_correct
+fold_identity_correct
+centered_carry_exact
+ordinary_carry_exact
+schedule_congruent_mod_l
+schedule_signed_bounds
+final_value_canonical
+pack32_exact
+scalar_reduce_correct
+leaf_bitvector_refinement
+x8_lane_mapping
+active_mask_semantics
+wrapper_alias_and_atomicity
+```
+
+The arithmetic theorem should be proved before the bit-vector refinement.
+The wrapper memory theorem remains separate because it reasons about pointer
+ranges, loads, stores, and error paths rather than modular arithmetic. See
 [`FORMALIZATION_BACKLOG.md`](FORMALIZATION_BACKLOG.md).

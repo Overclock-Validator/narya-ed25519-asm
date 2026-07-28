@@ -123,6 +123,29 @@ double_order(uint8_t value[64])
     value[32] = (uint8_t)carry;
 }
 
+static void
+set_power_of_two(uint8_t value[64], size_t bit)
+{
+    memset(value, 0, 64);
+    value[bit / 8] = (uint8_t)(UINT8_C(1) << (bit % 8));
+}
+
+static void
+set_radix21_coefficient(
+    uint8_t value[64], size_t coefficient, uint32_t digit)
+{
+    const size_t first_bit = coefficient * 21;
+    const size_t width = coefficient == 23 ? 29 : 21;
+    memset(value, 0, 64);
+    for (size_t bit = 0; bit < width; bit++) {
+        if ((digit & (UINT32_C(1) << bit)) != 0) {
+            const size_t output_bit = first_bit + bit;
+            value[output_bit / 8] |=
+                (uint8_t)(UINT8_C(1) << (output_bit % 8));
+        }
+    }
+}
+
 static int
 canonical(const uint8_t scalar[32])
 {
@@ -167,26 +190,92 @@ check_case(uint8_t input[8][64], uint8_t active, const char *label)
 }
 
 static int
-check_edges_and_masks(void)
+check_required_boundaries(void)
+{
+    enum { boundary_count = 11 };
+    uint8_t boundary[boundary_count][64] = {{0}};
+
+    boundary[1][0] = 1;
+    set_power_of_two(boundary[2], 252);
+    subtract_one(boundary[2]);                 /* 2^252 - 1 */
+    set_power_of_two(boundary[3], 252);        /* 2^252 */
+    memcpy(boundary[4], scalar_order_bytes, 32);
+    subtract_one(boundary[4]);
+    subtract_one(boundary[4]);                 /* l - 2 */
+    memcpy(boundary[5], scalar_order_bytes, 32);
+    subtract_one(boundary[5]);                 /* l - 1 */
+    memcpy(boundary[6], scalar_order_bytes, 32); /* l */
+    memcpy(boundary[7], scalar_order_bytes, 32);
+    add_one(boundary[7]);                      /* l + 1 */
+    double_order(boundary[8]);
+    subtract_one(boundary[8]);                 /* 2*l - 1 */
+    double_order(boundary[9]);                 /* 2*l */
+    memset(boundary[10], 0xff, 64);            /* 2^512 - 1 */
+
+    for (size_t first = 0; first < boundary_count; first += 8) {
+        uint8_t input[8][64] = {{0}};
+        uint8_t active = 0;
+        for (size_t lane = 0; lane < 8 && first + lane < boundary_count;
+             lane++) {
+            memcpy(input[lane], boundary[first + lane], 64);
+            active |= (uint8_t)(UINT8_C(1) << lane);
+        }
+        if (!check_case(input, active, "canonical boundary vectors"))
+            return 0;
+    }
+
+    /* l-1 is canonical and requires bit 252. Catch 252-bit truncation. */
+    uint8_t input[8][64] = {{0}};
+    uint8_t output[8][32] = {{0}};
+    memcpy(input[0], boundary[5], 64);
+    if (narya_scalar_reduce_x8(output, &input[0][0], 0x01) != NARYA_OK ||
+        memcmp(output[0], boundary[5], 32) != 0 ||
+        (output[0][31] & UINT8_C(0x10)) == 0) {
+        fputs("l-1 lost canonical output bit 252\n", stderr);
+        return 0;
+    }
+
+    return 1;
+}
+
+static int
+check_initial_radix_maxima(void)
+{
+    for (size_t first = 0; first < 24; first += 8) {
+        uint8_t input[8][64] = {{0}};
+        uint8_t active = 0;
+        for (size_t lane = 0; lane < 8 && first + lane < 24; lane++) {
+            const size_t coefficient = first + lane;
+            const uint32_t maximum = coefficient == 23
+                ? (UINT32_C(1) << 29) - 1
+                : (UINT32_C(1) << 21) - 1;
+            set_radix21_coefficient(
+                input[lane], coefficient, maximum);
+            active |= (uint8_t)(UINT8_C(1) << lane);
+        }
+        if (!check_case(input, active, "isolated maximum radix coefficient"))
+            return 0;
+    }
+    return 1;
+}
+
+static int
+check_adversarial_lane_masks(void)
 {
     uint8_t input[8][64] = {{0}};
     input[1][0] = 1;
     memcpy(input[2], scalar_order_bytes, 32);
-    memcpy(input[3], scalar_order_bytes, 32);
-    subtract_one(input[3]);
-    memcpy(input[4], scalar_order_bytes, 32);
-    add_one(input[4]);
-    memset(input[5], 0xff, 64);
-    input[6][63] = 0x80;
-    double_order(input[7]);
-    if (!check_case(input, 0xff, "edge vectors"))
-        return 0;
+    subtract_one(input[2]);                    /* l - 1 */
+    memcpy(input[3], scalar_order_bytes, 32); /* l */
+    set_power_of_two(input[4], 252);          /* 2^252 */
+    memset(input[5], 0xff, 64);               /* all radix limbs maximal */
+    set_radix21_coefficient(input[6], 0, (UINT32_C(1) << 20));
+    set_radix21_coefficient(
+        input[7], 23, (UINT32_C(1) << 29) - 1);
 
-    for (size_t lane = 0; lane < 8; lane++)
-        for (size_t i = 0; i < 64; i++)
-            input[lane][i] = (uint8_t)random64();
     for (unsigned int mask = 0; mask <= 0xff; mask++) {
-        if (!check_case(input, (uint8_t)mask, "active-mask sweep"))
+        if (!check_case(input, (uint8_t)mask,
+                        "adversarial active-mask sweep"))
             return 0;
     }
     return 1;
@@ -204,22 +293,37 @@ check_random_and_alias(void)
             return 0;
     }
 
-    union {
-        uint64_t align;
-        uint8_t bytes[8 * 64];
-    } storage;
-    for (size_t i = 0; i < sizeof(storage.bytes); i++)
-        storage.bytes[i] = (uint8_t)random64();
     uint8_t original[8][64];
-    memcpy(original, storage.bytes, sizeof(original));
+    for (size_t i = 0; i < sizeof(original); i++)
+        ((uint8_t *)original)[i] = (uint8_t)random64();
     uint8_t want[8][32];
     for (size_t lane = 0; lane < 8; lane++)
         reference_reduce(want[lane], original[lane]);
-    if (narya_scalar_reduce_x8(
-            (uint8_t (*)[32])storage.bytes, storage.bytes, 0xff) != NARYA_OK ||
-        memcmp(storage.bytes, want, sizeof(want)) != 0) {
-        fputs("exact source/output alias mismatch\n", stderr);
-        return 0;
+
+    /*
+     * The wrapper materializes the entire source before publishing output,
+     * so its ABI promises arbitrary overlap, not only identical starts.
+     */
+    static const size_t output_offset[] = {0, 128, 255, 256, 257, 384, 512};
+    enum { input_offset = 256, storage_size = 1024 };
+    for (size_t overlap = 0;
+         overlap < sizeof(output_offset) / sizeof(output_offset[0]);
+         overlap++) {
+        union {
+            uint64_t align;
+            uint8_t bytes[storage_size];
+        } storage;
+        memset(storage.bytes, 0xa5, sizeof(storage.bytes));
+        memcpy(&storage.bytes[input_offset], original, sizeof(original));
+        if (narya_scalar_reduce_x8(
+                (uint8_t (*)[32])&storage.bytes[output_offset[overlap]],
+                &storage.bytes[input_offset], 0xff) != NARYA_OK ||
+            memcmp(&storage.bytes[output_offset[overlap]], want,
+                   sizeof(want)) != 0) {
+            fprintf(stderr, "source/output overlap mismatch at offset %zu\n",
+                    output_offset[overlap]);
+            return 0;
+        }
     }
     return 1;
 }
@@ -228,12 +332,16 @@ static int
 check_error_atomicity(void)
 {
     uint8_t output[8][32];
+    uint8_t input[8][64] = {{0}};
     uint8_t unchanged[8][32];
     memset(output, 0xa5, sizeof(output));
     memcpy(unchanged, output, sizeof(output));
     if (narya_scalar_reduce_x8(output, NULL, 0xff) !=
             NARYA_ERR_INVALID_ARGUMENT ||
         memcmp(output, unchanged, sizeof(output)) != 0)
+        return 0;
+    if (narya_scalar_reduce_x8(NULL, &input[0][0], 0xff) !=
+        NARYA_ERR_INVALID_ARGUMENT)
         return 0;
     return 1;
 }
@@ -250,7 +358,8 @@ main(void)
         puts("SKIP: AVX-512 IFMA unavailable");
         return 0;
     }
-    if (!check_edges_and_masks() || !check_random_and_alias() ||
+    if (!check_required_boundaries() || !check_initial_radix_maxima() ||
+        !check_adversarial_lane_masks() || !check_random_and_alias() ||
         !check_error_atomicity())
         return 1;
     puts("PASS: x8 scalar reduction matches independent modulo-l oracle");

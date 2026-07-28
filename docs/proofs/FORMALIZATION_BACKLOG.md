@@ -20,6 +20,20 @@ of a 512-bit hash modulo the group order. Its exact statement and machine
 obligations are recorded in
 [`SCALAR_REDUCTION_CONTRACT.md`](SCALAR_REDUCTION_CONTRACT.md).
 
+Keep this target split into four layers rather than proving one monolithic
+packing statement:
+
+1. exact 512-bit parsing, including the 29-bit top input coefficient;
+2. modular preservation by folds and exact centered/ordinary carries;
+3. direct canonical range `0 <= Y < l`, allowing output bit 252;
+4. instruction and wrapper refinement, including per-instruction signed
+   bounds, logical-lane mapping, arbitrary input/output overlap, and error
+   atomicity.
+
+The intended named lemmas are listed in the scalar-reduction contract. Add
+the deterministic `l-1`/bit-252 and carry-boundary regressions before treating
+an automated certificate as complete.
+
 After that arithmetic seam, formalize the variable-base scalar multiplier as
 a composition theorem rather than another instruction proof:
 

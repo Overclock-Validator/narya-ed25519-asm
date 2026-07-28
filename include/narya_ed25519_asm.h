@@ -113,9 +113,10 @@ narya_status narya_sha512_r_a_message_x8(
 /*
  * Reduces eight lane-major 64-byte little-endian integers modulo the
  * Ed25519 group order l. Active outputs are canonical 32-byte little-endian
- * scalars in [0,l); inactive rows are zero. The output may start at the same
- * address as the input because all source bytes are marshaled before stores.
- * On an argument/CPU error the complete output remains unchanged.
+ * scalars in [0,l); canonical output may use bit 252 and bits 253..255 are
+ * zero. Inactive rows are zero. The 256-byte output range may overlap the
+ * 512-byte input range arbitrarily because all source bytes are marshaled
+ * before stores. On an argument/CPU error the complete output is unchanged.
  */
 narya_status narya_scalar_reduce_x8(
     uint8_t out[NARYA_X8_LANES][32],

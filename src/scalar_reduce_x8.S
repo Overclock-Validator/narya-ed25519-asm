@@ -22,9 +22,10 @@
  *   The reduction deliberately uses signed 64-bit radix-2^21 limbs. VPSRAQ
  *   implements the arithmetic shifts used by the public-domain ref10
  *   schedule. VPMULLQ returns the low 64 bits of a two's-complement product;
- *   the range proof in docs/proofs/SCALAR_REDUCTION_CONTRACT.md establishes
- *   that every exact intermediate fits int64_t, so truncation never changes
- *   the integer result.
+ *   docs/proofs/SCALAR_REDUCTION_CONTRACT.md specifies the still-open
+ *   instruction-level obligation that every exact intermediate fit int64_t,
+ *   so truncation cannot change the integer result. Differential tests are
+ *   evidence for this leaf; they are not a completed range certificate.
  *
  * MODULAR FOLD
  *   For a high limb x at position i >= 12, 2^(21i) is replaced using
@@ -40,13 +41,14 @@
  * CANONICALIZATION
  *   Rounded carries first center loose signed limbs. Two final fold/carry
  *   passes leave limbs 0..11 in the unique interval packed by
- *   scalar_reduce.c into a 32-byte representative in [0,l).
+ *   scalar_reduce.c into a 32-byte representative in [0,l). The result may
+ *   use bit 252; in particular, l-1 is not a 252-bit integer.
  *
  * ALIASING
  *   This internal leaf mutates its limb workspace in place. The public
  *   wrapper parses all 512 source bytes before the leaf and does not publish
- *   output until reduction succeeds, which supplies source/output aliasing
- *   and error atomicity at the C ABI.
+ *   output until reduction succeeds, which supplies arbitrary source/output
+ *   overlap safety and error atomicity at the C ABI.
  *
  * The core schedule is an x8 SysV translation of Narya's fixed-array
  * radix-2^21 reducer. Correctness tests do not reuse this schedule: they use
@@ -173,7 +175,11 @@ narya_scalar_reduce_radix21_x8_asm:
     CARRY_ROUNDED zmm9,  zmm10
     CARRY_ROUNDED zmm11, zmm12
 
-    /* Two fold/carry passes remove the final coefficient of 2^252. */
+    /*
+     * Two fold/carry passes remove a loose coefficient at position 12.
+     * They do not require the canonical result to be below 2^252: zmm11 may
+     * encode bit 252 after the last carry, as it does for l-1.
+     */
     FOLD zmm12, zmm0, zmm1, zmm2, zmm3, zmm4, zmm5
     CARRY zmm0,  zmm1
     CARRY zmm1,  zmm2

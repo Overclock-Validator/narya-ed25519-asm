@@ -41,7 +41,12 @@ load_radix21_x8(
     }
 }
 
-/* Pack twelve nonnegative 21-bit limbs into the canonical 32-byte scalar. */
+/*
+ * Pack the final twelve nonnegative radix-2^21 coefficients. Coefficients
+ * 0..10 are below 2^21. Coefficient 11 may equal 2^21: canonical scalars in
+ * [2^252,l), including l-1, use bit 252. The reduction schedule, not this
+ * byte serializer, establishes that the reconstructed integer is below l.
+ */
 static void
 store_radix21(uint8_t output[32], int64_t s[24][8], size_t lane)
 {
@@ -90,7 +95,7 @@ narya_scalar_reduce_x8(
     if (!narya_r51x8_available())
         return NARYA_ERR_UNSUPPORTED_CPU;
 
-    /* Parse every source before writing output, preserving exact aliasing. */
+    /* Parse every source first, preserving arbitrary source/output overlap. */
     int64_t limbs[24][8];
     load_radix21_x8(limbs, input, active);
     narya_scalar_reduce_radix21_x8_asm(limbs);
