@@ -47,6 +47,12 @@
  * emitted-object/x86/ABI refinement. See
  * docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md.
  *
+ * The add/subtract/negate leaves below are independently extracted by
+ * tools/generate_r51_linear_trace.py. LinearTrace.lean proves their exact 4p
+ * biases, non-underflow/no-wrap, modular semantics, and composable-u52 output
+ * contract. Their emitted-object boundary is the same open obligation; see
+ * docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md.
+ *
  * This is a SysV/GAS translation of Narya's reviewed Go-ABI Plan 9 leaf at
  * source commit eff4c8ddafdfe0448eb50f2eafc723a42b95fe2c.  The instruction
  * schedule and representation are intentionally kept bit-identical so the

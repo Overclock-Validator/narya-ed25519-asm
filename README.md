@@ -105,8 +105,10 @@ the concise external evidence map is
 [`docs/proofs/FIELD_ARITHMETIC_HANDOFF.md`](docs/proofs/FIELD_ARITHMETIC_HANDOFF.md).
 The checked Lean source is under [`formal/lean`](formal/lean/README.md). The
 [source-refinement certificate](docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md)
-explains how assembly edits reach the theorem. The remaining boundary is
-emitted-object/x86/ABI refinement. The signed scalar-reduction boundary is documented in
+explains how multiply assembly edits reach the theorem; the same fail-closed
+source link and modular/range proofs now cover add, subtract, and negate. The
+remaining [byte-linked x86/ABI boundary](docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md)
+is specified separately. The signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).

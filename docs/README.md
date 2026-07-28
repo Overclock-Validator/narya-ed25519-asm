@@ -35,6 +35,7 @@ particular run, never general performance or correctness claims.
 - [Assurance model](proofs/ASSURANCE_MODEL.md)
 - [r51 field contract](proofs/R51_FIELD_CONTRACT.md)
 - [r51 multiply assembly-source refinement](proofs/R51_SOURCE_TRACE_REFINEMENT.md)
+- [Byte-linked x86-64 refinement plan](proofs/X86_OBJECT_REFINEMENT_PLAN.md)
 - [Field-arithmetic evidence handoff](proofs/FIELD_ARITHMETIC_HANDOFF.md)
 - [Machine-checked radix-51 Lean layer](../formal/lean/README.md)
 - [Scalar-reduction contract](proofs/SCALAR_REDUCTION_CONTRACT.md)

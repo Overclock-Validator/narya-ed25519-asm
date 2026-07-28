@@ -48,6 +48,7 @@ the exact 25-product trace in the same file.
 | Outputs are reusable u52 sources | `normalized_limbs_u52` |
 | Any unsigned u64 loose limbs weak-carry to u52 | `normalized_limbs_u52_of_u64` |
 | End-to-end scalar trace | `radix51_mul_assembly_trace_correct` |
+| Linear add/subtract/negate source traces | `add_assembly_trace_correct`, `sub_assembly_trace_correct`, `neg_assembly_trace_correct` |
 
 The representation-level lemmas live in
 [`Radix51.lean`](../../formal/lean/NaryaFormal/Radix51.lean). The ordered trace
@@ -88,10 +89,11 @@ that checked source trace and cover:
 - all-source-loads-before-output-stores alias safety; and
 - the checked wrapper's CPU/OS feature gate and source-range validation.
 
-The add, subtract, and negate leaves reuse the proved parallel carry and have
-portable exact-output tests, but their complete ordered traces and bias bounds
-have not yet been formalized in Lean. Point-formula schedules and any fused or
-lazy-reduction variants require their own composability certificates.
+The add, subtract, and negate leaves now have generated, fail-closed source
+traces and Lean proofs of their exact `4p` biases, non-underflow, no-wrap,
+modular semantics, and composable-u52 outputs. This covers only those leaves
+under u52 inputs. Point-formula schedules and any fused or lazy-reduction
+variants still require their own expression-specific certificates.
 
 ## What transfers to another radix-51 implementation
 

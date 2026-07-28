@@ -20,9 +20,16 @@ fail-closed trace described in
 edit changes a Lean proof input or fails extraction. The remaining native
 multiplier work is one refinement layer:
 
-1. decode the emitted object and add an instruction-level theorem or bitvector
-   certificate connecting it to the checked source trace, including full SysV
-   behavior and the assembler/encoding boundary.
+1. implement the restricted final-byte-linked decoder and paired BitVec/Nat
+   execution proof in
+   [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md), including
+   full SysV behavior and the assembler/encoding boundary.
+
+The add, subtract, and negate leaves now have the same fail-closed source-link
+property. `GeneratedR51LinearTrace.lean` mirrors their exact instruction
+shapes and constants, while `LinearTrace.lean` proves non-underflow, u64
+no-wrap, modular semantics, and reusable-u52 outputs. Representative opcode,
+operand, bias, normalization, and output mutations are rejected in CI.
 
 The selector transpose's source-level lane map is now machine checked in
 `NaryaFormal.Transpose`, and a fail-closed source parser checks the actual
@@ -31,14 +38,16 @@ The remaining transpose obligation is the same binary-refinement layer:
 decode the emitted instructions and connect their register/memory trace to the
 proved source model. See [`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
 
-Before treating the complete r51 field layer as formally covered, add two
-generic trace families that are also useful to independent implementations:
+Before treating the complete r51 field layer as formally covered, add one
+generic trace family that is also useful to independent implementations:
 
 1. a symmetry-reduced square trace proving the diagonal/cross-product
    reconstruction, every doubled accumulator prefix, the fold, and its loose
-   output bound; and
-2. per-expression linear certificates for add, negate, and biased subtract,
-   including the exact maximum negative operand covered by each bias.
+   output bound.
+
+The generic u52-input linear leaves are now closed. Fused point-formula
+expressions with wider inputs remain separate obligations: each must prove the
+exact maximum negative operand covered by its bias and its own output bounds.
 
 Do not model these with one nominal “wide” state. Two values below `2^62` can
 sum above `2^62`, and a bias near `2^61` does not cover an arbitrary operand

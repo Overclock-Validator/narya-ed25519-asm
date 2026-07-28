@@ -17,6 +17,15 @@ The first completed target is the five-limb radix-`2^51` field multiplier:
 - the more general unsigned weak-carry theorem from arbitrary u64 limbs to
   reusable u52 limbs.
 
+The same source-linked layer now covers the three linear r51 leaves:
+
+- exact add, biased subtract, and biased negate source schedules;
+- assembly constants equal to the radix limbs of `4p`;
+- subtraction and negation cannot underflow under the u52 input contract;
+- every raw intermediate fits in u64;
+- the shared parallel carry preserves each operation modulo `p`; and
+- every result returns to the composable-u52 contract.
+
 The second completed source-level target is the x8 selector transpose:
 
 - ISA-level models of the YMM `VPUNPCKLQDQ`, `VPUNPCKHQDQ`, and
@@ -52,6 +61,13 @@ mapping to [`AssemblyTrace.lean`](NaryaFormal/AssemblyTrace.lean). Its main theo
 u52 output contract from only the real source precondition: every input limb
 is below `2^52`. The prior abstract folded-schedule hypothesis is discharged.
 
+[`GeneratedR51LinearTrace.lean`](NaryaFormal/GeneratedR51LinearTrace.lean) is
+likewise extracted from the exact add/subtract/negate leaves. It validates
+their opcodes, operands, constants, normalize call, source consumption, and
+output mapping. [`LinearTrace.lean`](NaryaFormal/LinearTrace.lean) proves the
+three modular operations, unsigned safety, and reusable-u52 results from the
+same input contract.
+
 [`Transpose.lean`](NaryaFormal/Transpose.lean) contains the generic lane
 theorems. `tools/check_transpose_schedule.py` binds those semantics to the
 actual assembly source's macros, pointer map, five limb rows, and output
@@ -70,6 +86,8 @@ The r51 multiply now has a fail-closed assembly-source-to-Lean link; see the
 The remaining gap is binary/ISA refinement: proving that the emitted x86
 object implements the checked source trace, plus complete SysV ABI and dispatch
 theorems. The Lean result is not a verified decoder for arbitrary machine code.
+The intended restricted, final-byte-linked construction is specified in the
+[x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

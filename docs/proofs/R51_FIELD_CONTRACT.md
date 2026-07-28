@@ -13,11 +13,18 @@ Together they prove the 52-bit IFMA split identity, the assembly's row-major
 and the composable-u52 output contract. The main theorem is
 `radix51_mul_assembly_trace_correct`.
 
+The same fail-closed source link covers `narya_r51x8_add_ifma`,
+`narya_r51x8_sub_ifma`, and `narya_r51x8_neg_ifma`. Their generated trace is
+consumed by `LinearTrace.lean`, whose three capstone theorems prove modular
+semantics, non-underflow/no-wrap, and composable-u52 outputs.
+
 The source/model connection is described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). This is
 still not a complete binary proof. A bit-vector or ISA refinement must connect
 the emitted x86 object to the checked source trace and finish the assembler,
 SysV, and runtime-dispatch boundary.
+The restricted byte-linked design for that work is fixed in
+[`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
 ## Representation
 
