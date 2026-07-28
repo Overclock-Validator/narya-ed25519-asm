@@ -6,11 +6,25 @@ lemmas cover split-product reconstruction, the exact row-major accumulator
 grouping, every partial accumulator bound, `COMBINE_HIGH`, the modular fold
 and its no-wrap bounds, carry preservation, and the final u52 contract.
 
-The remaining native work is one refinement layer:
+The remaining native multiplier work is one refinement layer:
 
 1. add an instruction-level theorem or bitvector certificate connecting the
    SysV AVX-512 leaf to that scalar operation, including lane noninterference
    and load-before-store alias safety.
+
+Before treating the complete r51 field layer as formally covered, add two
+generic trace families that are also useful to independent implementations:
+
+1. a symmetry-reduced square trace proving the diagonal/cross-product
+   reconstruction, every doubled accumulator prefix, the fold, and its loose
+   output bound; and
+2. per-expression linear certificates for add, negate, and biased subtract,
+   including the exact maximum negative operand covered by each bias.
+
+Do not model these with one nominal “wide” state. Two values below `2^62` can
+sum above `2^62`, and a bias near `2^61` does not cover an arbitrary operand
+below `2^62`. The theorem hypotheses must preserve the actual per-limb
+intervals from the point-formula DAG.
 
 Later targets are the compressed decoder/small-order classifier, canonical-R
 predicate, projective compressed-point equality, and the complete strict
@@ -18,7 +32,8 @@ verification equation. The broader question list and intended theorem
 boundaries live in the Go source repository's
 `docs/proofs/FORMALIZATION_BACKLOG.md`.
 
-The next self-contained arithmetic target is the signed radix-2^21 reduction
+After those field-layer traces, the next self-contained arithmetic target is
+the signed radix-2^21 reduction
 of a 512-bit hash modulo the group order. Its exact statement and machine
 obligations are recorded in
 [`SCALAR_REDUCTION_CONTRACT.md`](SCALAR_REDUCTION_CONTRACT.md).

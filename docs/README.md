@@ -4,6 +4,21 @@ Documents are grouped by claim type. A benchmark does not prove correctness;
 an algebraic derivation does not prove the machine code implements it; and a
 passing differential corpus does not establish a universal theorem.
 
+## Suggested reading paths
+
+- **Library user:** root `README.md` → architecture/ABI → strict predicate →
+  security policy.
+- **Independent auditor:** assurance model → audit scope → strict predicate →
+  field and scalar contracts → native source and tests.
+- **Arithmetic implementer:** field-arithmetic handoff → r51 contract → Lean
+  source → formalization backlog.
+- **Performance reviewer:** benchmarking rules → one dated reproducibility
+  directory → the exact source commit named by that directory.
+
+Files under `docs/proofs/` distinguish proved statements from specifications
+and open obligations. Files under `docs/reproducibility/` are evidence of a
+particular run, never general performance or correctness claims.
+
 ## Architecture
 
 - [Standalone port plan](architecture/PORTING_PLAN.md)

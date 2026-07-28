@@ -36,6 +36,27 @@ boundary are frozen.
   under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
   randomized verification is not part of this design.
 
+## Repository map
+
+The top-level directories follow the assurance boundary rather than the order
+in which the implementation was written:
+
+- `include/` — the public, versioned C ABI;
+- `src/` — C orchestration and GNU/System V AMD64 assembly leaves;
+- `tests/` — native differentials, adversarial cases, and committed vectors;
+- `formal/lean/` — machine-checked algebra and arithmetic traces;
+- `docs/architecture/` — representations, algorithms, and ABI decisions;
+- `docs/proofs/` — proved claims, trust boundaries, and formalization backlog;
+- `docs/audits/` — reviewer scope and security-facing material;
+- `docs/performance/` — benchmark methodology, not correctness evidence; and
+- `docs/reproducibility/` — immutable machine outputs and checksums.
+
+Start with the [documentation index](docs/README.md). External arithmetic
+implementers should begin with the
+[field-arithmetic evidence handoff](docs/proofs/FIELD_ARITHMETIC_HANDOFF.md);
+reviewers of the complete verifier should begin with the
+[audit scope](docs/audits/AUDIT_SCOPE.md).
+
 ## Build and test
 
 On a Linux AMD64 machine with AVX-512 IFMA:
@@ -89,4 +110,6 @@ audit material, performance reports, and raw reproducibility evidence.
 Apache-2.0. See `NOTICE` for exact implementation provenance. The standalone
 r51×8 kernel is translated from Narya's independently implemented Go-ABI
 assembly; it does not include the separate Firedancer-derived r43x6 reference
-backend.
+backend. OpenAI Codex and ChatGPT Pro, together with Anthropic Claude, assisted
+with implementation, analysis, proof planning, tests, documentation, and
+review; their output is not treated as correctness evidence.

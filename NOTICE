@@ -42,3 +42,9 @@ and active mask independently.
 This checkpoint does not include Narya's separate internal/r43x6 backend or
 copy Firedancer source. Later ports must update this notice before adding code
 with additional provenance.
+
+OpenAI Codex and ChatGPT Pro, together with Anthropic Claude, assisted with
+implementation, profiling analysis, mathematical proof planning, tests,
+documentation, and review. Project-owned tests, machine-checked statements,
+reproducible measurements, and independent human review—not model output—are
+the evidence for claims made by this repository.

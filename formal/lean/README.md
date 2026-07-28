@@ -29,6 +29,13 @@ instructions implement this scalar trace, plus the eight-lane map theorem,
 SysV ABI checks, and load-before-store memory theorem. The Lean result is not
 a verified decoder for arbitrary machine code and does not prove CPU dispatch.
 
+The representation lemmas and most of the multiplication trace can be reused
+by another radix-`2^51`, u52-input implementation. Such reuse still requires
+an explicit mapping from that implementation's ordered operations to the
+checked scalar trace. A symmetry-reduced square, canonical reducer, lazy
+linear operation, or fused point formula is a different trace and is not
+covered merely because it uses the same limb representation.
+
 ## Reproduce
 
 The project pins Lean and mathlib. From this directory:

@@ -11,6 +11,12 @@ Consensus-visible arithmetic changes require more than a passing benchmark.
 7. Report complete-verifier performance; leaf-only wins remain experimental.
 8. Update `NOTICE` for copied code, adapted schedules, fixtures, or datasets.
 
+Named range states are documentation shorthand, not proof. When an operation
+leaves the immediately reusable u52 domain, record per-limb intervals for the
+actual expression and prove every unsigned add/subtract is free of wrap or
+underflow. Do not assume a coarse “wide” interval is closed under repeated
+linear operations.
+
 Do not weaken a CPU gate, range check, canonicality check, or fail-closed path
 to recover performance. Do not promote randomized aggregate verification as
 equivalent to independent per-signature verdicts.

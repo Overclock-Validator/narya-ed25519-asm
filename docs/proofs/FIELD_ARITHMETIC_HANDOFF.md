@@ -87,6 +87,41 @@ portable exact-output tests, but their complete ordered traces and bias bounds
 have not yet been formalized in Lean. Point-formula schedules and any fused or
 lazy-reduction variants require their own composability certificates.
 
+## What transfers to another radix-51 implementation
+
+The proof separates reusable mathematics from implementation refinement. For
+another five-limb radix-`2^51` implementation with u52 IFMA inputs:
+
+| Component | Reusable result | Target-specific work |
+| --- | --- | --- |
+| 25-product low/high convolution | split, positioning, grouping, prefix bounds, modular fold | show the target trace contains the same terms and bounded prefixes |
+| Loose product before carry | congruent product with every limb below `2^61` | connect the target's `×19` instruction sequence to exact integer multiplication |
+| Parallel weak carry | preservation modulo `p`; any unsigned u64 input returns u52 limbs | prove shifts, masks, additions, and any IFMA carry fold refine the scalar operation |
+| Dedicated squaring | only the identity `x*x` follows abstractly | prove the target's symmetry-reduced instruction trace and every doubled prefix |
+| Canonical reduction | not covered | prove unique output in `[0,p)` and preservation modulo `p` |
+| Add/subtract and point formulas | carry lemma only | prove non-underflow, no-wrap, and output bounds for each actual expression DAG |
+| SIMD lanes and ABI | scalar theorem applies pointwise | prove lane mapping, absence of cross-lane operations, memory safety, and dispatch |
+
+Consequently, this package can justify the arithmetic design and discharge
+most of a matching multiplier proof. It must not be described as a proof of a
+different source file or compiler output until the target-specific column is
+completed.
+
+## Lazy linear arithmetic needs expression bounds
+
+A named state such as “wide below `2^62`” is not, by itself, a composability
+certificate. That set is not closed under ordinary addition: two legal inputs
+can sum to almost `2^63`. A subtraction bias of `k*p` is safe only when the
+negative operand is bounded tightly enough that each radix limb of the bias
+covers it, and the positive operand plus the bias still fits in u64.
+
+For example, a bias with limbs approximately `2^61` cannot justify
+subtraction for an arbitrary operand below `2^62`. It may still be correct for
+a particular point-formula node whose negative input is a single raw product
+below `2^61`; that narrower fact is what the certificate must state and prove.
+Use per-limb intervals and distinguish unsigned values from signed values held
+in two's complement. Do not infer closure from a descriptive type name.
+
 ## Radix-52 is a separate instantiation
 
 This proof must not be cited as a proof of a five-limb radix-`2^52`
@@ -114,7 +149,9 @@ architecture, but it needs a new trace instantiated from its actual schedule.
 3. Check exact redundant outputs against an independent big-integer or
    `__uint128_t` oracle; modulo-only comparison is insufficient for a
    composable range contract.
-4. Prove the linear operations and every fused point-formula range schedule.
+4. Prove the dedicated square trace, linear operations, and every fused
+   point-formula range schedule. Record per-node intervals rather than relying
+   on one coarse “wide” bound.
 5. Add an object-code/ISA refinement or a mechanically generated trace check
    so an assembly edit cannot silently diverge from the proof model.
 6. Differential-test on native Zen 4 and Zen 5 hardware, including maximum

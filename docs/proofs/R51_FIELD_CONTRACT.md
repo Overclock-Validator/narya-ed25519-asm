@@ -68,6 +68,24 @@ limbs. The largest carry is below `2^13`, so limb zero remains below
 `B + 19*8192 < 2^52`. This statement deliberately excludes signed values
 encoded in two's complement.
 
+## Loose values are not a closed arithmetic type
+
+The multiplier's loose output bound and the generic weak-carry theorem do not
+make all unsigned u64 or “wide” vectors interchangeable. Addition, biased
+subtraction, and fused point formulas need their own per-limb preconditions:
+
+- addition must prove every sum is below `2^64` and must state the tighter
+  bound required by its next consumer;
+- biased subtraction must prove the bias covers the complete negative operand
+  before unsigned subtraction and that adding the bias cannot wrap; and
+- only values strictly below `2^52` may be IFMA multiplicands.
+
+In particular, the interval `[0,2^62)` is not closed under addition, and a
+radix-limb bias near `2^61` cannot cover every operand in `[0,2^62)`. Point
+formulas may safely use such a bias only with a more precise bound derived
+from that expression's actual inputs. Signed two's-complement intermediates
+remain outside the unsigned weak-carry theorem.
+
 ## Lane independence
 
 Every vector instruction is lane-wise. There are no permutes, horizontal
