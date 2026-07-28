@@ -107,6 +107,15 @@ is independently expanded from assembly source.
 [`X86ObjectRefinement.lean`](NaryaFormal/X86ObjectRefinement.lean) proves by
 kernel reduction that the exact 800 bytes decode to that 129-instruction list.
 
+[`X86Dataflow.lean`](NaryaFormal/X86Dataflow.lean) independently computes ZMM
+dependencies and writes over that exact list. Starting with no caller ZMM
+register assumed initialized, it kernel-checks that the load/clear/arithmetic/
+store body consumes only defined values and leaves all five output registers
+defined. In particular, scratch ZMM28 and ZMM30 are written before first use,
+while ZMM29 and ZMM31 are never dependencies. This is a definite-assignment
+certificate, not yet the semantic noninterference theorem that will remove
+those arbitrary entry values from the load-to-core refinement.
+
 [`X86VectorSemantics.lean`](NaryaFormal/X86VectorSemantics.lean) defines the
 exact lane-local `BitVec 64` meaning of the vector arithmetic subset used by
 that symbol, together with no-wrap refinements into unbounded naturals.

@@ -130,6 +130,12 @@ effect of `VZEROUPPER`.
    `run_arithmetic_core_refines` covers all 94 decoded instructions from the
    first IFMA product through the normalized output, for an arbitrary selected
    lane, and proves the register-only core preserves memory.
+   `X86Dataflow.lean` additionally checks definite assignment over the exact
+   load/clear/arithmetic/store body from an empty caller-ZMM assumption. It
+   proves ZMM28 and ZMM30 are written before first use and ZMM29/ZMM31 are never
+   dependencies. The next semantic composition should use that certificate to
+   remove the current proof-engineering assumption that the prepared shadow
+   agrees on otherwise irrelevant scratch registers.
 5. **Implemented:** the exact decoded Nat execution equals the generated
    25-product source trace. `runR51NatShadow_correct` is the compact capstone;
    it is assembled from the phase theorems rather than a monolithic reduction.
