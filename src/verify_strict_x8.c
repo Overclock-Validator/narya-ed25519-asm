@@ -188,7 +188,13 @@ field_equal_mask(const narya_r51x8 *a, const narya_r51x8 *b)
     return equal;
 }
 
-/* Equality of extended points without inversion or serialization. */
+/*
+ * Equality of valid extended points without inversion or serialization.
+ * field_equal_mask canonicalizes before comparison: comparing redundant r51
+ * limb vectors directly would be wrong. Decoder and point-operation contracts
+ * establish nonzero projective Z for every live lane. See
+ * docs/architecture/STRICT_PREDICATE.md.
+ */
 static uint8_t
 point_equal_mask(
     const narya_edwards_point_x8 *a,

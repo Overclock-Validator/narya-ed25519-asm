@@ -26,6 +26,18 @@ even digit:
 
 The schedule needs at most 32 mixed additions and exactly eight doublings.
 
+The formal boundary is universal rather than fixture-specific:
+
+```text
+for every integer s with 0 <= s < l: Comb(s) == [s]B.
+```
+
+Discharging it requires exact scalar-digit reconstruction, correctness of all
+table entries and both signs, valid indexing and offsets, the highest digit,
+and the boundary scalars `0` and `l-1`. The previously working variable-base
+implementation and the generated fixtures are independent regression oracles;
+neither is itself a proof of this statement.
+
 ## Binary table format
 
 `data/narya_fixed_base_comb_r256.bin` is laid out as:
