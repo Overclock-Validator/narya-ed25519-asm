@@ -91,8 +91,10 @@ execution remains open.
 
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389
-per-instruction signed intervals. The full schedule/canonical-range theorem
-and binary refinement remain open; see the
+per-instruction signed intervals and pins the exact macro/register transcript.
+[`ScalarReductionCanonicalTail.lean`](NaryaFormal/ScalarReductionCanonicalTail.lean)
+proves the weighted one-window checkpoint and the second-fold canonicality
+theorem. The C parser, packer, and binary refinement remain open; see the
 [scalar-reduction contract](../../docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 
 The r51 multiply now has a fail-closed assembly-source-to-Lean link; see the

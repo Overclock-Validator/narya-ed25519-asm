@@ -24,4 +24,5 @@ import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
 import NaryaFormal.TransposeX86Decoder
 import NaryaFormal.ScalarReduction
+import NaryaFormal.ScalarReductionCanonicalTail
 import NaryaFormal.VerificationSpine

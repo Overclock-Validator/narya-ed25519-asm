@@ -109,13 +109,16 @@ The intended named lemmas are listed in the scalar-reduction contract. Add
 the deterministic `l-1`/bit-252 and carry-boundary regressions before treating
 an automated certificate as complete.
 
-The assembly-source interval/no-wrap layer is now executable in
+The assembly-source interval/no-wrap layer is executable in
 `tools/check_scalar_reduce_bounds.py`: all 389 arithmetic intermediates stay
-within signed 64-bit range and the widest bound is 49 bits. This closes that
-source-level safety item under the parser's stated initial bounds. It does not
-close `parse_radix21_correct`, `final_value_canonical`, `pack32_exact`, or
-assembled-opcode refinement. In particular, independent final intervals leave
-limb 11 in `[-1, 2^21]`; the canonical theorem requires relational reasoning.
+within signed 64-bit range and the widest bound is 49 bits. The checker now
+pins all fold/carry positions and the rounded-carry broadcast, with mutation
+tests for each prior gap. `ScalarReductionCanonicalTail.lean` closes the
+relational canonical-tail argument from the source-certified first-final-fold
+window: the first ordinary carry has top coefficient `-1` or `0`, and the
+second fold yields `[0,l)`. The remaining scalar-reduction targets are
+`parse_radix21_correct`, `pack32_exact`, the signed 434-instruction byte-linked
+leaf refinement, and the C wrapper memory/active-mask theorem.
 
 After that arithmetic seam, formalize the variable-base scalar multiplier as
 a composition theorem rather than another instruction proof:

@@ -131,12 +131,11 @@ set_power_of_two(uint8_t value[64], size_t bit)
 }
 
 static void
-set_radix21_coefficient(
+or_radix21_coefficient(
     uint8_t value[64], size_t coefficient, uint32_t digit)
 {
     const size_t first_bit = coefficient * 21;
     const size_t width = coefficient == 23 ? 29 : 21;
-    memset(value, 0, 64);
     for (size_t bit = 0; bit < width; bit++) {
         if ((digit & (UINT32_C(1) << bit)) != 0) {
             const size_t output_bit = first_bit + bit;
@@ -144,6 +143,14 @@ set_radix21_coefficient(
                 (uint8_t)(UINT8_C(1) << (output_bit % 8));
         }
     }
+}
+
+static void
+set_radix21_coefficient(
+    uint8_t value[64], size_t coefficient, uint32_t digit)
+{
+    memset(value, 0, 64);
+    or_radix21_coefficient(value, coefficient, digit);
 }
 
 static int
@@ -265,15 +272,20 @@ static int
 check_adversarial_lane_masks(void)
 {
     uint8_t input[8][64] = {{0}};
-    input[1][0] = 1;
+    memset(input[1], 0xff, 64);               /* 2^512 - 1 */
     memcpy(input[2], scalar_order_bytes, 32);
     subtract_one(input[2]);                    /* l - 1 */
     memcpy(input[3], scalar_order_bytes, 32); /* l */
     set_power_of_two(input[4], 252);          /* 2^252 */
-    memset(input[5], 0xff, 64);               /* all radix limbs maximal */
-    set_radix21_coefficient(input[6], 0, (UINT32_C(1) << 20));
-    set_radix21_coefficient(
-        input[7], 23, (UINT32_C(1) << 29) - 1);
+
+    /* Exact witnesses for both endpoints of the widest certified update. */
+    or_radix21_coefficient(input[5], 21, (UINT32_C(1) << 21) - 1);
+    or_radix21_coefficient(input[5], 23, (UINT32_C(1) << 29) - 1);
+    or_radix21_coefficient(input[6], 14, (UINT32_C(1) << 21) - 1);
+    or_radix21_coefficient(input[6], 22, (UINT32_C(1) << 21) - 1);
+
+    /* A rounded carry creates -1 before an ordinary arithmetic carry. */
+    set_radix21_coefficient(input[7], 0, (UINT32_C(1) << 21) - 1);
 
     for (unsigned int mask = 0; mask <= 0xff; mask++) {
         if (!check_case(input, (uint8_t)mask,

@@ -31,7 +31,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check
 
 all: $(LIB)
 
@@ -198,6 +198,7 @@ check-source:
 	$(MAKE) check-transpose-object-bytes
 	$(MAKE) test-transpose-mutations
 	$(MAKE) check-scalar-bounds
+	$(MAKE) test-scalar-bounds-mutations
 	$(MAKE) check-sha512-schedule
 
 check-r51-mul-trace:
@@ -234,6 +235,9 @@ test-transpose-mutations:
 
 check-scalar-bounds:
 	python3 tools/check_scalar_reduce_bounds.py
+
+test-scalar-bounds-mutations:
+	python3 tools/test_scalar_reduce_bounds_positional_mutations.py
 
 check-sha512-schedule:
 	python3 tools/check_sha512_schedule.py

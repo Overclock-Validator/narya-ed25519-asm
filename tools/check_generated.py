@@ -73,6 +73,10 @@ def main() -> None:
         ROOT / "tests/vectors/narya_variable_scalar_mult_v1.txt",
         run("tools/generate_variable_scalar_vectors.py", "-groups", "32"),
     )
+    require_equal(
+        ROOT / "tests/vectors/narya_scalar_reduction_adversarial_v1.json",
+        run("tools/generate_scalar_reduction_vectors.py"),
+    )
 
     with tempfile.TemporaryDirectory(prefix="narya-generated-") as temporary:
         directory = Path(temporary)

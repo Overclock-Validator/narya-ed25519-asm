@@ -48,6 +48,7 @@ particular run, never general performance or correctness claims.
 
 - [Auditor quickstart](audits/AUDITOR_QUICKSTART.md)
 - [Audit scope](audits/AUDIT_SCOPE.md)
+- [Scalar-reduction review follow-up, 2026-07-28](audits/SCALAR_REDUCTION_REVIEW_2026-07-28.md)
 
 ## Performance
 

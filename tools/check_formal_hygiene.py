@@ -63,6 +63,12 @@ AUDIT_ANCHORS = {
         "fold_polynomial_exact",
         "radix12_fold_mod_order",
     ),
+    "ScalarReductionCanonicalTail.lean": (
+        "fold_at_exact_delta",
+        "first_final_fold_value_abs_lt_radix12",
+        "second_fold_makes_canonical",
+        "canonical_top_limb_bound",
+    ),
     "VerificationSpine.lean": (
         "verifyStrict_correct",
         "verifyStrictX8_correct",

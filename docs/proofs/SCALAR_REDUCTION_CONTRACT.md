@@ -3,12 +3,15 @@
 ## Status
 
 This document specifies `narya_scalar_reduce_x8`. The source-level signed
-interval certificate is now executable and checked in CI. It proves the real
-assembly schedule cannot overflow signed 64-bit intermediates under the stated
-radix-parser bounds, and that every fold/carry preserves the represented
-scalar modulo `l`. It does **not** yet prove final canonical range, the C
-parser/packer refinement, or assembled-binary instruction refinement. Native
-differential and boundary tests cover those claims only over finite corpora.
+interval certificate is executable and checked in CI. It pins every macro
+argument and the rounded-carry broadcast, proves the real source schedule
+cannot overflow signed 64-bit intermediates under the stated parser bounds,
+and establishes the checkpoint interval used by the machine-checked
+canonical-tail theorem. The reconstructed source-level result is therefore in
+`[0,l)` under those initial bounds. It does **not** yet prove the C
+parser/packer refinement or assembled-binary instruction refinement. Native
+differential and boundary tests cover those wider claims only over finite
+corpora.
 
 ## Claim
 
@@ -141,7 +144,14 @@ Canonicality is the independent theorem
 0 <= Y < l.
 ```
 
-It must not be inferred merely from limb widths. Assuming
+It must not be inferred merely from final limb widths. The checked proof uses
+the state immediately after the first final fold: its weighted interval is
+strictly inside `(-B^12,B^12)`. The first ordinary carry can therefore produce
+only top coefficient `-1` or `0`; the second fold is exactly a conditional
+addition of `l`, yielding `[0,l)`. This argument is machine checked in
+`NaryaFormal.ScalarReductionCanonicalTail`.
+
+Assuming
 `0 <= s[i] < B` for `i < 11`, the top coefficient may satisfy
 `0 <= s[11] <= B`; when `s[11] = B`, the lower reconstruction must be below
 `c`. This is how values in `[2^252,l)`, including `l-1`, are represented.
@@ -160,6 +170,9 @@ establish that the output is `X mod l`.
 The assembly leaf uses `VPMULLQ`, signed `VPSRAQ`, `VPADDQ`, `VPSUBQ`, and
 fixed shifts. [`check_scalar_reduce_bounds.py`](../../tools/check_scalar_reduce_bounds.py)
 parses the actual macros, constants, limb loads/stores, and macro-call order.
+It compares the complete normalized source transcript against a pinned list,
+so fold positions, carry adjacency, and the rounded-carry constant load are
+semantic inputs rather than unchecked assumptions.
 It exposes bounds after every arithmetic instruction and proves:
 
 1. for every `VPMULLQ`, the intended signed product is in
@@ -167,7 +180,10 @@ It exposes bounds after every arithmetic instruction and proves:
 2. every partial addition and subtraction also remains in that interval;
 3. adding the centered-carry bias and reconstructing `q*B` cannot overflow;
 4. each arithmetic right shift implements the specified floor division;
-5. every fold preserves the represented value modulo `l`.
+5. every position-pinned fold preserves the represented value modulo `l`;
+6. every carry moves its quotient to the adjacent radix position; and
+7. the first-final-fold weighted interval lies inside
+   `(-2^252,2^252)`, which feeds the canonical-tail theorem.
 
 It is insufficient to bound only the final node of a fold or carry: every
 partial multiplication and accumulation is certified. The current source has
@@ -188,15 +204,21 @@ python3 tools/check_scalar_reduce_bounds.py --json
 ```
 
 The final independent intervals are `0..2^21-1` for limbs 0 through 10,
-`-1..2^21` for limb 11, and zero at limb 12. The true output is canonical,
-as the differential tests indicate, but the limb-11 interval demonstrates
-why independent intervals alone cannot prove it: the remaining correlation
-between limbs is load-bearing. The still-open relational proof must establish
-the reconstructed value in `[0,l)` and exact packing, including bit 252.
+`-1..2^21` for limb 11, and zero at limb 12. Those final intervals still do
+not imply canonicality alone. The earlier one-window checkpoint plus exact
+carry/fold relations now establish the reconstructed value in `[0,l)`.
+Exact C packing, including bit 252, remains open.
+
+`test_scalar_reduce_bounds_positional_mutations.py` proves the checker has
+teeth against a swapped fold target, a nonadjacent carry, and a deleted
+rounded-carry broadcast. See the
+[2026-07-28 review follow-up](../audits/SCALAR_REDUCTION_REVIEW_2026-07-28.md).
 
 ## Remaining machine obligations
 
-The source certificate does not decode the emitted instruction bytes. A full
+The source certificate and canonical-tail theorem are linked by checked
+numeric hypotheses, not by one Lean theorem over a decoded program. The source
+certificate does not decode emitted instruction bytes. A full
 instruction-refinement proof must still show that the assembled opcodes and
 register map implement the certified macro trace. The C boundary also needs
 proof that parsing establishes the certificate's initial bounds and packing
@@ -235,6 +257,11 @@ expressions. Deterministic coverage includes:
 - inactive-output zeroing, arbitrary source/output overlap, and error
   atomicity;
 - 10,000 random x8 inputs.
+
+The committed adversarial JSON is regenerated by
+`tools/generate_scalar_reduction_vectors.py` using Python arbitrary-precision
+reduction rather than the assembly schedule. It includes 31 scalar cases, the
+two exact widest-bound witnesses, and an eight-lane mixed bundle.
 
 The `l-1` regression additionally asserts that output bit 252 survives.
 These tests are evidence, not a substitute for the formal range and memory

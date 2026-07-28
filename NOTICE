@@ -49,6 +49,12 @@ documentation, and review. Project-owned tests, machine-checked statements,
 reproducible measurements, and independent human review—not model output—are
 the evidence for claims made by this repository.
 
+The scalar-reduction canonical-tail derivation, positional-certificate gap,
+and adversarial bound witnesses were identified in a proof-oriented ChatGPT
+Pro review. Codex integrated them as a pinned source transcript, negative
+mutation gates, deterministic vector generator, and Lean theorems; those
+repository checks—not the model transcript—are the maintained evidence.
+
 
 =======================================================================
 TEST CORPORA — tests/vectors/narya_external_strict_v1.jsonl

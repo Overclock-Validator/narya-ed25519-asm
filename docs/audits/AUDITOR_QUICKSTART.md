@@ -38,7 +38,8 @@ This gate:
 
 1. parses every assembly leaf for an x86-64 ELF target;
 2. regenerates and compares every project-owned deterministic artifact;
-3. runs mutation tests against the r51 and transpose source extractors;
+3. runs mutation tests against the r51, transpose, and scalar-reduction
+   source extractors;
 4. validates the scalar-reduction bounds and SHA-512 schedule certificate;
 5. rejects Lean proof escapes and missing stable audit anchors; and
 6. builds the pinned Lean project.
@@ -114,10 +115,13 @@ aliasing, preserved disjoint return word, `VZEROUPPER`, and `RET`. It stops
 before wrapper/dispatch refinement, physical CPU correctness, concurrent
 memory mutation, and identity with a downstream deployment binary.
 
-The transpose, scalar reducer, SHA-512 leaf, decoder, point formulas, and
-complete verifier have narrower source certificates, algebraic lemmas, tests,
-or conditional specifications as documented. Do not infer byte-linked or
-whole-verifier correctness from those smaller claims.
+The scalar reducer now has a position-pinned 389-step source certificate and a
+machine-checked canonical-tail theorem. Its C parser/packer and 434-instruction
+assembled-byte refinement remain open. The transpose, SHA-512 leaf, decoder,
+point formulas, and complete verifier likewise have narrower source
+certificates, algebraic lemmas, tests, or conditional specifications as
+documented. Do not infer byte-linked or whole-verifier correctness from those
+smaller claims.
 
 ## 7. Reporting
 

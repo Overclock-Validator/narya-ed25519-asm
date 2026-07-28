@@ -7,8 +7,9 @@ fails if a signed add, subtract, multiply, bias, or reconstructed carry could
 leave int64, or if the checked macro/constant/load/store templates drift.
 
 This certificate proves machine-range safety and modular preservation of the
-source schedule. It intentionally does not claim the still-open theorem that
-the final representative is always the unique integer in [0, l).
+exact source schedule. It also establishes the source-level checkpoint bound
+used by the separate Lean canonical-tail theorem. It does not prove the C
+parser/packer or assembled-binary instruction refinement.
 """
 
 from __future__ import annotations
@@ -137,6 +138,75 @@ def expected_stores() -> list[str]:
     ] + ["vzeroupper", "ret"]
 
 
+# Pin every macro argument and the load point of the centered-carry constant.
+# This is a semantic obligation, not merely a range-safety preference:
+# FOLD low0 must equal high-12, and every carry must target limb+1. Keeping the
+# transcript literal makes register-route review and mutation testing direct.
+EXPECTED_REDUCTION_SCHEDULE = [
+    "FOLD zmm23, zmm11, zmm12, zmm13, zmm14, zmm15, zmm16",
+    "FOLD zmm22, zmm10, zmm11, zmm12, zmm13, zmm14, zmm15",
+    "FOLD zmm21, zmm9, zmm10, zmm11, zmm12, zmm13, zmm14",
+    "FOLD zmm20, zmm8, zmm9, zmm10, zmm11, zmm12, zmm13",
+    "FOLD zmm19, zmm7, zmm8, zmm9, zmm10, zmm11, zmm12",
+    "FOLD zmm18, zmm6, zmm7, zmm8, zmm9, zmm10, zmm11",
+    "vpbroadcastq zmm31, QWORD PTR [rip + .Lscalar_round]",
+    "CARRY_ROUNDED zmm6, zmm7",
+    "CARRY_ROUNDED zmm8, zmm9",
+    "CARRY_ROUNDED zmm10, zmm11",
+    "CARRY_ROUNDED zmm12, zmm13",
+    "CARRY_ROUNDED zmm14, zmm15",
+    "CARRY_ROUNDED zmm16, zmm17",
+    "CARRY_ROUNDED zmm7, zmm8",
+    "CARRY_ROUNDED zmm9, zmm10",
+    "CARRY_ROUNDED zmm11, zmm12",
+    "CARRY_ROUNDED zmm13, zmm14",
+    "CARRY_ROUNDED zmm15, zmm16",
+    "FOLD zmm17, zmm5, zmm6, zmm7, zmm8, zmm9, zmm10",
+    "FOLD zmm16, zmm4, zmm5, zmm6, zmm7, zmm8, zmm9",
+    "FOLD zmm15, zmm3, zmm4, zmm5, zmm6, zmm7, zmm8",
+    "FOLD zmm14, zmm2, zmm3, zmm4, zmm5, zmm6, zmm7",
+    "FOLD zmm13, zmm1, zmm2, zmm3, zmm4, zmm5, zmm6",
+    "FOLD zmm12, zmm0, zmm1, zmm2, zmm3, zmm4, zmm5",
+    "CARRY_ROUNDED zmm0, zmm1",
+    "CARRY_ROUNDED zmm2, zmm3",
+    "CARRY_ROUNDED zmm4, zmm5",
+    "CARRY_ROUNDED zmm6, zmm7",
+    "CARRY_ROUNDED zmm8, zmm9",
+    "CARRY_ROUNDED zmm10, zmm11",
+    "CARRY_ROUNDED zmm1, zmm2",
+    "CARRY_ROUNDED zmm3, zmm4",
+    "CARRY_ROUNDED zmm5, zmm6",
+    "CARRY_ROUNDED zmm7, zmm8",
+    "CARRY_ROUNDED zmm9, zmm10",
+    "CARRY_ROUNDED zmm11, zmm12",
+    "FOLD zmm12, zmm0, zmm1, zmm2, zmm3, zmm4, zmm5",
+    "CARRY zmm0, zmm1",
+    "CARRY zmm1, zmm2",
+    "CARRY zmm2, zmm3",
+    "CARRY zmm3, zmm4",
+    "CARRY zmm4, zmm5",
+    "CARRY zmm5, zmm6",
+    "CARRY zmm6, zmm7",
+    "CARRY zmm7, zmm8",
+    "CARRY zmm8, zmm9",
+    "CARRY zmm9, zmm10",
+    "CARRY zmm10, zmm11",
+    "CARRY zmm11, zmm12",
+    "FOLD zmm12, zmm0, zmm1, zmm2, zmm3, zmm4, zmm5",
+    "CARRY zmm0, zmm1",
+    "CARRY zmm1, zmm2",
+    "CARRY zmm2, zmm3",
+    "CARRY zmm3, zmm4",
+    "CARRY zmm4, zmm5",
+    "CARRY zmm5, zmm6",
+    "CARRY zmm6, zmm7",
+    "CARRY zmm7, zmm8",
+    "CARRY zmm8, zmm9",
+    "CARRY zmm9, zmm10",
+    "CARRY zmm10, zmm11",
+]
+
+
 def parse_arguments(line: str, name: str) -> list[str]:
     return [part.strip() for part in line.removeprefix(name + " ").split(",")]
 
@@ -151,6 +221,8 @@ class Certificate:
         self.steps: list[dict[str, Any]] = []
         self.max_magnitude = 0
         self.max_label = ""
+        self.fold_count = 0
+        self.first_final_fold_checkpoint: dict[str, Interval] | None = None
 
     def record(self, operation: str, register: str, interval: Interval, rule: str) -> None:
         if interval.lower < I64_MIN or interval.upper > I64_MAX:
@@ -201,6 +273,12 @@ class Certificate:
             )
         self.registers[high] = Interval(0, 0)
         self.record(f"vpxorq {high}, {high}", high, Interval(0, 0), "xor self")
+        self.fold_count += 1
+        if self.fold_count == 13:
+            self.first_final_fold_checkpoint = {
+                f"zmm{index}": self.registers[f"zmm{index}"]
+                for index in range(12)
+            }
 
     def carry(self, arguments: list[str], rounded: bool) -> None:
         if len(arguments) != 2:
@@ -267,8 +345,24 @@ class Certificate:
                 raise AssertionError(f"unexpected final ordinary limb {index}: {value}")
         if self.registers["zmm12"] != Interval(0, 0):
             raise AssertionError(f"position 12 is not cleared: {self.registers['zmm12']}")
+
+        if self.fold_count != 14 or self.first_final_fold_checkpoint is None:
+            raise AssertionError("first-final-fold checkpoint was not reached exactly once")
+        checkpoint = self.first_final_fold_checkpoint
+        weighted_lower = sum(
+            checkpoint[f"zmm{index}"].lower * B**index for index in range(12)
+        )
+        weighted_upper = sum(
+            checkpoint[f"zmm{index}"].upper * B**index for index in range(12)
+        )
+        radix_12 = B**12
+        if not (-radix_12 < weighted_lower <= weighted_upper < radix_12):
+            raise AssertionError(
+                "first-final-fold value escaped the one-window canonicality bound: "
+                f"[{weighted_lower}, {weighted_upper}]"
+            )
         return {
-            "schema": "narya.scalar-reduce-source-bounds.v1",
+            "schema": "narya.scalar-reduce-source-bounds.v2",
             "source": "src/scalar_reduce_x8.S",
             "source_sha256": self.source_sha256,
             "radix": B,
@@ -285,14 +379,29 @@ class Certificate:
             "maximum_absolute_intermediate": self.max_magnitude,
             "maximum_intermediate_operation": self.max_label,
             "maximum_intermediate_bits": self.max_magnitude.bit_length(),
+            "first_final_fold_checkpoint": {
+                "limbs": {
+                    register: {"lower": value.lower, "upper": value.upper}
+                    for register, value in checkpoint.items()
+                },
+                "weighted_lower": weighted_lower,
+                "weighted_upper": weighted_upper,
+                "strictly_inside_signed_radix_12_window": True,
+            },
             "final_intervals": final,
             "claims": {
                 "signed_no_wrap": True,
                 "folds_preserve_mod_l": True,
                 "carries_preserve_integer": True,
+                "canonical_tail_checkpoint_bound": True,
                 "canonical_output_range": False,
                 "canonical_output_note":
-                    "requires a separate relational proof; interval safety alone is insufficient",
+                    "this checker establishes the pinned one-window hypothesis; "
+                    "the separate Lean theorem closes the canonical tail, while "
+                    "C packing remains separate",
+                "parser_refinement": False,
+                "packer_refinement": False,
+                "assembled_instruction_refinement": False,
             },
             "steps": self.steps,
         }
@@ -338,6 +447,10 @@ def build_certificate() -> dict[str, Any]:
         raise AssertionError("canonical-limb store map changed")
 
     schedule = body[len(loads) + 6 : -len(stores)]
+    if schedule != EXPECTED_REDUCTION_SCHEDULE:
+        raise AssertionError(
+            "scalar reduction macro call order/register map or round broadcast changed"
+        )
     certificate = Certificate(hashlib.sha256(source_bytes).hexdigest())
     call_count = 0
     for line in schedule:
@@ -375,8 +488,9 @@ def main() -> None:
         f"({certificate['maximum_intermediate_bits']} bits) at "
         f"{certificate['maximum_intermediate_operation']}"
     )
-    print("OK: every fold/carry preserves the represented scalar modulo l")
-    print("OPEN: source-level interval safety does not prove final canonical range [0, l)")
+    print("OK: every position-pinned fold/carry preserves the scalar modulo l")
+    print("OK: first-final-fold value lies strictly inside (-2^252, 2^252)")
+    print("OPEN: C parser/packer and assembled-instruction refinement remain separate")
 
 
 if __name__ == "__main__":

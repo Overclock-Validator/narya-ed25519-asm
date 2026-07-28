@@ -81,6 +81,13 @@ constant, rotation, ternary truth table, rolling message word, working-register
 rotation, and feed-forward store. Independent review must still validate that
 model and close the assembled-binary and C padding-scheduler refinement gaps.
 
+The scalar-reduction certificate now pins every one of its 60 macro calls,
+including fold positions, carry adjacency, and the rounded-carry broadcast.
+Negative tests reject each previously accepted route mutation. A Lean theorem
+closes the canonical tail from the source-certified one-window checkpoint, but
+the C parser/packer and signed 434-instruction assembled-byte refinement remain
+open. See the dated scalar-reduction review follow-up for the exact boundary.
+
 ## Before release
 
 The scope must expand to long native fuzz soaks, independent regeneration of

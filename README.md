@@ -31,6 +31,10 @@ boundary are frozen.
   IFMA multiply source, including the exact product order and register route,
   per-instruction no-wrap, fold, carry, modular result, and reusable-range
   lemmas.
+- Implemented assurance hardening: the scalar reducer's exact 60-macro
+  register route is fail-closed and mutation-tested; its 389 signed
+  intermediates are source-certified, and a Lean canonical-tail theorem proves
+  the reconstructed result lies in `[0,l)` under the documented parser bounds.
 - In progress: long native fuzzing, complete performance measurement, further
   formal refinement, and fusion of remaining C-scheduled point layers. The
   checked-in external corpus covers RFC 8032, CCTV, Wycheproof, and derived
@@ -128,6 +132,9 @@ source link and modular/range proofs now cover add, subtract, and negate. The
 are specified separately. The
 signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
+The independent 2026-07-28 review finding, remediation, and remaining trust
+boundary are recorded in
+[`docs/audits/SCALAR_REDUCTION_REVIEW_2026-07-28.md`](docs/audits/SCALAR_REDUCTION_REVIEW_2026-07-28.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).
 Candidate machine-checked work is recorded in
