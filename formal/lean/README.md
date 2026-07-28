@@ -35,6 +35,14 @@ The scalar-reduction foundation now also machine-checks:
 - exact represented-integer preservation when a carry moves to the adjacent
   coefficient.
 
+[`VerificationSpine.lean`](NaryaFormal/VerificationSpine.lean) states the
+conditional scalar and x8 capstone theorems. It fixes the shared proof shape:
+full-group integer scalar action, original bytes in the challenge hash, an
+`iff` acceptance statement, and one SIMD lane-projection hypothesis. The
+theorem's leaf hypotheses are open obligations rather than claims that the
+current native verifier is already fully refined. See the
+[refinement-spine document](../../docs/proofs/REFINEMENT_SPINE.md).
+
 [`Radix51.lean`](NaryaFormal/Radix51.lean) contains the representation-level
 algebra. [`GeneratedR51MulTrace.lean`](NaryaFormal/GeneratedR51MulTrace.lean)
 is mechanically extracted from the multiply assembly source and supplies its

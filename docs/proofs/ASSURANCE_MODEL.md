@@ -16,6 +16,13 @@ finite comparison is evidence, not a universal proof of equivalence.
 Scalar reference code states field and group operations without SIMD or
 machine-register concerns. Formal notes prove congruence and range claims.
 
+The conditional composition theorem and shared abstraction rules are recorded
+in [`REFINEMENT_SPINE.md`](REFINEMENT_SPINE.md). The point model is the full
+Edwards group with integer scalar action, not the prime-order quotient, so
+mixed-order inputs cannot disappear behind a `ZMod L` abstraction. A single
+lane-projection obligation contains SIMD noninterference; the protocol theorem
+remains scalar.
+
 ## 3. Native refinement
 
 Assembly tests compare exact redundant representations—not only canonical

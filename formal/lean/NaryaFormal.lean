@@ -7,3 +7,4 @@ import NaryaFormal.Radix51
 import NaryaFormal.AssemblyTrace
 import NaryaFormal.Transpose
 import NaryaFormal.ScalarReduction
+import NaryaFormal.VerificationSpine

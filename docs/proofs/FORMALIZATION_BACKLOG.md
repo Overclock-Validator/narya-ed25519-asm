@@ -6,6 +6,14 @@ lemmas cover split-product reconstruction, the exact row-major accumulator
 grouping, every partial accumulator bound, `COMBINE_HIGH`, the modular fold
 and its no-wrap bounds, carry preservation, and the final u52 contract.
 
+The formal targets now share a capstone convention defined in
+[`REFINEMENT_SPINE.md`](REFINEMENT_SPINE.md). `VerificationSpine.lean` states
+conditional scalar and x8 `iff` theorems for the complete strict predicate.
+Every unfinished leaf is an explicit typed hypothesis, the point abstraction
+uses the full Edwards group with integer scalar action, and SIMD proof work is
+isolated to one lane-projection obligation. New proofs should discharge those
+hypotheses rather than introduce parallel, incompatible abstractions.
+
 The multiply assembly source is now connected to the theorem by the generated,
 fail-closed trace described in
 [`R51_SOURCE_TRACE_REFINEMENT.md`](R51_SOURCE_TRACE_REFINEMENT.md). A source
