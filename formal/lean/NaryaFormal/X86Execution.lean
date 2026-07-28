@@ -30,7 +30,7 @@ def execBroadcast {Other : Type} (state : MachineState Other)
     else
       .error (.readFault address)
   else
-    .error (.nonCanonicalAddress (BitVec.ofNat 64 absoluteAddress))
+    .error (.addressOutOfRange (BitVec.ofNat 64 absoluteAddress))
 
 def executeInstruction {Other : Type} (instruction : Instruction)
     (state : MachineState Other) : Except Fault (Outcome Other) :=

@@ -45,7 +45,9 @@ structure MachineState (Other : Type) where
 inductive Fault
   | badDecode
   | unsupportedEncoding
-  | nonCanonicalAddress (address : Addr)
+  /-- A resolved absolute address did not fit in the model's 64-bit address space.
+      This is deliberately not a claim about x86-64 canonical-address policy. -/
+  | addressOutOfRange (address : Addr)
   | readFault (address : Addr)
   | writeFault (address : Addr)
   | execFault (address : Addr)

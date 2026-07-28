@@ -116,6 +116,28 @@ verify(
         workspace, workspace_size) == NARYA_OK;
 }
 
+static int
+expect_invalid_atomic(
+    const char *label,
+    const uint8_t public_key[lanes * 32],
+    const uint8_t signature[lanes * 64],
+    const uint8_t *const message[lanes],
+    const size_t length[lanes],
+    uint8_t active,
+    void *workspace,
+    size_t workspace_size)
+{
+    uint8_t verdict = 0xa5;
+    const narya_status status = narya_ed25519_verify_strict_x8(
+        &verdict, public_key, signature, message, length, active,
+        workspace, workspace_size);
+    if (status != NARYA_ERR_INVALID_ARGUMENT || verdict != 0xa5) {
+        fprintf(stderr, "%s status=%d verdict=%02x\n", label, status, verdict);
+        return 0;
+    }
+    return 1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -241,16 +263,66 @@ main(int argc, char **argv)
         memcpy(&signature[bad * 64], saved_r, 32);
     }
 
-    /* API errors preserve the caller's verdict byte. */
-    verdict = 0xa5;
+    /*
+     * Every invalid-argument exit is output-atomic. Exercise each public
+     * pointer independently: an early precheck must never make validity or
+     * the caller's initial verdict select the failure mode.
+     */
     if (narya_ed25519_verify_strict_x8(
-            &verdict, public_key, signature, message, length, 0xff,
-            workspace, workspace_size - 1) != NARYA_ERR_INVALID_ARGUMENT ||
-        verdict != 0xa5) {
-        fputs("workspace error was not output-atomic\n", stderr);
+            NULL, public_key, signature, message, length, 0xff,
+            workspace, workspace_size) != NARYA_ERR_INVALID_ARGUMENT ||
+        !expect_invalid_atomic("null public key", NULL, signature, message,
+                               length, 0xff, workspace, workspace_size) ||
+        !expect_invalid_atomic("null signature", public_key, NULL, message,
+                               length, 0xff, workspace, workspace_size) ||
+        !expect_invalid_atomic("null message array", public_key, signature,
+                               NULL, length, 0xff, workspace, workspace_size) ||
+        !expect_invalid_atomic("null length array", public_key, signature,
+                               message, NULL, 0xff, workspace, workspace_size) ||
+        !expect_invalid_atomic("null workspace", public_key, signature,
+                               message, length, 0xff, NULL, workspace_size) ||
+        !expect_invalid_atomic("short workspace", public_key, signature,
+                               message, length, 0xff, workspace,
+                               workspace_size - 1) ||
+        !expect_invalid_atomic("misaligned workspace", public_key, signature,
+                               message, length, 0xff,
+                               (uint8_t *)workspace + 1, workspace_size)) {
         free(workspace);
         return 1;
     }
+
+    /* A null message is legal only for a zero-length active lane. */
+    const uint8_t *saved_message = message[0];
+    const size_t saved_length = length[0];
+    message[0] = NULL;
+    length[0] = 1;
+    if (!expect_invalid_atomic("active null nonempty message", public_key,
+                               signature, message, length, 0xff,
+                               workspace, workspace_size)) {
+        free(workspace);
+        return 1;
+    }
+
+    /* Inactive lanes are ignored even when their message tuple is unusable. */
+    verdict = 0;
+    if (!verify(&verdict, public_key, signature, message, length, 0xfe,
+                workspace, workspace_size) || verdict != 0xfe) {
+        fprintf(stderr, "inactive null message verdict=%02x\n", verdict);
+        free(workspace);
+        return 1;
+    }
+
+    /* Lane zero's fixture signs an empty message, including a null pointer. */
+    length[0] = 0;
+    verdict = 0;
+    if (!verify(&verdict, public_key, signature, message, length, 0xff,
+                workspace, workspace_size) || verdict != 0xff) {
+        fprintf(stderr, "active null empty message verdict=%02x\n", verdict);
+        free(workspace);
+        return 1;
+    }
+    message[0] = saved_message;
+    length[0] = saved_length;
 
     free(workspace);
     puts("PASS: complete x8 DalekStrict equation matches independent signatures");

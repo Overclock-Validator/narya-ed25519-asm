@@ -78,8 +78,12 @@ target and is useful on a non-x86 development host.
 
 `make formal-check` uses the pinned Lean/mathlib project under `formal/lean`.
 It first regenerates and compares the multiply leaf's source trace, then proves
-the arithmetic and range theorem over that generated output. It does not yet
-decode the emitted System V x86 object or verify the assembler and CPU model.
+the arithmetic and range theorem over that generated output. It also rebuilds
+a deterministic linked ELF, decodes the exact 800-byte multiplier symbol with
+a fail-closed restricted x86-64 decoder, and proves that the result is the
+independently source-generated 129-instruction trace. Whole-program execution,
+the complete System V memory/alias theorem, downstream deployment identity,
+and correspondence to physical CPU behavior remain explicit open boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,
@@ -107,8 +111,9 @@ The checked Lean source is under [`formal/lean`](formal/lean/README.md). The
 [source-refinement certificate](docs/proofs/R51_SOURCE_TRACE_REFINEMENT.md)
 explains how multiply assembly edits reach the theorem; the same fail-closed
 source link and modular/range proofs now cover add, subtract, and negate. The
-remaining [byte-linked x86/ABI boundary](docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md)
-is specified separately. The signed scalar-reduction boundary is documented in
+remaining [x86 execution/ABI boundary](docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md)
+is specified separately; its final-byte decoding milestone is complete. The
+signed scalar-reduction boundary is documented in
 [`docs/proofs/SCALAR_REDUCTION_CONTRACT.md`](docs/proofs/SCALAR_REDUCTION_CONTRACT.md).
 The complete acceptance predicate and its equivalence obligations are in
 [`docs/architecture/STRICT_PREDICATE.md`](docs/architecture/STRICT_PREDICATE.md).

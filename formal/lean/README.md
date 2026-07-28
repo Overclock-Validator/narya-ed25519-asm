@@ -1,9 +1,11 @@
 # Narya Lean formalization
 
-This directory contains the machine-checked algebraic layer for Narya's
-consensus-critical arithmetic. It is deliberately separate from the C and
-assembly build: a successful Lean build proves the stated mathematical model,
-not that an x86 instruction trace implements that model.
+This directory contains the machine-checked algebraic and restricted-machine
+layers for Narya's consensus-critical arithmetic. A successful Lean build now
+proves that the exact multiplier bytes in the canonical proof ELF decode to the
+independently source-generated trace, in addition to the mathematical claims
+below. It does not yet prove the complete execution/ABI refinement, identity
+with a downstream binary, or correctness of a physical processor.
 
 The first completed target is the five-limb radix-`2^51` field multiplier:
 

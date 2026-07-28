@@ -42,14 +42,20 @@ general performance claim.
    mixed-order public keys?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
-covering both transpose leaves. Review still needs to confirm the certificate's
-ISA model and eventually close the documented assembled-binary refinement gap.
+covering both transpose leaves. Review still needs to confirm that certificate's
+ISA model; those transpose leaves are not yet linked to their emitted bytes by
+the restricted decoder used for the multiplier.
 
 The r51 multiply's arithmetic theorem now consumes a trace mechanically
 generated from the assembly source. The extractor is fail-closed over the
-straight-line leaf and has mutation tests for each major schedule class. Audit
-must review that parser and still close the emitted-object/ISA boundary; this
-is stronger than a hand-maintained mirror but is not a verified x86 decoder.
+straight-line leaf and has mutation tests for each major schedule class. A
+separate fail-closed restricted decoder consumes the exact 800-byte symbol from
+the canonical linked proof ELF, and Lean kernel reduction proves that it equals
+the independently source-generated 129-instruction list. Audit must review both
+parsers and the restricted instruction semantics. Whole-program execution,
+range-premise composition, the System V memory/alias postcondition, and identity
+with bytes in a downstream deployment remain open; this is not a general x86
+decoder or a proof about an arbitrary consumer binary.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register
