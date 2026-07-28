@@ -38,6 +38,9 @@ def qwordShiftRight (x : QWord) (amount : Nat) : QWord :=
 def qwordMask51 (x : QWord) : QWord :=
   BitVec.ofNat 64 (x.toNat % B51)
 
+def qwordXor (x y : QWord) : QWord := x ^^^ y
+def qwordAnd (x y : QWord) : QWord := x &&& y
+
 def vpmadd52luqLane (acc x y : QWord) : QWord :=
   BitVec.ofNat 64 (acc.toNat + ifmaLo52 x y)
 
@@ -62,6 +65,8 @@ def vpmadd52huq (acc x y : Zmm) : Zmm :=
 
 def vpaddq (x y : Zmm) : Zmm := laneMap2 qwordAdd x y
 def vpmullq (x y : Zmm) : Zmm := laneMap2 qwordMul x y
+def vpxorq (x y : Zmm) : Zmm := laneMap2 qwordXor x y
+def vpandq (x y : Zmm) : Zmm := laneMap2 qwordAnd x y
 def vpsllq (x : Zmm) (amount : Nat) : Zmm :=
   laneMap1 (fun value => qwordShiftLeft value amount) x
 def vpsrlq (x : Zmm) (amount : Nat) : Zmm :=
@@ -142,6 +147,14 @@ theorem vpaddq_lane_independent (x y : Zmm) (lane : Fin 8) :
 
 theorem vpmullq_lane_independent (x y : Zmm) (lane : Fin 8) :
     vpmullq x y lane = qwordMul (x lane) (y lane) := by
+  rfl
+
+theorem vpxorq_lane_independent (x y : Zmm) (lane : Fin 8) :
+    vpxorq x y lane = qwordXor (x lane) (y lane) := by
+  rfl
+
+theorem vpandq_lane_independent (x y : Zmm) (lane : Fin 8) :
+    vpandq x y lane = qwordAnd (x lane) (y lane) := by
   rfl
 
 end NaryaFormal.X86

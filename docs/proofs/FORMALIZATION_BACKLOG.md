@@ -26,6 +26,12 @@ is execution and ABI refinement:
    and prove the full SysV memory, alias, return, and register postcondition in
    [`X86_OBJECT_REFINEMENT_PLAN.md`](X86_OBJECT_REFINEMENT_PLAN.md).
 
+The paired interpreters and local arithmetic refinement lemmas now exist.
+They expose every u52/no-wrap premise rather than assuming machine arithmetic
+is unbounded. Finish this item with small phase theorems; a prior monolithic
+129-step simplifier proof type-checked but was intentionally rejected because
+its serialized proof term was too large for a dependable audit/CI artifact.
+
 The add, subtract, and negate leaves now have the same fail-closed source-link
 property. `GeneratedR51LinearTrace.lean` mirrors their exact instruction
 shapes and constants, while `LinearTrace.lean` proves non-underflow, u64

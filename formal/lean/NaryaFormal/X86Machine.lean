@@ -84,6 +84,10 @@ def storeBytes : Memory → Addr → List Byte → Memory
   | memory, base, value :: rest =>
       storeBytes (storeByte memory base value) (addressAdd base 1) rest
 
+def storeAddresses : Addr → List Byte → List Addr
+  | _, [] => []
+  | base, _ :: rest => base :: storeAddresses (addressAdd base 1) rest
+
 def storeQwordLE (memory : Memory) (base : Addr) (word : QWord) : Memory :=
   storeBytes memory base (qwordBytes word)
 
@@ -99,6 +103,16 @@ def storeZmm (memory : Memory) (base : Addr) (value : Zmm) : Memory :=
   let m5 := storeQwordLE m4 (addressAdd base 40) (value 5)
   let m6 := storeQwordLE m5 (addressAdd base 48) (value 6)
   storeQwordLE m6 (addressAdd base 56) (value 7)
+
+def zmmWrittenAddresses (base : Addr) (value : Zmm) : List Addr :=
+  storeAddresses (addressAdd base 0) (qwordBytes (value 0)) ++
+  storeAddresses (addressAdd base 8) (qwordBytes (value 1)) ++
+  storeAddresses (addressAdd base 16) (qwordBytes (value 2)) ++
+  storeAddresses (addressAdd base 24) (qwordBytes (value 3)) ++
+  storeAddresses (addressAdd base 32) (qwordBytes (value 4)) ++
+  storeAddresses (addressAdd base 40) (qwordBytes (value 5)) ++
+  storeAddresses (addressAdd base 48) (qwordBytes (value 6)) ++
+  storeAddresses (addressAdd base 56) (qwordBytes (value 7))
 
 def setGpr (registers : Gpr → QWord) (target : Gpr) (value : QWord) :
     Gpr → QWord :=
@@ -174,15 +188,46 @@ theorem storeBytes_permissions (memory : Memory) (base : Addr)
       rw [ih]
       rfl
 
+theorem storeBytes_frame (memory : Memory) (base candidate : Addr)
+    (values : List Byte) (hnot : candidate ∉ storeAddresses base values) :
+    (storeBytes memory base values).byte candidate = memory.byte candidate := by
+  induction values generalizing memory base with
+  | nil => rfl
+  | cons value rest ih =>
+      simp only [storeAddresses, List.mem_cons, not_or] at hnot
+      simp only [storeBytes]
+      rw [ih (storeByte memory base value) (addressAdd base 1) hnot.2]
+      exact storeByte_other memory base candidate value hnot.1
+
 theorem storeQwordLE_permissions (memory : Memory) (base : Addr)
     (word : QWord) :
     (storeQwordLE memory base word).perm = memory.perm := by
   exact storeBytes_permissions memory base (qwordBytes word)
 
+theorem storeQwordLE_frame (memory : Memory) (base candidate : Addr)
+    (word : QWord) (hnot : candidate ∉ storeAddresses base (qwordBytes word)) :
+    (storeQwordLE memory base word).byte candidate = memory.byte candidate := by
+  exact storeBytes_frame memory base candidate (qwordBytes word) hnot
+
 theorem storeZmm_permissions (memory : Memory) (base : Addr) (value : Zmm) :
     (storeZmm memory base value).perm = memory.perm := by
   simp only [storeZmm]
   repeat' rw [storeQwordLE_permissions]
+
+theorem storeZmm_frame (memory : Memory) (base candidate : Addr) (value : Zmm)
+    (hnot : candidate ∉ zmmWrittenAddresses base value) :
+    (storeZmm memory base value).byte candidate = memory.byte candidate := by
+  simp only [zmmWrittenAddresses, List.mem_append, not_or] at hnot
+  rcases hnot with ⟨⟨⟨⟨⟨⟨⟨h0, h1⟩, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩
+  simp only [storeZmm]
+  rw [storeQwordLE_frame _ _ _ _ h7]
+  rw [storeQwordLE_frame _ _ _ _ h6]
+  rw [storeQwordLE_frame _ _ _ _ h5]
+  rw [storeQwordLE_frame _ _ _ _ h4]
+  rw [storeQwordLE_frame _ _ _ _ h3]
+  rw [storeQwordLE_frame _ _ _ _ h2]
+  rw [storeQwordLE_frame _ _ _ _ h1]
+  rw [storeQwordLE_frame _ _ _ _ h0]
 
 theorem loadZmm_lane (memory : Memory) (base : Addr) (lane : Fin 8) :
     loadZmm memory base lane =

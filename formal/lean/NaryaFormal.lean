@@ -11,6 +11,9 @@ import NaryaFormal.X86VectorSemantics
 import NaryaFormal.X86Machine
 import NaryaFormal.X86Decoder
 import NaryaFormal.X86ObjectRefinement
+import NaryaFormal.X86Execution
+import NaryaFormal.X86NatShadow
+import NaryaFormal.X86Refinement
 import NaryaFormal.Transpose
 import NaryaFormal.ScalarReduction
 import NaryaFormal.VerificationSpine

@@ -112,12 +112,16 @@ effect of `VZEROUPPER`.
    byte-addressed little-endian memory, 512-bit vector layout, permission-aware
    `RET`, and exact `VZEROUPPER` state changes. Canonical-address/CET behavior
    and the full memory-frame/round-trip proofs remain open.
-4. Compose those lemmas over the decoded list using the existing accumulator,
-   fold, and carry bounds.
+4. **Partially implemented:** `X86Execution.lean` executes every decoded form,
+   `X86NatShadow.lean` supplies the one-lane unbounded interpreter, and
+   `X86Refinement.lean` proves the local arithmetic refinements with explicit
+   u52/no-wrap premises. Compact phase theorems must still discharge those
+   premises from the accumulator, fold, and carry bounds.
 5. Prove the decoded Nat execution equals the generated 25-product source
    trace.
 6. Add the complete ABI, memory-frame, lane-noninterference, and alias
-   corollaries.
+   corollaries. The byte-store frame lemma and the decoded all-loads-before-
+   stores/store-map/epilogue properties are implemented prerequisites.
 7. Regenerate and rebuild the Lean artifact in CI whenever the final binary
    changes.
 
