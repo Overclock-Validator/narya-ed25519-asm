@@ -166,7 +166,8 @@ check_case(uint8_t input[8][64], uint8_t active, const char *label)
         if ((active & (UINT8_C(1) << lane)) != 0)
             reference_reduce(want[lane], input[lane]);
     }
-    if (narya_scalar_reduce_x8(got, &input[0][0], active) != NARYA_OK) {
+    if (narya_scalar_reduce_x8(
+            got, (const uint8_t *)input, active) != NARYA_OK) {
         fprintf(stderr, "%s: reducer returned an error\n", label);
         return 0;
     }
@@ -228,7 +229,8 @@ check_required_boundaries(void)
     uint8_t input[8][64] = {{0}};
     uint8_t output[8][32] = {{0}};
     memcpy(input[0], boundary[5], 64);
-    if (narya_scalar_reduce_x8(output, &input[0][0], 0x01) != NARYA_OK ||
+    if (narya_scalar_reduce_x8(
+            output, (const uint8_t *)input, 0x01) != NARYA_OK ||
         memcmp(output[0], boundary[5], 32) != 0 ||
         (output[0][31] & UINT8_C(0x10)) == 0) {
         fputs("l-1 lost canonical output bit 252\n", stderr);
@@ -340,7 +342,7 @@ check_error_atomicity(void)
             NARYA_ERR_INVALID_ARGUMENT ||
         memcmp(output, unchanged, sizeof(output)) != 0)
         return 0;
-    if (narya_scalar_reduce_x8(NULL, &input[0][0], 0xff) !=
+    if (narya_scalar_reduce_x8(NULL, (const uint8_t *)input, 0xff) !=
         NARYA_ERR_INVALID_ARGUMENT)
         return 0;
     return 1;
