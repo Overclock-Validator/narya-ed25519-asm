@@ -44,7 +44,9 @@ preparation is now closed separately across the exact ten loads and eighteen
 clears, with explicit row permissions and selected-lane values. The
 non-returning decoded body is now composed without a
 source/output disjointness premise and preserves the exact five-row byte frame;
-the remaining native step is the explicit `VZEROUPPER; RET`/stack contract. The
+the exact `VZEROUPPER; RET` semantics and normal-return composition are also
+closed. The remaining native step is deriving post-store return-slot
+readability/value from an explicit stack/output non-overlap contract. The
 five-store suffix's permissions, row isolation, selected-lane content, and
 exact byte frame are now closed in `X86MemoryRefinement.lean`. A prior
 monolithic 129-step

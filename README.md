@@ -92,9 +92,11 @@ decoded output stores separately have permission-sensitive row/lane read-back
 and isolation theorems; the exact ten-load/eighteen-clear prefix now separately
 establishes the arithmetic precondition from explicit readable input rows. A
 single theorem composes the entire non-returning body with no source/output
-disjointness premise and retains its exact output frame. The `VZEROUPPER; RET`
-System V postcondition, downstream deployment identity, and correspondence to
-physical CPU behavior remain explicit open boundaries.
+disjointness premise and retains its exact output frame. The decoded
+`VZEROUPPER; RET` effects and normal return are separately refined; deriving
+return-slot preservation from stack/output non-overlap, downstream deployment
+identity, and correspondence to physical CPU behavior remain explicit open
+boundaries.
 
 Hosted CI builds with GCC and Clang, parses every assembly leaf, reproduces
 generated artifacts, validates the external corpus, builds the fuzz target,

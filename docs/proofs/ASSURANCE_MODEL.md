@@ -51,8 +51,10 @@ now separately refine explicit readable source rows into the partial register
 relation required by that theorem. The complete non-returning decoded body now
 composes preparation, arithmetic, and stores without a source/output
 disjointness premise, and retains the exact output byte frame. The
-`VZEROUPPER; RET`/System V postcondition, downstream deployment identity, and
-dispatch refinement remain separate open obligations.
+`VZEROUPPER; RET` suffix and its normal return effects are now separately
+refined and compose after any successful body whose return slot remains
+readable. Proving that stack/output non-overlap supplies that premise, downstream
+deployment identity, and dispatch refinement remain separate open obligations.
 
 ## 4. Differential and adversarial testing
 

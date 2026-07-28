@@ -105,8 +105,10 @@ the exact ten-load/eighteen-clear prefix establishes the required ZMM0--27
 relation from explicit readable input rows and arbitrary caller ZMM values. The
 non-returning load/clear/arithmetic/store composition, including source/output
 aliasing and its exact write frame, is closed by `X86BodyRefinement.lean`. The
-remaining gap is `VZEROUPPER; RET`/ABI refinement, dispatch, and downstream
-deployment identity. The Lean
+exact `VZEROUPPER; RET` effects and normal-return composition are closed by
+`X86EpilogueRefinement.lean`. The remaining machine gap is deriving return-slot
+preservation from stack/output non-overlap; dispatch and downstream deployment
+identity also remain open. The Lean
 result is not a verified decoder for arbitrary machine code.
 The intended restricted, final-byte-linked construction is specified in the
 [x86 object-refinement plan](../../docs/proofs/X86_OBJECT_REFINEMENT_PLAN.md).
@@ -172,7 +174,10 @@ fault-aware load/clear prefix and its memory/GPR preservation. Composing those
 pieces through the five stores is closed in
 [`X86BodyRefinement.lean`](NaryaFormal/X86BodyRefinement.lean), with no
 source/output disjointness premise. Return behavior and the final System V
-postcondition remain open.
+postcondition are separately refined in
+[`X86EpilogueRefinement.lean`](NaryaFormal/X86EpilogueRefinement.lean). Its
+composition premise—post-store readability of the return slot—still needs the
+explicit stack/output non-overlap corollary.
 
 The representation lemmas and most of the multiplication trace can be reused
 by another radix-`2^51`, u52-input implementation. Such reuse still requires

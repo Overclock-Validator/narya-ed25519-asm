@@ -151,9 +151,11 @@ effect of `VZEROUPPER`.
 6. **Partially implemented:** `X86BodyRefinement.lean` composes the input-load,
    clear, arithmetic, and output-store phases. It proves the selected-lane
    mathematical output, GPR/permission preservation, and exact byte frame with
-   no source/output disjointness premise. Add the `VZEROUPPER; RET`, stack-return
-   non-overlap/readability, and final System V postcondition. The decoded
-   epilogue shape is already source- and byte-linked.
+   no source/output disjointness premise. `X86EpilogueRefinement.lean` separately
+   proves the exact `VZEROUPPER; RET` effects and composes them after any body
+   whose return slot remains readable. Add the stack/output non-overlap theorem
+   that derives this premise and the final single System V capstone. The decoded
+   epilogue shape is source- and byte-linked.
 7. Regenerate and rebuild the Lean artifact in CI whenever the final binary
    changes.
 
