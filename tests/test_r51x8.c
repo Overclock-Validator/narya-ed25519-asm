@@ -34,6 +34,61 @@ point_equal_exact(const narya_edwards_point_x8 *a, const narya_edwards_point_x8 
            equal(&a->Z, &b->Z) && equal(&a->T, &b->T);
 }
 
+/*
+ * The packed hot leaves fuse only data movement and the already-reviewed r51
+ * multiplication. Pin them bit-for-bit to their split counterparts so an
+ * operand permutation, accumulator target, fold, or carry edit fails here.
+ */
+static int
+check_packed_fused_leaves(const narya_r51x8 *point, const narya_r51x8 *cached)
+{
+    narya_r51x8 left, right, products, want, got, alias;
+
+    narya_packed_double_first_operands_ifma(&left, &right, point);
+    narya_r51x8_mul_ifma(&want, &left, &right);
+    narya_packed_double_first_multiply_ifma(&got, point);
+    if (!equal(&got, &want))
+        return 0;
+    alias = *point;
+    narya_packed_double_first_multiply_ifma(&alias, &alias);
+    if (!equal(&alias, &want))
+        return 0;
+
+    narya_packed_cached_first_operand_ifma(&left, point);
+    narya_r51x8_mul_ifma(&want, &left, cached);
+    narya_packed_cached_first_multiply_ifma(&got, point, cached);
+    if (!equal(&got, &want))
+        return 0;
+    alias = *point;
+    narya_packed_cached_first_multiply_ifma(&alias, &alias, cached);
+    if (!equal(&alias, &want))
+        return 0;
+    alias = *cached;
+    narya_packed_cached_first_multiply_ifma(&alias, point, &alias);
+    if (!equal(&alias, &want))
+        return 0;
+
+    products = *point;
+    narya_packed_double_final_operands_ifma(&left, &right, &products);
+    narya_r51x8_mul_ifma(&want, &left, &right);
+    narya_packed_double_final_multiply_ifma(&got, &products);
+    if (!equal(&got, &want))
+        return 0;
+    alias = products;
+    narya_packed_double_final_multiply_ifma(&alias, &alias);
+    if (!equal(&alias, &want))
+        return 0;
+
+    narya_packed_cached_final_operands_ifma(&left, &right, &products);
+    narya_r51x8_mul_ifma(&want, &left, &right);
+    narya_packed_cached_final_multiply_ifma(&got, &products);
+    if (!equal(&got, &want))
+        return 0;
+    alias = products;
+    narya_packed_cached_final_multiply_ifma(&alias, &alias);
+    return equal(&alias, &want);
+}
+
 static int
 point_equal_modp_all(
     const narya_edwards_point_x8 *a,
@@ -654,6 +709,10 @@ main(void)
     if (!check_niels_stage2(
             &arbitrary_point, &arbitrary_projective, &arbitrary_affine))
         return 1;
+    if (!check_packed_fused_leaves(&x, &y)) {
+        fputs("failed maximum-range packed fusion differential\n", stderr);
+        return 1;
+    }
 
     for (size_t iteration = 0; iteration < 10000; iteration++) {
         for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
@@ -698,6 +757,12 @@ main(void)
                     &arbitrary_affine)) {
                 fprintf(stderr,
                     "failed Niels Stage-2 random iteration %zu\n", iteration);
+                return 1;
+            }
+            if (!check_packed_fused_leaves(&x, &y)) {
+                fprintf(stderr,
+                    "failed packed fusion differential iteration %zu\n",
+                    iteration);
                 return 1;
             }
         }
