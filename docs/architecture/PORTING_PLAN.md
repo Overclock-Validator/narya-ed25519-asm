@@ -4,9 +4,10 @@
 
 Export the optimized Narya verifier through a stable System V AMD64 C ABI,
 with no Go ABI, Go runtime, or cgo dependency. The supported first verifier is
-the cold, eight-lane, AVX-512 IFMA implementation of the exact `DalekStrict`
-predicate. Eight lanes return eight verdicts; this is not randomized aggregate
-batch verification.
+the cold, AVX-512 IFMA implementation of the exact `DalekStrict` predicate.
+Its public APIs cover one x8 group or a batch of one through 64 signatures.
+Every lane and group returns an independent verdict; this is not randomized
+aggregate batch verification.
 
 ## Why the port is staged
 
@@ -71,8 +72,11 @@ The standalone verifier now includes:
 - the Go cold verifier's asymmetric fixed-base schedule: 26 balanced
   radix-1024 generator digits are injected into the variable term's existing
   250-doubling radix-32 chain, while the prior radix-256 comb remains an
-  independent oracle.
+  independent oracle; and
+- the public 1..64 dispatcher and compressed-point finalizer, with the existing
+  decode-R/projective comparison retained through eight signatures and one
+  cross-group Montgomery inversion shared by wider batches.
 
-It does not yet include the Go verifier's cross-group compressed-point
-finalizer or public batch dispatcher. Those are separate ports, not implied by
-field-kernel or scalar-schedule parity.
+The remaining parity work is assurance and performance refinement rather than
+a missing cold verification stage. Warm public-key tables remain deliberately
+outside this repository's supported contract.

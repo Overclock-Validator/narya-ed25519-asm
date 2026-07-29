@@ -39,6 +39,19 @@ contracts before entering unchecked assembly. If a checked call returns an
 error, its output must remain unchanged. Internal leaves have no error path and
 may only be called when the enclosing schedule proves their preconditions.
 
+The strict APIs expose two caller-owned workspaces. The x8 workspace holds one
+temporary public-key table. The 1..64 workspace additionally retains up to
+eight equation points, prefix products, and inverse denominators. Workspace
+size and alignment must be queried from the matching public functions; ABI
+zero intentionally does not expose either private structure layout.
+
+The 1..64 API returns bit `i` for input `i`. Counts through eight delegate to
+the original x8 projective-comparison path. Wider counts use the cross-group
+encoding schedule documented in
+[`BATCH_FINALIZATION.md`](BATCH_FINALIZATION.md). Both routes stage the complete
+verdict before the public store, so API and internal-arithmetic errors cannot
+partially publish a result.
+
 ## Aliasing
 
 Exact `out == x` and `out == y` aliases are supported only where the header

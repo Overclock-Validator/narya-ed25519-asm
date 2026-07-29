@@ -1,8 +1,8 @@
 # Strict verification predicate
 
-The public ABI implements eight independent instances of this predicate. Let
-`S` be the unsigned little-endian integer represented by all 32 original
-`S_bytes`:
+The public ABI implements one through 64 independent instances of this
+predicate in x8 groups. Let `S` be the unsigned little-endian integer
+represented by all 32 original `S_bytes`:
 
 ```text
 require S < l
@@ -18,14 +18,16 @@ accept iff projective_equal(Q, R)
 ```
 
 The implementation is free to perform byte-only rejection before decoding.
-That evaluation order is an optimization only: every surviving lane must still
-successfully decode both `A_bytes` and `R_bytes` before it can be accepted.
+Every accepted lane must decode `A_bytes`. The x8 finalizer also decodes
+`R_bytes`; the wider finalizer instead proves `R` decodable implicitly by
+requiring the canonical encoding of a valid equation point to equal the
+original `R_bytes`.
 
 This is an equivalent restatement of the pinned
 [ed25519-dalek 2.x `verify_strict` source][dalek-verifying]. Dalek performs the
 last two requirements together by compressing `Q` and comparing its bytes to
 the original signature `R`. Narya establishes canonical `R` before the
-equation and then uses two projective cross-products:
+equation. Its single-group route then uses two projective cross-products:
 
 ```text
 field_equal(X_Q * Z_R, X_R * Z_Q)
@@ -38,6 +40,12 @@ arithmetic contract must establish that `Q` is a valid projective Edwards point
 with `Z_Q != 0`. No field inversion or point serialization is needed at the
 final boundary.
 
+For wider batches, Narya does not decode `R`. It computes the same valid
+projective `Q`, batch-inverts the `Z_Q` denominators across groups, canonically
+encodes each affine point, and compares those 32 bytes with the original
+`R_bytes`. Equality itself establishes that `R_bytes` encodes the same valid
+point. The original bytes still enter the hash and final comparison.
+
 The equivalence obligation is explicit: for every successfully decoded
 `R_bytes` and valid projective `Q`,
 
@@ -45,6 +53,11 @@ The equivalence obligation is explicit: for every successfully decoded
 canonical(R_bytes) and projective_equal(Q, Decode(R_bytes))
     iff Encode(Q) == R_bytes.
 ```
+
+Thus the two production finalizers implement the same terminal predicate. The
+cross-group inversion is only an arithmetic sharing device: prefixes are
+formed independently in each of the eight SIMD lanes, and no signature
+equation or verdict is combined with another.
 
 ## Byte gates
 

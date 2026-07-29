@@ -101,8 +101,10 @@ The recommended human-review order is:
 5. scalar reduction and recoding;
 6. SHA-512 message segmentation and compression;
 7. variable-base scalar multiplication, the merged asymmetric B10 schedule,
-   and the independent radix-256 fixed-base oracle; and
-8. complete-verifier differentials, faults, masks, and inactive lanes.
+   and the independent radix-256 fixed-base oracle;
+8. the lane-wise cross-group inversion, canonical point encoder, public 1..64
+   dispatcher, output atomicity, and item-to-bit mapping; and
+9. complete-verifier differentials, faults, masks, and inactive lanes.
 
 The [audit scope](AUDIT_SCOPE.md) lists the high-priority questions. The
 [formal evidence index](../proofs/FORMAL_EVIDENCE_INDEX.md) names the strongest

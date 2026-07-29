@@ -1,0 +1,12 @@
+make clean
+make CFLAGS='-O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror' test-native
+
+cc -Iinclude -Isrc -O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror \
+  docs/reproducibility/zen5-batch-finalization-2026-07-29/bench_batch.c \
+  build/libnarya_ed25519_asm.a -o bench-batch
+
+for n in 8 16 32 64; do
+  taskset -c 2 ./bench-batch tests/vectors/narya_strict_verify_v1.txt "$n" 2000 9
+done
+
+make test-sanitize

@@ -185,3 +185,13 @@ FIPS 180-4 by `tools/check_sha512_schedule.py`, including rolling `a..h` and
 `W[t mod 16]` maps. Remaining formal work is emitted-opcode refinement and a
 wrapper theorem for byte gathering, big-endian words, padding/length encoding,
 unequal-lane completion, and digest capture.
+
+The public cross-group finalizer adds one self-contained algebraic and memory
+target after the point equation is available. Prove, lane by lane: (1) replacing
+dead denominators by one cannot affect a live verdict, (2) the prefix/backward
+schedule returns each live `Z^-1`, (3) the active-zero check is exact in the
+field, (4) `pow22523(x)^8*x^3 = x^(p-2)`, (5) the r51 byte pack is canonical
+Ed25519 encoding with canonical-x parity, and (6) `Encode(Q)==R_bytes` is
+equivalent to the pinned strict terminal comparison. A wrapper refinement must
+then prove partial-tail padding, no out-of-range reads, complete output
+atomicity, and exact item-`i` to verdict-bit-`i` routing for counts 1..64.

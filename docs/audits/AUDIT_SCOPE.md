@@ -19,6 +19,9 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
   complete `[S]B-[k]A` evaluation;
 - canonical-S, exact small-order A/R, canonical-R, projective equality, and
   independent lane verdicts;
+- an output-atomic 1..64 dispatcher which retains the projective finalizer for
+  one group and uses lane-wise cross-group Montgomery inversion plus canonical
+  equation-point encoding for wider batches;
 - scalar differential oracles and native Zen 5 evidence.
 
 The live fixed-base term uses the checked-in 120 KiB B10 table and shares the
@@ -53,6 +56,9 @@ claims.
     does the B10 table encode both signs of `[1..512]B`, and does the merged
     event order compute `[s]B-[k]A` without changing lane identity or torsion
     semantics?
+12. Does cross-group inversion remain independent in every SIMD lane, treat
+    dead denominators as one, fail on every active zero denominator, serialize
+    canonical `(X/Z,Y/Z)` exactly, and map item `i` only to verdict bit `i`?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol

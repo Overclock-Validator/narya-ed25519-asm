@@ -1,6 +1,7 @@
 # Narya Ed25519 Assembly
 
-Standalone AMD64 assembly for Narya's eight-lane Ed25519 verification design.
+Standalone AMD64 assembly for Narya's eight-lane Ed25519 verification design,
+including exact cold-batch dispatch for one through 64 signatures.
 The library is building toward a stable System V C ABI and has no Go runtime,
 cgo, or language-runtime dependency. It is intended to make the optimized
 arithmetic usable—and independently auditable—from C, C++, Rust, Zig, and
@@ -29,8 +30,10 @@ boundary are frozen.
   scalar multiplication; a merged asymmetric `[s]B-[k]A` schedule with an
   immutable width-10 generator table and one 250-doubling chain; an independent
   radix-256 basepoint-comb oracle; the complete x8 `DalekStrict` equation and
-  public workspace ABI; alias, lane-independence, known-answer, and range
-  tests; and a machine-checked Lean scalar trace generated from the radix-51
+  public workspace ABI; an exact 1..64 batch API whose wider path shares one
+  cross-group field inversion without aggregating verdicts; alias,
+  lane-independence, known-answer, and range tests; and a machine-checked Lean
+  scalar trace generated from the radix-51
   IFMA multiply source, including the exact product order and register route,
   per-instruction no-wrap, fold, carry, modular result, and reusable-range
   lemmas.
@@ -42,9 +45,10 @@ boundary are frozen.
   further formal refinement. The
   checked-in external corpus covers RFC 8032, CCTV, Wycheproof, and derived
   predicate-boundary cases.
-- Supported verification target: eight independent cold Ed25519 equations
-  under Narya's `DalekStrict` acceptance predicate. Automatic or aggregate
-  randomized verification is not part of this design.
+- Supported verification target: one through 64 independent cold Ed25519
+  equations under Narya's `DalekStrict` acceptance predicate. The implementation
+  groups work into x8 lanes, but never aggregates equations or verdicts.
+  Automatic or randomized aggregate verification is not part of this design.
 
 ## Repository map
 
@@ -150,6 +154,8 @@ The bounded mixed-addition boundary is described in
 [`docs/architecture/NIELS_ADDITION.md`](docs/architecture/NIELS_ADDITION.md).
 The exact merged generator/variable-base recurrence is described in
 [`docs/architecture/ASYMMETRIC_FIXED_B10.md`](docs/architecture/ASYMMETRIC_FIXED_B10.md).
+The exact cross-group finalizer and its non-aggregation argument are described
+in [`docs/architecture/BATCH_FINALIZATION.md`](docs/architecture/BATCH_FINALIZATION.md).
 The [documentation index](docs/README.md) separates architecture, proofs,
 audit material, performance reports, and raw reproducibility evidence.
 
