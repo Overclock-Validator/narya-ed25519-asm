@@ -71,6 +71,115 @@
     vpaddq \q, \q, \bias
 .endm
 
+/* The packed final-multiply leaves use the reviewed 25-product r51 schedule. */
+.macro MUL_PAIR x, y, low, high
+    vpmadd52luq \low, \x, \y
+    vpmadd52huq \high, \x, \y
+.endm
+
+.macro COMBINE_HIGH high, low
+    vpsllq \high, \high, 1
+    vpaddq \low, \low, \high
+.endm
+
+.macro FOLD_MUL19 low, high, scratch, fold19
+    vpmullq \scratch, \high, \fold19
+    vpaddq \low, \low, \scratch
+.endm
+
+/*
+ * Consume normalized [E,G,H,F] in zmm0..zmm4, form the two packed operands
+ * with lane-local permutations, multiply them, fold B^5=19, carry once, and
+ * store through RDI.  Keeping this boundary in registers removes ten stores
+ * and ten reloads from every doubling and cached addition.
+ *
+ * This multiplication schedule is intentionally character-identical to
+ * narya_r51x8_mul_ifma.  Only the source operands are produced in-register.
+ */
+.macro PACKED_FINAL_MUL_STORE
+    vpermq zmm5, zmm0, 0x6b
+    vpermq zmm0, zmm0, 0xc4
+    vpermq zmm6, zmm1, 0x6b
+    vpermq zmm1, zmm1, 0xc4
+    vpermq zmm7, zmm2, 0x6b
+    vpermq zmm2, zmm2, 0xc4
+    vpermq zmm8, zmm3, 0x6b
+    vpermq zmm3, zmm3, 0xc4
+    vpermq zmm9, zmm4, 0x6b
+    vpermq zmm4, zmm4, 0xc4
+
+    vpxorq zmm10, zmm10, zmm10
+    vpxorq zmm11, zmm11, zmm11
+    vpxorq zmm12, zmm12, zmm12
+    vpxorq zmm13, zmm13, zmm13
+    vpxorq zmm14, zmm14, zmm14
+    vpxorq zmm15, zmm15, zmm15
+    vpxorq zmm16, zmm16, zmm16
+    vpxorq zmm17, zmm17, zmm17
+    vpxorq zmm18, zmm18, zmm18
+    vpxorq zmm19, zmm19, zmm19
+    vpxorq zmm20, zmm20, zmm20
+    vpxorq zmm21, zmm21, zmm21
+    vpxorq zmm22, zmm22, zmm22
+    vpxorq zmm23, zmm23, zmm23
+    vpxorq zmm24, zmm24, zmm24
+    vpxorq zmm25, zmm25, zmm25
+    vpxorq zmm26, zmm26, zmm26
+    vpxorq zmm27, zmm27, zmm27
+
+    MUL_PAIR zmm0, zmm5, zmm10, zmm19
+    MUL_PAIR zmm0, zmm6, zmm11, zmm20
+    MUL_PAIR zmm0, zmm7, zmm12, zmm21
+    MUL_PAIR zmm0, zmm8, zmm13, zmm22
+    MUL_PAIR zmm0, zmm9, zmm14, zmm23
+    MUL_PAIR zmm1, zmm5, zmm11, zmm20
+    MUL_PAIR zmm1, zmm6, zmm12, zmm21
+    MUL_PAIR zmm1, zmm7, zmm13, zmm22
+    MUL_PAIR zmm1, zmm8, zmm14, zmm23
+    MUL_PAIR zmm1, zmm9, zmm15, zmm24
+    MUL_PAIR zmm2, zmm5, zmm12, zmm21
+    MUL_PAIR zmm2, zmm6, zmm13, zmm22
+    MUL_PAIR zmm2, zmm7, zmm14, zmm23
+    MUL_PAIR zmm2, zmm8, zmm15, zmm24
+    MUL_PAIR zmm2, zmm9, zmm16, zmm25
+    MUL_PAIR zmm3, zmm5, zmm13, zmm22
+    MUL_PAIR zmm3, zmm6, zmm14, zmm23
+    MUL_PAIR zmm3, zmm7, zmm15, zmm24
+    MUL_PAIR zmm3, zmm8, zmm16, zmm25
+    MUL_PAIR zmm3, zmm9, zmm17, zmm26
+    MUL_PAIR zmm4, zmm5, zmm14, zmm23
+    MUL_PAIR zmm4, zmm6, zmm15, zmm24
+    MUL_PAIR zmm4, zmm7, zmm16, zmm25
+    MUL_PAIR zmm4, zmm8, zmm17, zmm26
+    MUL_PAIR zmm4, zmm9, zmm18, zmm27
+
+    COMBINE_HIGH zmm19, zmm11
+    COMBINE_HIGH zmm20, zmm12
+    COMBINE_HIGH zmm21, zmm13
+    COMBINE_HIGH zmm22, zmm14
+    COMBINE_HIGH zmm23, zmm15
+    COMBINE_HIGH zmm24, zmm16
+    COMBINE_HIGH zmm25, zmm17
+    COMBINE_HIGH zmm26, zmm18
+    vpsllq zmm27, zmm27, 1
+
+    vpbroadcastq zmm30, QWORD PTR [rip + packed_fold19]
+    FOLD_MUL19 zmm10, zmm15, zmm28, zmm30
+    FOLD_MUL19 zmm11, zmm16, zmm28, zmm30
+    FOLD_MUL19 zmm12, zmm17, zmm28, zmm30
+    FOLD_MUL19 zmm13, zmm18, zmm28, zmm30
+    FOLD_MUL19 zmm14, zmm27, zmm28, zmm30
+
+    vpbroadcastq zmm5, QWORD PTR [rip + packed_mask51]
+    NORMALIZE_5 zmm10, zmm11, zmm12, zmm13, zmm14, zmm5, \
+                zmm15, zmm16, zmm17, zmm18, zmm19, zmm30
+    vmovdqu64 ZMMWORD PTR [rdi +   0], zmm10
+    vmovdqu64 ZMMWORD PTR [rdi +  64], zmm11
+    vmovdqu64 ZMMWORD PTR [rdi + 128], zmm12
+    vmovdqu64 ZMMWORD PTR [rdi + 192], zmm13
+    vmovdqu64 ZMMWORD PTR [rdi + 256], zmm14
+.endm
+
 .p2align 5
 .globl narya_packed_double_first_operands_ifma
 .hidden narya_packed_double_first_operands_ifma
@@ -239,6 +348,75 @@ narya_packed_cached_final_operands_ifma:
     vzeroupper
     ret
 .size narya_packed_cached_final_operands_ifma, .-narya_packed_cached_final_operands_ifma
+
+/*
+ * Fused doubling tail.  The split form above remains as a small differential
+ * oracle, while the hot path consumes [A,B,C,D] and emits [X,Y,T,Z] without
+ * materializing the two final multiplication operands in memory.
+ */
+.p2align 6
+.globl narya_packed_double_final_multiply_ifma
+.hidden narya_packed_double_final_multiply_ifma
+.type narya_packed_double_final_multiply_ifma, @function
+narya_packed_double_final_multiply_ifma:
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
+    mov eax, 0x11
+    kmovb k1, eax
+    mov eax, 0x44
+    kmovb k2, eax
+    mov eax, 0x88
+    kmovb k3, eax
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_double_bias8p0]
+    vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_double_bias8pn]
+    vpxorq zmm7, zmm7, zmm7
+    DOUBLE_LINEAR zmm0, zmm5, zmm8, zmm9, zmm10, zmm7
+    DOUBLE_LINEAR zmm1, zmm6, zmm8, zmm9, zmm10, zmm7
+    DOUBLE_LINEAR zmm2, zmm6, zmm8, zmm9, zmm10, zmm7
+    DOUBLE_LINEAR zmm3, zmm6, zmm8, zmm9, zmm10, zmm7
+    DOUBLE_LINEAR zmm4, zmm6, zmm8, zmm9, zmm10, zmm7
+    vpbroadcastq zmm5, QWORD PTR [rip + packed_mask51]
+    vpbroadcastq zmm6, QWORD PTR [rip + packed_fold19]
+    NORMALIZE_5 zmm0, zmm1, zmm2, zmm3, zmm4, zmm5, \
+                zmm7, zmm8, zmm9, zmm10, zmm11, zmm6
+    PACKED_FINAL_MUL_STORE
+    vzeroupper
+    ret
+.size narya_packed_double_final_multiply_ifma, .-narya_packed_double_final_multiply_ifma
+
+/* Cached-add analogue of narya_packed_double_final_multiply_ifma. */
+.p2align 6
+.globl narya_packed_cached_final_multiply_ifma
+.hidden narya_packed_cached_final_multiply_ifma
+.type narya_packed_cached_final_multiply_ifma, @function
+narya_packed_cached_final_multiply_ifma:
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
+    mov eax, 0x99
+    kmovb k1, eax
+    mov eax, 0x66
+    kmovb k2, eax
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_final_bias8p0]
+    vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_cached_final_bias8pn]
+    CACHED_FINAL_LINEAR zmm0, zmm5, zmm7, zmm8, zmm9
+    CACHED_FINAL_LINEAR zmm1, zmm6, zmm7, zmm8, zmm9
+    CACHED_FINAL_LINEAR zmm2, zmm6, zmm7, zmm8, zmm9
+    CACHED_FINAL_LINEAR zmm3, zmm6, zmm7, zmm8, zmm9
+    CACHED_FINAL_LINEAR zmm4, zmm6, zmm7, zmm8, zmm9
+    vpbroadcastq zmm5, QWORD PTR [rip + packed_mask51]
+    vpbroadcastq zmm6, QWORD PTR [rip + packed_fold19]
+    NORMALIZE_5 zmm0, zmm1, zmm2, zmm3, zmm4, zmm5, \
+                zmm7, zmm8, zmm9, zmm10, zmm11, zmm6
+    PACKED_FINAL_MUL_STORE
+    vzeroupper
+    ret
+.size narya_packed_cached_final_multiply_ifma, .-narya_packed_cached_final_multiply_ifma
 
 .section .rodata
 .p2align 6

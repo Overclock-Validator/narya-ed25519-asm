@@ -158,9 +158,15 @@ void narya_packed_double_final_operands_ifma(
     narya_r51x8 *left,
     narya_r51x8 *right,
     const narya_r51x8 *products);
+void narya_packed_double_final_multiply_ifma(
+    narya_r51x8 *out,
+    const narya_r51x8 *products);
 void narya_packed_cached_final_operands_ifma(
     narya_r51x8 *left,
     narya_r51x8 *right,
+    const narya_r51x8 *products);
+void narya_packed_cached_final_multiply_ifma(
+    narya_r51x8 *out,
     const narya_r51x8 *products);
 
 void narya_packed_point_from_lanes_x4(
