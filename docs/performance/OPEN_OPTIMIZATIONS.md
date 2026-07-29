@@ -73,3 +73,20 @@ counters in a separate run fell 5.31% for cycles, 2.20% for instructions, and
 The improvement is cold: the generator table is immutable process-wide state,
 not retained public-key state. The abstract-group recurrence is documented,
 but a machine-checked recoder/table/C-schedule refinement remains open.
+
+## Compressed y-first finalizer — negative at one x8 group
+
+A native prototype removed the full `R` square-root decode, compared
+`Y_Q = y_R Z_Q` projectively, and used one x8 inversion to recover only the
+affine-`X` sign. Direct inversion, alias, projective-rescaling, opposite-sign,
+zero-`Z`, complete-corpus, and sanitizer gates passed.
+
+Against `fe951d35d59fb8299d1da5a7ae5a4ed27b8959f7`, six order-balanced
+100,000-call samples regressed from a 44.857 to 45.782 microsecond median per
+x8 group, or 2.06%. The production prototype was therefore removed.
+
+This closes only the one-group regime. The Go implementation's advantage
+comes from sharing one inversion across several x8 groups (up to 64
+signatures), which this ABI cannot express. Reconsider this design only with a
+public multi-group dispatcher and cross-group Montgomery inversion; do not
+reintroduce one inversion per x8 group.
