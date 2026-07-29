@@ -88,6 +88,7 @@ def main() -> None:
         )
 
         table = directory / "comb.bin"
+        b10_table = directory / "b10.bin"
         vectors = directory / "comb.txt"
         run(
             "tools/generate_fixed_base_comb.py",
@@ -95,10 +96,13 @@ def main() -> None:
             str(table),
             "--vectors",
             str(vectors),
+            "--b10-table",
+            str(b10_table),
             "--groups",
             "32",
         )
         require_equal(ROOT / "data/narya_fixed_base_comb_r256.bin", table.read_bytes())
+        require_equal(ROOT / "data/narya_fixed_base_b10.bin", b10_table.read_bytes())
         require_equal(
             ROOT / "tests/vectors/narya_fixed_base_scalar_v1.txt",
             vectors.read_bytes(),

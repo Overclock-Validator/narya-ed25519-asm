@@ -216,11 +216,42 @@ main(int argc, char **argv)
                     group);
             return 1;
         }
+
+        /*
+         * Compare the merged B10 schedule with the deliberately separate
+         * [s]B + [-k]A construction. The two sides share field leaves but not
+         * scalar recoding, fixed-base table shape, event order, or doubling
+         * schedule.
+         */
+        uint8_t s[8 * 32];
+        const size_t s_group = (group + 7) % fixture_groups;
+        for (size_t lane = 0; lane < 8; lane++)
+            memcpy(&s[lane * 32], fixture[s_group][lane].scalar, 32);
+        narya_edwards_point_x8 a_term, b_term, separate, merged;
+        if (narya_variable_scalar_mult_x8(
+                &a_term, &table, scalar, 0xff, 0xff) != 0xff ||
+            narya_fixed_base_scalar_mult_x8(&b_term, s, 0xff) != 0xff) {
+            fprintf(stderr, "separate DSM preparation failed group=%zu\n", group);
+            return 1;
+        }
+        narya_projective_niels_x8 a_cached;
+        narya_edwards_to_projective_niels_x8(&a_cached, &a_term);
+        narya_edwards_add_projective_niels_x8(
+            &separate, &b_term, &a_cached);
+        if (narya_asymmetric_fixed_b10_double_scalar_mult_x8(
+                &merged, &table, s, scalar, 0xff) != 0xff ||
+            !point_equal_projective(&merged, &separate)) {
+            fprintf(stderr, "merged B10 DSM mismatch group=%zu\n", group);
+            return 1;
+        }
     }
 
     /* Masked lanes stay identities through all 250 doublings and additions. */
     uint8_t scalar[8 * 32], expected_bytes[8 * 32];
+    uint8_t s[8 * 32];
     const uint8_t negative = prepare_group(scalar, expected_bytes, fixture[1]);
+    for (size_t lane = 0; lane < 8; lane++)
+        memcpy(&s[lane * 32], fixture[2][lane].scalar, 32);
     for (unsigned int active = 0; active <= 0xff; active++) {
         narya_edwards_point_x8 got, expected;
         if (narya_variable_scalar_mult_x8(
@@ -233,6 +264,27 @@ main(int argc, char **argv)
                     active);
             return 1;
         }
+
+        narya_edwards_point_x8 a_term, b_term, separate, merged;
+        const uint8_t active_mask = (uint8_t)active;
+        if (narya_variable_scalar_mult_x8(
+                &a_term, &table, scalar, active_mask, active_mask) !=
+                active_mask ||
+            narya_fixed_base_scalar_mult_x8(
+                &b_term, s, active_mask) != active_mask) {
+            fprintf(stderr, "active-mask separate DSM failed=%02x\n", active);
+            return 1;
+        }
+        narya_projective_niels_x8 a_cached;
+        narya_edwards_to_projective_niels_x8(&a_cached, &a_term);
+        narya_edwards_add_projective_niels_x8(
+            &separate, &b_term, &a_cached);
+        if (narya_asymmetric_fixed_b10_double_scalar_mult_x8(
+                &merged, &table, s, scalar, active_mask) != active_mask ||
+            !point_equal_projective(&merged, &separate)) {
+            fprintf(stderr, "active-mask merged B10 DSM mismatch=%02x\n", active);
+            return 1;
+        }
     }
 
     /* A noncanonical scalar invalidates only its own lane. */
@@ -243,6 +295,12 @@ main(int argc, char **argv)
         narya_edwards_decode_x8(&expected, expected_bytes, 0xf7) != 0xf7 ||
         !point_equal_projective(&got, &expected)) {
         fputs("noncanonical scalar lane did not fail independently\n", stderr);
+        return 1;
+    }
+    memcpy(&s[3 * 32], scalar_order, 32);
+    if (narya_asymmetric_fixed_b10_double_scalar_mult_x8(
+            &got, &table, s, scalar, 0xff) != 0xf7) {
+        fputs("noncanonical B10 scalar lane did not fail independently\n", stderr);
         return 1;
     }
     puts("PASS: x8 variable-base scalar multiplication matches affine fixtures");

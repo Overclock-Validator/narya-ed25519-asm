@@ -10,8 +10,8 @@ static const uint8_t scalar_order[32] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
 };
 
-static int
-canonical_scalar(const uint8_t scalar[32])
+int
+narya_scalar_is_canonical(const uint8_t scalar[32])
 {
     for (size_t index = 32; index-- > 0;) {
         if (scalar[index] != scalar_order[index])
@@ -45,7 +45,8 @@ narya_scalar_recode_radix32_x8(
     uint8_t valid = 0;
     for (size_t lane = 0; lane < 8; lane++) {
         const uint8_t lane_mask = UINT8_C(1) << lane;
-        if ((active & lane_mask) != 0 && canonical_scalar(&scalar[lane * 32]))
+        if ((active & lane_mask) != 0 &&
+            narya_scalar_is_canonical(&scalar[lane * 32]))
             valid |= lane_mask;
     }
 

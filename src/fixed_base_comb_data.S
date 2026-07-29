@@ -19,4 +19,17 @@ narya_fixed_base_comb_r256:
 .incbin "data/narya_fixed_base_comb_r256.bin"
 .size narya_fixed_base_comb_r256, .-narya_fixed_base_comb_r256
 
+/*
+ * One-row signed width-10 table: [1]B through [512]B. It is consumed by the
+ * merged cold double-scalar schedule, which reuses the variable-base term's
+ * existing 250 doublings instead of running the two-row comb separately.
+ */
+.p2align 6
+.globl narya_fixed_base_b10
+.hidden narya_fixed_base_b10
+.type narya_fixed_base_b10, @object
+narya_fixed_base_b10:
+.incbin "data/narya_fixed_base_b10.bin"
+.size narya_fixed_base_b10, .-narya_fixed_base_b10
+
 .section .note.GNU-stack,"",@progbits

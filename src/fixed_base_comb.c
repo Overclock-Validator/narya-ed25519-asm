@@ -18,25 +18,9 @@ typedef struct comb_digits_x8 {
     uint8_t valid_mask;
 } comb_digits_x8;
 
-static const uint8_t scalar_order[32] = {
-    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
-};
-
 static const narya_affine_niels_micro_entry_x8 identity_entry = {
     .limb = {{1, 1, 0}},
 };
-
-static int
-canonical_scalar(const uint8_t scalar[32])
-{
-    for (size_t index = 32; index-- > 0;)
-        if (scalar[index] != scalar_order[index])
-            return scalar[index] < scalar_order[index];
-    return 0;
-}
 
 static uint8_t
 recode(comb_digits_x8 *out, const uint8_t scalar[8 * 32], uint8_t active)
@@ -45,7 +29,8 @@ recode(comb_digits_x8 *out, const uint8_t scalar[8 * 32], uint8_t active)
     int carry[8] = {0};
     for (size_t lane = 0; lane < 8; lane++) {
         const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
-        if ((active & lane_mask) != 0 && canonical_scalar(&scalar[lane * 32]))
+        if ((active & lane_mask) != 0 &&
+            narya_scalar_is_canonical(&scalar[lane * 32]))
             out->valid_mask |= lane_mask;
     }
 

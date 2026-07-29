@@ -81,6 +81,9 @@ typedef struct narya_radix32_digits_x8 {
     uint8_t valid_mask;
 } narya_radix32_digits_x8;
 
+/* Single internal classifier shared by every scalar recoder. */
+int narya_scalar_is_canonical(const uint8_t scalar[32]);
+
 /* Exact-integer recoding: negative_mask negates digits, not scalars modulo l. */
 uint8_t narya_scalar_recode_radix32_x8(
     narya_radix32_digits_x8 *out,
@@ -206,12 +209,20 @@ void narya_affine_niels_stage2_ifma(
 
 extern const narya_affine_niels_micro_entry_x8
     narya_fixed_base_comb_r256[16][128][2];
+extern const narya_affine_niels_micro_entry_x8
+    narya_fixed_base_b10[512][2];
 void narya_affine_niels_transpose_x8_asm(
     narya_affine_niels_x8 *out,
     const narya_affine_niels_micro_entry_x8 *const source[8]);
 uint8_t narya_fixed_base_scalar_mult_x8(
     narya_edwards_point_x8 *out,
     const uint8_t scalar[8 * 32],
+    uint8_t active);
+uint8_t narya_asymmetric_fixed_b10_double_scalar_mult_x8(
+    narya_edwards_point_x8 *out,
+    const narya_projective_niels_presigned_table_x8 *variable_table,
+    const uint8_t s[8 * 32],
+    const uint8_t k[8 * 32],
     uint8_t active);
 
 void narya_projective_niels_transpose_x8_asm(

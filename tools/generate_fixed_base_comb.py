@@ -58,6 +58,20 @@ def build_table():
     return output
 
 
+def build_b10_table():
+    """Build signed affine-Niels entries for [1]B through [512]B."""
+    output = bytearray()
+    multiple = (0, 1)
+    base = (BASE_X, BASE_Y)
+    for _ in range(512):
+        multiple = add(multiple, base)
+        output += affine_entry(multiple, False)
+        output += affine_entry(multiple, True)
+    if len(output) != 512 * 2 * 5 * 3 * 8:
+        raise AssertionError("unexpected B10 payload size")
+    return output
+
+
 def build_fixtures(groups):
     edges = [0, 1, 2, 127, 128, 129, 2**251, 2**252, L - 2, L - 1]
     rng = random.Random(0x4E41525941434F4D)
@@ -80,11 +94,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--table", type=Path, required=True)
     parser.add_argument("--vectors", type=Path, required=True)
+    parser.add_argument("--b10-table", type=Path)
     parser.add_argument("--groups", type=int, default=32)
     args = parser.parse_args()
     if args.groups < 1:
         raise SystemExit("groups must be positive")
     args.table.write_bytes(build_table())
+    if args.b10_table is not None:
+        args.b10_table.write_bytes(build_b10_table())
     args.vectors.write_text(build_fixtures(args.groups), encoding="ascii")
 
 
