@@ -174,8 +174,8 @@ void narya_packed_naf_table5_build_x4(
 int narya_packed_double_scalar_mult_x4(
     narya_packed_point_x4 *out,
     const narya_packed_naf_table5_x4 *a_table,
-    const uint8_t s[2][32],
-    const uint8_t k[2][32],
+    const uint8_t *s,
+    const uint8_t *k,
     uint8_t active);
 uint8_t narya_packed_equal_decoded_lanes_x4(
     const narya_packed_point_x4 *point,

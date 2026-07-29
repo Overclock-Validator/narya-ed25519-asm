@@ -288,8 +288,8 @@ int
 narya_packed_double_scalar_mult_x4(
     narya_packed_point_x4 *out,
     const narya_packed_naf_table5_x4 *a_table,
-    const uint8_t s[2][32],
-    const uint8_t k[2][32],
+    const uint8_t *s,
+    const uint8_t *k,
     uint8_t active)
 {
     int8_t a_naf[2][packed_naf_bits] = {{0}};
@@ -297,8 +297,9 @@ narya_packed_double_scalar_mult_x4(
     uint8_t valid = 0;
     for (size_t chain = 0; chain < 2; chain++) {
         const uint8_t mask = (uint8_t)(UINT8_C(1) << chain);
-        if ((active & mask) != 0 && recode_naf(a_naf[chain], k[chain], 5) &&
-            recode_naf(b_naf[chain], s[chain], 8))
+        if ((active & mask) != 0 &&
+            recode_naf(a_naf[chain], &k[chain * 32], 5) &&
+            recode_naf(b_naf[chain], &s[chain * 32], 8))
             valid |= mask;
     }
     narya_packed_point_x4 accumulator;

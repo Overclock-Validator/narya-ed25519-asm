@@ -342,7 +342,7 @@ verify_packed_small(
     }
     narya_packed_point_x4 equation;
     live &= (uint8_t)narya_packed_double_scalar_mult_x4(
-        &equation, &scratch->packed_public_table, s, k, live);
+        &equation, &scratch->packed_public_table, &s[0][0], &k[0][0], live);
     if (live == 0)
         return NARYA_OK;
     const size_t r_lane[2] = {1, 3};

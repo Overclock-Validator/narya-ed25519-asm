@@ -260,6 +260,25 @@ main(int argc, char **argv)
         }
         batch_count++;
         total++;
+        /*
+         * Exercise every corpus item through the packed singleton route and
+         * every adjacent pair through the two-chain packed route. The wider
+         * 64-item pass below remains the independent x8/batch-finalizer gate.
+         */
+        if (native &&
+            (!run_batch(
+                 &batch[batch_count - 1], 1, x8_workspace,
+                 x8_workspace_size, batch_workspace, batch_workspace_size) ||
+             (batch_count >= 2 &&
+              !run_batch(
+                  &batch[batch_count - 2], 2, x8_workspace,
+                  x8_workspace_size, batch_workspace,
+                  batch_workspace_size)))) {
+            free(x8_workspace);
+            free(batch_workspace);
+            fclose(file);
+            return 1;
+        }
         if (batch_count == batch_maximum) {
             if (native && !run_batch(
                     batch, batch_count, x8_workspace, x8_workspace_size,
