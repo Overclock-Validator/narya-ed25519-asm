@@ -41,7 +41,7 @@ subtraction_bias(size_t limb)
 static void
 normalize_packed(
     narya_r51x8 *out,
-    const uint64_t input[5][packed_lanes])
+    uint64_t input[5][packed_lanes])
 {
     const uint64_t mask = (UINT64_C(1) << 51) - 1;
     *out = (narya_r51x8){0};
