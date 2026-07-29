@@ -37,25 +37,6 @@ subtraction_bias(size_t limb)
     return limb == 0 ? 4 * radix - 76 : 4 * radix - 4;
 }
 
-/* One unsigned carry/fold from a non-wrapped loose representation. */
-static void
-normalize_packed(
-    narya_r51x8 *out,
-    uint64_t input[5][packed_lanes])
-{
-    const uint64_t mask = (UINT64_C(1) << 51) - 1;
-    *out = (narya_r51x8){0};
-    for (size_t lane = 0; lane < packed_lanes; lane++) {
-        uint64_t carry[5];
-        for (size_t limb = 0; limb < 5; limb++)
-            carry[limb] = input[limb][lane] >> 51;
-        out->limb[0][lane] = (input[0][lane] & mask) + 19 * carry[4];
-        for (size_t limb = 1; limb < 5; limb++)
-            out->limb[limb][lane] =
-                (input[limb][lane] & mask) + carry[limb - 1];
-    }
-}
-
 static void
 packed_identity(narya_packed_point_x4 *point)
 {
@@ -83,16 +64,7 @@ narya_packed_point_from_lane_x4(
 static void
 cached_first_operand(narya_r51x8 *out, const narya_packed_point_x4 *point)
 {
-    uint64_t raw[5][packed_lanes];
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t x = point->coordinates.limb[limb][0];
-        const uint64_t y = point->coordinates.limb[limb][1];
-        raw[limb][0] = y + subtraction_bias(limb) - x;
-        raw[limb][1] = y + x;
-        raw[limb][2] = point->coordinates.limb[limb][2];
-        raw[limb][3] = point->coordinates.limb[limb][3];
-    }
-    normalize_packed(out, raw);
+    narya_packed_cached_first_operand_ifma(out, &point->coordinates);
 }
 
 static void
@@ -114,51 +86,12 @@ cache_point(
 static void
 packed_double(narya_packed_point_x4 *out, const narya_packed_point_x4 *point)
 {
-    narya_r51x8 left = {0}, right = {0}, products, final_left = {0},
-                  final_right = {0};
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t x = point->coordinates.limb[limb][0];
-        const uint64_t y = point->coordinates.limb[limb][1];
-        const uint64_t z = point->coordinates.limb[limb][3];
-        left.limb[limb][0] = x;
-        left.limb[limb][1] = y;
-        left.limb[limb][2] = z;
-        left.limb[limb][3] = x;
-        right.limb[limb][0] = x;
-        right.limb[limb][1] = y;
-        right.limb[limb][2] = z;
-        right.limb[limb][3] = y;
-    }
+    narya_r51x8 left, right, products, final_left, final_right;
+    narya_packed_double_first_operands_ifma(
+        &left, &right, &point->coordinates);
     narya_r51x8_mul_ifma(&products, &left, &right);
-
-    uint64_t raw[5][packed_lanes];
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t a = products.limb[limb][0];
-        const uint64_t b = products.limb[limb][1];
-        const uint64_t c = products.limb[limb][2];
-        const uint64_t xy = products.limb[limb][3];
-        const uint64_t bias8p = 2 * subtraction_bias(limb);
-        raw[limb][0] = 2 * xy;                  /* E */
-        raw[limb][1] = b + bias8p - a;          /* G */
-        raw[limb][2] = bias8p - a - b;          /* H */
-        raw[limb][3] = b + bias8p - a - 2 * c;  /* F */
-    }
-    narya_r51x8 normalized;
-    normalize_packed(&normalized, raw);
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t e = normalized.limb[limb][0];
-        const uint64_t g = normalized.limb[limb][1];
-        const uint64_t h = normalized.limb[limb][2];
-        const uint64_t f = normalized.limb[limb][3];
-        final_left.limb[limb][0] = e;
-        final_left.limb[limb][1] = g;
-        final_left.limb[limb][2] = e;
-        final_left.limb[limb][3] = f;
-        final_right.limb[limb][0] = f;
-        final_right.limb[limb][1] = h;
-        final_right.limb[limb][2] = h;
-        final_right.limb[limb][3] = g;
-    }
+    narya_packed_double_final_operands_ifma(
+        &final_left, &final_right, &products);
     narya_r51x8_mul_ifma(&out->coordinates, &final_left, &final_right);
 }
 
@@ -168,38 +101,12 @@ packed_add_cached(
     const narya_packed_point_x4 *point,
     const narya_packed_cached_x4 *cached)
 {
-    narya_r51x8 point_operand, products, final_left = {0}, final_right = {0};
+    narya_r51x8 point_operand, products, final_left, final_right;
     cached_first_operand(&point_operand, point);
     narya_r51x8_mul_ifma(&products, &point_operand, &cached->coordinates);
 
-    uint64_t raw[5][packed_lanes];
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t a = products.limb[limb][0];
-        const uint64_t b = products.limb[limb][1];
-        const uint64_t c = products.limb[limb][2];
-        const uint64_t d = products.limb[limb][3];
-        const uint64_t bias8p = 2 * subtraction_bias(limb);
-        raw[limb][0] = b + bias8p - a; /* E */
-        raw[limb][1] = d + c;          /* G */
-        raw[limb][2] = b + a;          /* H */
-        raw[limb][3] = d + bias8p - c; /* F */
-    }
-    narya_r51x8 normalized;
-    normalize_packed(&normalized, raw);
-    for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t e = normalized.limb[limb][0];
-        const uint64_t g = normalized.limb[limb][1];
-        const uint64_t h = normalized.limb[limb][2];
-        const uint64_t f = normalized.limb[limb][3];
-        final_left.limb[limb][0] = e;
-        final_left.limb[limb][1] = g;
-        final_left.limb[limb][2] = e;
-        final_left.limb[limb][3] = f;
-        final_right.limb[limb][0] = f;
-        final_right.limb[limb][1] = h;
-        final_right.limb[limb][2] = h;
-        final_right.limb[limb][3] = g;
-    }
+    narya_packed_cached_final_operands_ifma(
+        &final_left, &final_right, &products);
     narya_r51x8_mul_ifma(&out->coordinates, &final_left, &final_right);
 }
 

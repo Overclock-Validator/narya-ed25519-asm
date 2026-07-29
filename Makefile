@@ -21,6 +21,7 @@ OBJECTS := \
 	$(BUILD)/affine_niels_transpose_x8.o \
 	$(BUILD)/point_x8.o \
 	$(BUILD)/packed_x4.o \
+	$(BUILD)/packed_x4_ifma.o \
 	$(BUILD)/projective_niels_table.o \
 	$(BUILD)/projective_niels_transpose_x8.o \
 	$(BUILD)/r51x8.o \
@@ -66,6 +67,9 @@ $(BUILD)/point_x8.o: src/point_x8.c include/narya_ed25519_asm.h src/internal.h |
 
 $(BUILD)/packed_x4.o: src/packed_x4.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/packed_x4_ifma.o: src/packed_x4_ifma.S | $(BUILD)
+	$(CC) $(CPPFLAGS) -c $< -o $@
 
 $(BUILD)/projective_niels_table.o: src/projective_niels_table.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -198,6 +202,7 @@ audit-portable: check-source check-generated formal-check
 # assembly parser without trying to link or execute the resulting ELF object.
 check-source:
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/r51x8_ifma.S -o /tmp/narya-r51x8-ifma.o
+	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/packed_x4_ifma.S -o /tmp/narya-packed-x4-ifma.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/sha512x8.S -o /tmp/narya-sha512x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/scalar_reduce_x8.S -o /tmp/narya-scalar-reduce-x8.o
 	$(CLANG) --target=x86_64-unknown-linux-gnu -c src/projective_niels_transpose_x8.S -o /tmp/narya-projective-niels-transpose-x8.o

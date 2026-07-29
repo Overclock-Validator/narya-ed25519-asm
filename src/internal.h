@@ -147,6 +147,22 @@ _Static_assert(
 
 extern const narya_packed_naf_micro_entry_x4 narya_packed_naf_basepoint[64];
 
+void narya_packed_double_first_operands_ifma(
+    narya_r51x8 *left,
+    narya_r51x8 *right,
+    const narya_r51x8 *point);
+void narya_packed_cached_first_operand_ifma(
+    narya_r51x8 *out,
+    const narya_r51x8 *point);
+void narya_packed_double_final_operands_ifma(
+    narya_r51x8 *left,
+    narya_r51x8 *right,
+    const narya_r51x8 *products);
+void narya_packed_cached_final_operands_ifma(
+    narya_r51x8 *left,
+    narya_r51x8 *right,
+    const narya_r51x8 *products);
+
 void narya_packed_point_from_lane_x4(
     narya_packed_point_x4 *out,
     const narya_edwards_point_x8 *point,
