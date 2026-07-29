@@ -66,3 +66,4 @@ manifest. A result applies only to the source commit and scope it names.
 - [Zen 5 variable-scalar checkpoint, 2026-07-27](reproducibility/zen5-variable-scalar-2026-07-27/README.md)
 - [Zen 5 complete strict-verifier checkpoint, 2026-07-27](reproducibility/zen5-strict-verifier-2026-07-27/README.md)
 - [Zen 5 fixed-base-comb checkpoint, 2026-07-27](reproducibility/zen5-fixed-base-comb-2026-07-27/README.md)
+- [Zen 5 decoder square-chain A/B, 2026-07-28](reproducibility/zen5-decoder-square-chain-2026-07-28/README.md)

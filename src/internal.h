@@ -15,6 +15,16 @@ void narya_r51x8_mul_ifma(
     narya_r51x8 *out,
     const narya_r51x8 *x,
     const narya_r51x8 *y);
+/*
+ * Computes `count` dependent squares while retaining the five running limbs
+ * in ZMM registers. The source must satisfy the same composable-u52 contract
+ * as narya_r51x8_mul_ifma; count zero copies x to out. Exact in-place use is
+ * supported.
+ */
+void narya_r51x8_repeated_square_ifma(
+    narya_r51x8 *out,
+    const narya_r51x8 *x,
+    unsigned int count);
 void narya_r51x8_add_ifma(
     narya_r51x8 *out,
     const narya_r51x8 *x,

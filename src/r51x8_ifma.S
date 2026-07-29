@@ -212,6 +212,128 @@ narya_r51x8_mul_ifma:
 .size narya_r51x8_mul_ifma, .-narya_r51x8_mul_ifma
 
 /*
+ * Dependent r51x8 square chain for decoder exponentiation.
+ *
+ * System V AMD64: RDI=out, RSI=x, EDX=count. ZMM0..4 retain the running
+ * element across every iteration. A symmetric square needs only five
+ * diagonal and ten off-diagonal products; the latter are doubled before the
+ * ordinary high-half rebase, fold, and parallel carry. No field state is
+ * stored until the complete chain finishes. The output therefore has the
+ * same composable-u52 contract as narya_r51x8_mul_ifma, out may equal x, and
+ * count zero is an exact copy.
+ *
+ * This is the SysV/GAS form of Narya's reviewed register-resident decoder
+ * square schedule introduced at 1ac9fde456944bb070c1713bf4c3bc8c3e367892.
+ */
+.p2align 5
+.globl narya_r51x8_repeated_square_ifma
+.hidden narya_r51x8_repeated_square_ifma
+.type narya_r51x8_repeated_square_ifma, @function
+narya_r51x8_repeated_square_ifma:
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
+    test edx, edx
+    je .Lrepeated_square_store
+
+    vpbroadcastq zmm24, QWORD PTR [rip + narya_ifma_mask51]
+    vpbroadcastq zmm25, QWORD PTR [rip + narya_ifma_fold19]
+
+.Lrepeated_square_loop:
+    CLEAR zmm5
+    CLEAR zmm6
+    CLEAR zmm7
+    CLEAR zmm8
+    CLEAR zmm9
+    CLEAR zmm10
+    CLEAR zmm11
+    CLEAR zmm12
+    CLEAR zmm13
+    CLEAR zmm14
+    CLEAR zmm15
+    CLEAR zmm16
+    CLEAR zmm17
+    CLEAR zmm18
+    CLEAR zmm19
+    CLEAR zmm20
+    CLEAR zmm21
+    CLEAR zmm22
+
+    /* Accumulate the ten distinct off-diagonal products. */
+    MUL_PAIR zmm0, zmm1, zmm6,  zmm15
+    MUL_PAIR zmm0, zmm2, zmm7,  zmm16
+    MUL_PAIR zmm0, zmm3, zmm8,  zmm17
+    MUL_PAIR zmm0, zmm4, zmm9,  zmm18
+    MUL_PAIR zmm1, zmm2, zmm8,  zmm17
+    MUL_PAIR zmm1, zmm3, zmm9,  zmm18
+    MUL_PAIR zmm1, zmm4, zmm10, zmm19
+    MUL_PAIR zmm2, zmm3, zmm10, zmm19
+    MUL_PAIR zmm2, zmm4, zmm11, zmm20
+    MUL_PAIR zmm3, zmm4, zmm12, zmm21
+
+    /* Each off-diagonal term appears twice in a square. */
+    vpsllq zmm6,  zmm6,  1
+    vpsllq zmm7,  zmm7,  1
+    vpsllq zmm8,  zmm8,  1
+    vpsllq zmm9,  zmm9,  1
+    vpsllq zmm10, zmm10, 1
+    vpsllq zmm11, zmm11, 1
+    vpsllq zmm12, zmm12, 1
+    vpsllq zmm15, zmm15, 1
+    vpsllq zmm16, zmm16, 1
+    vpsllq zmm17, zmm17, 1
+    vpsllq zmm18, zmm18, 1
+    vpsllq zmm19, zmm19, 1
+    vpsllq zmm20, zmm20, 1
+    vpsllq zmm21, zmm21, 1
+
+    /* Add the five diagonal products. */
+    MUL_PAIR zmm0, zmm0, zmm5,  zmm14
+    MUL_PAIR zmm1, zmm1, zmm7,  zmm16
+    MUL_PAIR zmm2, zmm2, zmm9,  zmm18
+    MUL_PAIR zmm3, zmm3, zmm11, zmm20
+    MUL_PAIR zmm4, zmm4, zmm13, zmm22
+
+    COMBINE_HIGH zmm14, zmm6
+    COMBINE_HIGH zmm15, zmm7
+    COMBINE_HIGH zmm16, zmm8
+    COMBINE_HIGH zmm17, zmm9
+    COMBINE_HIGH zmm18, zmm10
+    COMBINE_HIGH zmm19, zmm11
+    COMBINE_HIGH zmm20, zmm12
+    COMBINE_HIGH zmm21, zmm13
+    vpsllq zmm22, zmm22, 1
+
+    FOLD_INTO zmm5, zmm10, zmm23, zmm25
+    FOLD_INTO zmm6, zmm11, zmm23, zmm25
+    FOLD_INTO zmm7, zmm12, zmm23, zmm25
+    FOLD_INTO zmm8, zmm13, zmm23, zmm25
+    FOLD_INTO zmm9, zmm22, zmm23, zmm25
+
+    NORMALIZE_5 zmm5, zmm6, zmm7, zmm8, zmm9, zmm24, \
+                zmm10, zmm11, zmm12, zmm13, zmm14, zmm25
+
+    vmovdqa64 zmm0, zmm5
+    vmovdqa64 zmm1, zmm6
+    vmovdqa64 zmm2, zmm7
+    vmovdqa64 zmm3, zmm8
+    vmovdqa64 zmm4, zmm9
+    dec edx
+    jne .Lrepeated_square_loop
+
+.Lrepeated_square_store:
+    vmovdqu64 ZMMWORD PTR [rdi +   0], zmm0
+    vmovdqu64 ZMMWORD PTR [rdi +  64], zmm1
+    vmovdqu64 ZMMWORD PTR [rdi + 128], zmm2
+    vmovdqu64 ZMMWORD PTR [rdi + 192], zmm3
+    vmovdqu64 ZMMWORD PTR [rdi + 256], zmm4
+    vzeroupper
+    ret
+.size narya_r51x8_repeated_square_ifma, .-narya_r51x8_repeated_square_ifma
+
+/*
  * The three linear operations below use the same parallel carry proven in
  * docs/proofs/R51_FIELD_CONTRACT.md.  Addition produces u53 intermediates.
  * Subtraction and negation first add the radix limbs of 4p:

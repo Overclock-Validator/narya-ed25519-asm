@@ -1,0 +1,10 @@
+sample=1 ns/group=51821.054 ns/signature=6477.632
+sample=1 ns/group=52208.714 ns/signature=6526.089
+sample=1 ns/group=52018.561 ns/signature=6502.320
+sample=1 ns/group=52586.931 ns/signature=6573.366
+sample=1 ns/group=53434.303 ns/signature=6679.288
+sample=1 ns/group=54781.849 ns/signature=6847.731
+sample=1 ns/group=54764.480 ns/signature=6845.560
+sample=1 ns/group=52686.845 ns/signature=6585.856
+sample=1 ns/group=52893.740 ns/signature=6611.717
+sample=1 ns/group=54225.560 ns/signature=6778.195

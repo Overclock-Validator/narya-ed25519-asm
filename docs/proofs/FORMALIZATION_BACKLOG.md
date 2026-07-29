@@ -67,12 +67,17 @@ obligation is the surrounding GPR, masked/unmasked load, store, epilogue, and
 byte-memory execution needed for a whole-leaf ABI theorem. See
 [`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
 
-Before treating the complete r51 field layer as formally covered, add one
-generic trace family that is also useful to independent implementations:
+The decoder now uses the symmetry-reduced
+`narya_r51x8_repeated_square_ifma` leaf. Its native differential, alias, and
+complete-verifier gates are present, and its source-level bounds are recorded
+in `R51_FIELD_CONTRACT.md`; those are not a substitute for a theorem. Before
+treating the complete r51 field layer as formally covered, add one generic
+trace family that is also useful to independent implementations:
 
 1. a symmetry-reduced square trace proving the diagonal/cross-product
    reconstruction, every doubled accumulator prefix, the fold, and its loose
-   output bound.
+   output bound; then connect the exact loop, count-zero path, stores,
+   `VZEROUPPER`, and return bytes to a System V leaf theorem.
 
 The generic u52-input linear leaves are now closed. Fused point-formula
 expressions with wider inputs remain separate obligations: each must prove the

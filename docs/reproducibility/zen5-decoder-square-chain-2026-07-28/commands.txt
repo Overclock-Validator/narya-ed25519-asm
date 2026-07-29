@@ -1,0 +1,21 @@
+# In two detached worktrees at 571f224057b11faa1f0fd968d6d282d515a4a7bf,
+# copy the candidate diff into candidate/ and leave baseline/ unchanged.
+
+cd candidate
+make -j2 CFLAGS="-O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror" test-native
+make test-sanitize
+make check-r51-object-bytes
+
+cd baseline
+make -j2 CFLAGS="-O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror" build/libnarya_ed25519_asm.a
+cc -O3 -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude ../bench_verify.c build/libnarya_ed25519_asm.a -o ../bench-before
+
+cd candidate
+cc -O3 -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude ../bench_verify.c build/libnarya_ed25519_asm.a -o ../bench-after
+
+# Run the following pair ten times, alternating in this order. Each program
+# performs 256 warm-up calls before timing its 40,000 calls.
+cd baseline
+taskset -c 2 ../bench-before tests/vectors/narya_strict_verify_v1.txt 40000 1
+cd candidate
+taskset -c 2 ../bench-after tests/vectors/narya_strict_verify_v1.txt 40000 1

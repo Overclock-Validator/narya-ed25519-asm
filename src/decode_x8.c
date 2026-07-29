@@ -141,9 +141,8 @@ repeated_square_multiply(
     const narya_r51x8 *multiplier,
     unsigned int count)
 {
-    narya_r51x8 value = *x;
-    for (unsigned int i = 0; i < count; i++)
-        narya_r51x8_mul_ifma(&value, &value, &value);
+    narya_r51x8 value;
+    narya_r51x8_repeated_square_ifma(&value, x, count);
     narya_r51x8_mul_ifma(out, &value, multiplier);
 }
 

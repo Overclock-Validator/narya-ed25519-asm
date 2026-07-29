@@ -1,0 +1,18 @@
+Date: 2026-07-28
+Host: dedicated Zen 5 benchmark machine
+CPU: AMD Ryzen 7 9700X 8-Core Processor
+CPUID family/model/stepping: 26/68/0
+Microcode: 0xb40401c
+Architecture: x86_64
+OS: Ubuntu Linux, kernel 7.0.0-28-generic
+Compiler: gcc (Ubuntu 12.5.0-9ubuntu1) 12.5.0
+Governor for CPU 2: performance
+Pinned logical CPU: 2
+Baseline commit: 571f224057b11faa1f0fd968d6d282d515a4a7bf
+Benchmarked candidate: baseline plus six modified implementation/test/audit-tool files
+Final local tree: benchmarked candidate plus generated proof-ELF provenance and documentation
+Baseline r51x8_ifma.o text: 1569 bytes
+Candidate r51x8_ifma.o text: 2369 bytes
+Repeated-square symbol: 790 bytes
+Multiplier symbol bytes SHA-256: dc7c5d2b3ee7ffa88ce42f37765b23b8517fc73cba0738cf9fe65294ea560e7c
+Candidate canonical proof ELF SHA-256: d210e343f4da212f48f65fe9d6da9d7b2add53cf2af57af7d71450794e041cf2

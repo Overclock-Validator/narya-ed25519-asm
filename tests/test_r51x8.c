@@ -327,6 +327,42 @@ check_case(const narya_r51x8 *x, const narya_r51x8 *y)
     return 1;
 }
 
+static int
+check_repeated_squares(const narya_r51x8 *input)
+{
+    static const unsigned int counts[] = {0, 1, 2, 5, 10, 20, 50, 100, 252};
+
+    for (size_t count_index = 0;
+         count_index < sizeof(counts) / sizeof(counts[0]);
+         count_index++) {
+        const unsigned int count = counts[count_index];
+        narya_r51x8 want = *input;
+        for (unsigned int square = 0; square < count; square++) {
+            narya_r51x8 next;
+            reference_r51x8_mul(&next, &want, &want);
+            want = next;
+        }
+
+        narya_r51x8 got;
+        narya_r51x8_repeated_square_ifma(&got, input, count);
+        if (!equal(&got, &want)) {
+            fprintf(stderr, "repeated-square mismatch at count=%u\n", count);
+            dump_mismatch(&got, &want);
+            return 0;
+        }
+
+        got = *input;
+        narya_r51x8_repeated_square_ifma(&got, &got, count);
+        if (!equal(&got, &want)) {
+            fprintf(stderr,
+                "in-place repeated-square mismatch at count=%u\n", count);
+            dump_mismatch(&got, &want);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 int
 main(void)
 {
@@ -353,6 +389,8 @@ main(void)
     }
     if (!check_case(&x, &y))
         return 1;
+    if (!check_repeated_squares(&x))
+        return 1;
 
     for (size_t iteration = 0; iteration < 10000; iteration++) {
         for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
@@ -363,6 +401,11 @@ main(void)
         }
         if (!check_case(&x, &y)) {
             fprintf(stderr, "failed random iteration %zu\n", iteration);
+            return 1;
+        }
+        if (iteration < 64 && !check_repeated_squares(&x)) {
+            fprintf(stderr,
+                "failed repeated-square random iteration %zu\n", iteration);
             return 1;
         }
     }

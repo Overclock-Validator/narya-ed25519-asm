@@ -78,6 +78,36 @@ limbs. The largest carry is below `2^13`, so limb zero remains below
 `B + 19*8192 < 2^52`. This statement deliberately excludes signed values
 encoded in two's complement.
 
+## Dependent square chain
+
+`narya_r51x8_repeated_square_ifma` computes the same convolution for `x*x`
+with five diagonal products and ten distinct off-diagonal products. Each
+off-diagonal low/high accumulator is doubled before the diagonal products are
+added. A radix degree contains at most two distinct off-diagonal pairs, so
+before doubling either accumulator is below `2 * 2^52 = 2^53`; its shift is
+therefore below `2^54` and cannot wrap. Adding an optional diagonal half keeps
+the complete accumulator below
+
+```text
+4 * 2^52 + 2^52 = 5 * 2^52 < 2^55.
+```
+
+The subsequent high-half rebase shifts a complete high accumulator once more
+and adds its low counterpart. It is below `15 * 2^52 < 2^56`, so this step is
+also exact in u64. At that boundary the degree coefficients are exactly the
+same product multiset as the general `x*x` convolution. The existing fold and
+parallel-carry bounds therefore apply, returning composable u52 limbs. By
+induction, the next in-register square has a legal input. The five running
+limbs are loaded before the loop and are not stored until every requested
+square has completed, which establishes exact in-place aliasing and makes
+count zero an exact copy.
+
+This paragraph is an explicit source-level bound argument, not a
+machine-checked or assembled-byte theorem. The native tests compare the loose
+limbs bit-for-bit with the independent general-product oracle. The remaining
+formal trace and binary-refinement obligation is listed in
+[`FORMALIZATION_BACKLOG.md`](FORMALIZATION_BACKLOG.md).
+
 ## Loose values are not a closed arithmetic type
 
 The multiplier's loose output bound and the generic weak-carry theorem do not

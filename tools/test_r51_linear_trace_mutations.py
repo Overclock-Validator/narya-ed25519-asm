@@ -53,6 +53,24 @@ MUTATIONS = {
     ),
 }
 
+MUTATION_FUNCTIONS = {
+    "add-opcode": "narya_r51x8_add_ifma",
+    "add-input-offset": "narya_r51x8_add_ifma",
+    "subtract-bias-limb": "narya_r51x8_sub_ifma",
+    "subtract-opcode": "narya_r51x8_sub_ifma",
+    "negate-source-offset": "narya_r51x8_neg_ifma",
+    "normalize-register": "narya_r51x8_add_ifma",
+    "output-limb": "narya_r51x8_add_ifma",
+}
+
+
+def function_body_bounds(source: str, function: str) -> tuple[int, int]:
+    start_marker = f"\n{function}:\n"
+    end_marker = f"\n.size {function},"
+    start = source.index(start_marker) + 1
+    end = source.index(end_marker, start)
+    return start, end
+
 
 def main() -> None:
     source = SOURCE.read_text(encoding="ascii")
@@ -67,15 +85,19 @@ def main() -> None:
         raise SystemExit("baseline linear trace check failed:\n" + baseline.stderr)
 
     for name, (old, new) in MUTATIONS.items():
-        count = source.count(old)
-        if name in {"normalize-register", "output-limb"}:
-            if count < 1:
-                raise SystemExit(f"mutation anchor {name!r} is absent")
-        elif count != 1:
+        function = MUTATION_FUNCTIONS.get(name)
+        if function is None:
+            start, end = 0, len(source)
+        else:
+            start, end = function_body_bounds(source, function)
+        scope = source[start:end]
+        count = scope.count(old)
+        if count != 1:
             raise SystemExit(
-                f"mutation anchor {name!r} occurs {count} times, expected once"
+                f"mutation anchor {name!r} occurs {count} times in its audit "
+                "scope, expected once"
             )
-        mutated = source.replace(old, new, 1)
+        mutated = source[:start] + scope.replace(old, new, 1) + source[end:]
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".S", encoding="ascii", delete=False
         ) as temporary:
