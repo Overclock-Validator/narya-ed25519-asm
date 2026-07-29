@@ -1,0 +1,62 @@
+make clean
+make[1]: Entering directory '<checkout>'
+rm -rf build
+make[1]: Leaving directory '<checkout>'
+make CFLAGS='-O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined' test-native
+make[1]: Entering directory '<checkout>'
+mkdir -p build
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/dispatch.c -o build/dispatch.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/decode_x8.c -o build/decode_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/asymmetric_fixed_b10.c -o build/asymmetric_fixed_b10.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/fixed_base_comb.c -o build/fixed_base_comb.o
+cc -Iinclude -Isrc -c src/fixed_base_comb_data.S -o build/fixed_base_comb_data.o
+cc -Iinclude -Isrc -c src/affine_niels_transpose_x8.S -o build/affine_niels_transpose_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/point_x8.c -o build/point_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/packed_x4.c -o build/packed_x4.o
+cc -Iinclude -Isrc -c src/packed_x4_ifma.S -o build/packed_x4_ifma.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/projective_niels_table.c -o build/projective_niels_table.o
+cc -Iinclude -Isrc -c src/projective_niels_transpose_x8.S -o build/projective_niels_transpose_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/r51x8.c -o build/r51x8.o
+cc -Iinclude -Isrc -c src/r51x8_ifma.S -o build/r51x8_ifma.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/scalar_reduce.c -o build/scalar_reduce.o
+cc -Iinclude -Isrc -c src/scalar_reduce_x8.S -o build/scalar_reduce_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/scalar_recode.c -o build/scalar_recode.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/scalar_mult_x8.c -o build/scalar_mult_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/sha512_scalar.c -o build/sha512_scalar.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/sha512x8.c -o build/sha512x8.o
+cc -Iinclude -Isrc -c src/sha512x8.S -o build/sha512x8_asm.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined -c src/verify_strict_x8.c -o build/verify_strict_x8.o
+ar rcs build/libnarya_ed25519_asm.a build/dispatch.o build/decode_x8.o build/asymmetric_fixed_b10.o build/fixed_base_comb.o build/fixed_base_comb_data.o build/affine_niels_transpose_x8.o build/point_x8.o build/packed_x4.o build/packed_x4_ifma.o build/projective_niels_table.o build/projective_niels_transpose_x8.o build/r51x8.o build/r51x8_ifma.o build/scalar_reduce.o build/scalar_reduce_x8.o build/scalar_recode.o build/scalar_mult_x8.o build/sha512_scalar.o build/sha512x8.o build/sha512x8_asm.o build/verify_strict_x8.o
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_r51x8.c build/libnarya_ed25519_asm.a -o build/test_r51x8
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_decode_vectors.c build/libnarya_ed25519_asm.a -o build/test_decode_vectors
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_sha512x8.c build/libnarya_ed25519_asm.a -o build/test_sha512x8
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_scalar_reduce.c build/libnarya_ed25519_asm.a -o build/test_scalar_reduce
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_scalar_recode.c build/libnarya_ed25519_asm.a -o build/test_scalar_recode
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_projective_niels_table.c build/libnarya_ed25519_asm.a -o build/test_projective_niels_table
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_scalar_mult_x8.c build/libnarya_ed25519_asm.a -o build/test_scalar_mult_x8
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_fixed_base_comb.c build/libnarya_ed25519_asm.a -o build/test_fixed_base_comb
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_verify_strict_x8.c build/libnarya_ed25519_asm.a -o build/test_verify_strict_x8
+cc -Iinclude -Isrc -O1 -g -std=c11 -Wall -Wextra -Wpedantic -fno-omit-frame-pointer -fsanitize=address,undefined tests/test_external_vectors.c build/libnarya_ed25519_asm.a -o build/test_external_vectors
+NARYA_REQUIRE_IFMA=1 build/test_r51x8
+PASS: r51x8 field, point, and permissive decode gates passed
+NARYA_REQUIRE_IFMA=1 build/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
+PASS: 256 pinned permissive-decoder vectors
+NARYA_REQUIRE_IFMA=1 build/test_sha512x8
+PASS: x8 SHA-512 compression and segmented hash match independent oracles
+NARYA_REQUIRE_IFMA=1 build/test_scalar_reduce
+PASS: x8 scalar reduction matches independent modulo-l oracle
+NARYA_REQUIRE_IFMA=1 build/test_scalar_recode
+PASS: round-major radix-32 recoding is an exact signed integer map
+NARYA_REQUIRE_IFMA=1 build/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
+PASS: pre-signed micro-AoS table, group law, and x8 transpose selector
+NARYA_REQUIRE_IFMA=1 build/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
+PASS: x8 variable-base scalar multiplication matches affine fixtures
+NARYA_REQUIRE_IFMA=1 build/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
+PASS: immutable radix-256 basepoint comb matches affine fixtures
+NARYA_REQUIRE_IFMA=1 build/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
+PASS: complete x8 and 1..64 DalekStrict equations preserve verdicts
+NARYA_REQUIRE_IFMA=1 build/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
+PASS: 2954 RFC/CCTV/Wycheproof and boundary vectors
+make[1]: Leaving directory '<checkout>'
+
+

@@ -26,6 +26,13 @@ Assembly-only microbenchmarks are diagnostic. A change is promoted on complete
 verification time, predicate equivalence, allocation/stack behavior, and code
 size—not on a leaf result alone.
 
+`build/bench_verify_batch` accepts a final mode of `public`, `padded`, or
+`both`. `public` measures the real dispatcher. `padded` forces the legacy
+signature-x8 strategy for counts one and two and is diagnostic only. `both`
+alternates the two in one binary to produce a same-run A/B. The current packed
+small-batch commands and raw samples are in the
+[2026-07-29 record](../reproducibility/zen5-packed-small-2026-07-29/README.md).
+
 ## Hardware policy
 
 Zen 4 and Zen 5 may select different schedules. A policy decision requires a

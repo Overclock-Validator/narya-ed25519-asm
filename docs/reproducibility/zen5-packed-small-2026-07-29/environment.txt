@@ -1,0 +1,16 @@
+a5875fe79b13ee3487b193d8cd380eba1c27fb3a
+cc (Ubuntu 12.5.0-9ubuntu1) 12.5.0
+Linux 7.0.0-28-generic x86_64 GNU/Linux
+Architecture:                            x86_64
+CPU(s):                                  16
+On-line CPU(s) list:                     0-15
+Model name:                              AMD Ryzen 7 9700X 8-Core Processor
+Thread(s) per core:                      2
+Core(s) per socket:                      8
+Socket(s):                               1
+CPU(s) scaling MHz:                      66%
+L1d cache:                               384 KiB (8 instances)
+L2 cache:                                8 MiB (8 instances)
+L3 cache:                                32 MiB (1 instance)
+NUMA node0 CPU(s):                       0-15
+performance

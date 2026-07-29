@@ -11,7 +11,8 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
   doubling, and bounded projective/affine-Niels Stage-2 leaves with visible
   final field products;
 - permissive compressed-point decoder with pinned scalar-Go fixtures;
-- SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
+- SysV x8 rolling-register SHA-512 compression plus a scalar SHA-512 route for
+  counts one and two, both with independent FIPS oracles;
 - canonical scalar reduction and exact signed radix-32 recoding;
 - pre-signed projective-Niels table construction and assembly transpose;
 - variable-base scalar multiplication, a merged asymmetric width-10 generator
@@ -19,6 +20,9 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
   complete `[S]B-[k]A` evaluation;
 - canonical-S, exact small-order A/R, canonical-R, projective equality, and
   independent lane verdicts;
+- a coordinate-packed count-one/count-two verifier with two independent point
+  chains per ZMM register and an independently generated width-8 generator
+  table;
 - an output-atomic 1..64 dispatcher which retains the projective finalizer for
   one group and uses lane-wise cross-group Montgomery inversion plus canonical
   equation-point encoding for wider batches;
@@ -59,6 +63,9 @@ claims.
 12. Does cross-group inversion remain independent in every SIMD lane, treat
     dead denominators as one, fail on every active zero denominator, serialize
     canonical `(X/Z,Y/Z)` exactly, and map item `i` only to verdict bit `i`?
+13. Does the packed path preserve `[X,Y,T,Z]` independently in each 256-bit
+    half through every `VPERMQ`, decoder placement, table selection, fused
+    field product, and final verdict-bit store?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol
@@ -112,6 +119,17 @@ The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register
 rotation, and feed-forward store. Independent review must still validate that
 model and close the assembled-binary and C padding-scheduler refinement gaps.
+The count-one/count-two scalar SHA route has independent digest differentials
+but is not covered by the x8 source certificate; its padding, length encoding,
+and dispatcher selection remain a separate review boundary.
+
+The coordinate-packed verifier deliberately reuses the proved r51 arithmetic
+schedule, but the packed `VPERMQ` network, bias/carry linear layers, fused
+operand production, shared NAF chain, paired decoder placement, and verdict
+routing do not inherit the byte-linked multiplier theorem automatically. See
+the dedicated architecture document and formalization backlog; current
+evidence is direct split-vs-fused arithmetic testing, the external corpus,
+sanitizers, and native differential execution.
 
 The scalar-reduction certificate now pins every one of its 60 macro calls,
 including fold positions, carry adjacency, and the rounded-carry broadcast.

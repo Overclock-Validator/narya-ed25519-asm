@@ -62,6 +62,9 @@ separate formal obligation.
 
 The standalone verifier now includes:
 
+- a coordinate-packed verifier for counts one and two, placing two independent
+  `[X,Y,T,Z]` point chains in one ZMM register, decoding `A` and `R` together,
+  using scalar SHA-512 for the partial hash group, and comparing projectively;
 - the register-resident 15-product decoder square chain;
 - four raw doubling products plus the direct-XY linear Stage-2 in one SysV
   leaf; and

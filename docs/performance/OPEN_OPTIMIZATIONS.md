@@ -4,6 +4,28 @@ This file records hypotheses so later work remeasures them instead of either
 forgetting them or treating an old estimate as a verdict. None of the items
 below is a supported performance claim.
 
+## Coordinate-packed counts one and two — implemented
+
+The public dispatcher now puts two independent `[X,Y,T,Z]` point chains into
+one ZMM register for counts one and two. Relative to padding those inputs into
+the signature-parallel x8 path, the same-binary 1232-byte medians improved by
+49.6% at n=1 and 44.3% at n=2. The implementation, proof boundary, and full
+message-size matrix are recorded in the
+[architecture note](../architecture/PACKED_SMALL_BATCH.md) and
+[dated evidence](../reproducibility/zen5-packed-small-2026-07-29/README.md).
+
+Two packed-pair calls were also tested as an n=4 policy. They regressed the
+200-byte target, were effectively neutral at 1232 bytes, and helped only at
+4096 bytes. That policy was not promoted: a long-message gain is not accepted
+in exchange for a 1232-byte regression. This is a regime-tagged result, not a
+claim that the policy can never change on another microarchitecture.
+
+After fused packed products and scalar SHA-512, the remaining n=1 profile is
+dominated by packed point doubling and decoding. Potential follow-ups are
+selector/sign handling that avoids materializing a selected cached point and
+further C/assembly boundary removal. Neither is a supported gain until a
+complete-verifier A/B and the same direct arithmetic/corpus gates pass.
+
 ## Dedicated r51×8 decoder square — implemented, proof follow-up open
 
 `narya_r51x8_repeated_square_ifma` now retains each dependent square chain in

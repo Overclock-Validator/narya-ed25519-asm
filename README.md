@@ -30,7 +30,10 @@ boundary are frozen.
   scalar multiplication; a merged asymmetric `[s]B-[k]A` schedule with an
   immutable width-10 generator table and one 250-doubling chain; an independent
   radix-256 basepoint-comb oracle; the complete x8 `DalekStrict` equation and
-  public workspace ABI; an exact 1..64 batch API whose wider path shares one
+  public workspace ABI; a coordinate-packed count-one/count-two verifier with
+  two independent point chains per ZMM register, paired `A`/`R` decoding,
+  fused packed first/final field products, scalar SHA-512, and inversion-free
+  projective equality; an exact 1..64 batch API whose wider path shares one
   cross-group field inversion without aggregating verdicts; alias,
   lane-independence, known-answer, and range tests; and a machine-checked Lean
   scalar trace generated from the radix-51
@@ -47,8 +50,26 @@ boundary are frozen.
   predicate-boundary cases.
 - Supported verification target: one through 64 independent cold Ed25519
   equations under Narya's `DalekStrict` acceptance predicate. The implementation
-  groups work into x8 lanes, but never aggregates equations or verdicts.
+  uses coordinate-packed lanes for counts one and two and signature-parallel
+  x8 lanes above that, but never aggregates equations or verdicts.
   Automatic or randomized aggregate verification is not part of this design.
+
+## Performance checkpoint
+
+AMD Ryzen 7 9700X (Zen 5) · cold `DalekStrict` verification · one pinned core ·
+microseconds per signature, lower is better · implementation commit `a5875fe`
+
+| Message bytes | n=1 | n=2 | n=4 | n=8 | n=64 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 200 | 13.284 | 7.040 | 6.589 | 3.539 | 3.245 |
+| 1232 | 14.580 | 8.356 | 8.382 | 4.715 | 4.520 |
+| 4096 | 18.253 | 12.020 | 13.330 | 8.461 | 7.312 |
+
+These are public batch-API measurements with no public-key state retained
+between calls. Counts one and two use the coordinate-packed route; counts
+three and above use the signature-parallel x8 route. Raw samples, commands,
+environment, correctness logs, and interpretation limits are in the
+[dated reproducibility record](docs/reproducibility/zen5-packed-small-2026-07-29/README.md).
 
 ## Repository map
 
@@ -150,6 +171,9 @@ The implementation boundary is described in
 [`docs/architecture/PORTING_PLAN.md`](docs/architecture/PORTING_PLAN.md).
 The promoted point schedule and its P2/P3 type boundary are described in
 [`docs/architecture/POINT_DOUBLING.md`](docs/architecture/POINT_DOUBLING.md).
+The coordinate-packed count-one/count-two schedule and its separate proof
+boundary are described in
+[`docs/architecture/PACKED_SMALL_BATCH.md`](docs/architecture/PACKED_SMALL_BATCH.md).
 The bounded mixed-addition boundary is described in
 [`docs/architecture/NIELS_ADDITION.md`](docs/architecture/NIELS_ADDITION.md).
 The exact merged generator/variable-base recurrence is described in

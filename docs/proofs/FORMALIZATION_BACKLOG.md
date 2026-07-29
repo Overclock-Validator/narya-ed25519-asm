@@ -186,6 +186,15 @@ FIPS 180-4 by `tools/check_sha512_schedule.py`, including rolling `a..h` and
 wrapper theorem for byte gathering, big-endian words, padding/length encoding,
 unequal-lane completion, and digest capture.
 
+The coordinate-packed count-one/count-two path adds a separate finite
+refinement target. Prove the two independent `[X,Y,T,Z]` half-register maps,
+the packed doubling/cached-add bias and carry bounds, and each fused first/final
+product against the existing r51 multiplication theorem. Then prove the
+width-5 `-kA` and width-8 `sB` NAF recurrence, paired `(A,R)` decoder placement,
+projective equality, and input-index-to-verdict-bit route. The scalar SHA-512
+wrapper used only by this path needs its own padding/length/digest theorem; an
+x8 schedule certificate does not cover it.
+
 The public cross-group finalizer adds one self-contained algebraic and memory
 target after the point equation is available. Prove, lane by lane: (1) replacing
 dead denominators by one cannot affect a live verdict, (2) the prefix/backward

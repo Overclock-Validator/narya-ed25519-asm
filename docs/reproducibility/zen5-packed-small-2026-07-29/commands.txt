@@ -1,0 +1,14 @@
+make clean
+make -j2 CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Werror' test-native
+make clean
+make -j2 test-sanitize
+make clean
+make -j2 bench-verify-batch
+
+# Public matrix: lane 4=200 bytes, lane 5=1232, lane 6=4096.
+# Each command was pinned with taskset -c 2.
+build/bench_verify_batch tests/vectors/narya_strict_verify_v1.txt LANE COUNT ITERATIONS 9 public
+
+# Same-binary packed-versus-padded A/B at 1232 bytes.
+build/bench_verify_batch tests/vectors/narya_strict_verify_v1.txt 5 1 8000 9 both
+build/bench_verify_batch tests/vectors/narya_strict_verify_v1.txt 5 2 8000 9 both
