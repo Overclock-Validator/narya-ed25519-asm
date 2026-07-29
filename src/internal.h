@@ -184,6 +184,26 @@ _Static_assert(
         sizeof(narya_affine_niels_x8) == 960,
     "affine transpose destination ABI changed");
 
+/*
+ * Private projective/affine-Niels state transition. On entry slots 0 and 1
+ * contain normalized point-side Y-X and Y+X. The assembly leaves replace all
+ * four slots with normalized [E,F,G,H]. Projective input forms raw
+ * [A,B,C,D]; affine input forms raw [A,B,C] and uses the point's carried Z as
+ * D because the cached affine point has Z=1.
+ */
+typedef struct narya_niels_stage2_workspace_x8 {
+    narya_r51x8 slot[4];
+} narya_niels_stage2_workspace_x8;
+
+void narya_projective_niels_stage2_ifma(
+    narya_niels_stage2_workspace_x8 *workspace,
+    const narya_edwards_point_x8 *point,
+    const narya_projective_niels_x8 *cached);
+void narya_affine_niels_stage2_ifma(
+    narya_niels_stage2_workspace_x8 *workspace,
+    const narya_edwards_point_x8 *point,
+    const narya_affine_niels_x8 *cached);
+
 extern const narya_affine_niels_micro_entry_x8
     narya_fixed_base_comb_r256[16][128][2];
 void narya_affine_niels_transpose_x8_asm(

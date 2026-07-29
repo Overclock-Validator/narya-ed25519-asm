@@ -2,9 +2,11 @@
  * Copyright 2026 Overclock Validator
  * SPDX-License-Identifier: Apache-2.0
  *
- * Audit-oriented C schedule over native field leaves.  The completed library
- * will fuse the hot linear layers in assembly, but keeping this first point
- * schedule explicit provides an independently inspectable formula boundary.
+ * Audit-oriented C coordination over bounded native assembly stages. Hot
+ * doubling and Niels linear layers are fused only through one carry boundary;
+ * final coordinate products stay explicit and profiler-visible. This keeps
+ * each formula boundary independently inspectable instead of hiding a whole
+ * scalar-multiplication round in one opaque assembly symbol.
  * See docs/architecture/PORTING_PLAN.md and docs/proofs/R51_FIELD_CONTRACT.md.
  */
 #include "internal.h"
@@ -109,16 +111,7 @@ narya_edwards_add_projective_niels_x8(
     const narya_edwards_point_x8 *point,
     const narya_projective_niels_x8 *cached)
 {
-    narya_r51x8 y_minus_x;
-    narya_r51x8 y_plus_x;
-    narya_r51x8 A;
-    narya_r51x8 B;
-    narya_r51x8 C;
-    narya_r51x8 D;
-    narya_r51x8 E;
-    narya_r51x8 F;
-    narya_r51x8 G;
-    narya_r51x8 H;
+    narya_niels_stage2_workspace_x8 stage2;
 
     /*
      * Projective-Niels addition, following the same operand convention used
@@ -132,21 +125,13 @@ narya_edwards_add_projective_niels_x8(
      * All point and cached coordinates are consumed before output stores, so
      * exact out==point is supported.  out must not overlap cached.
      */
-    narya_r51x8_sub_ifma(&y_minus_x, &point->Y, &point->X);
-    narya_r51x8_add_ifma(&y_plus_x, &point->Y, &point->X);
-    narya_r51x8_mul_ifma(&A, &y_minus_x, &cached->Y_minus_X);
-    narya_r51x8_mul_ifma(&B, &y_plus_x, &cached->Y_plus_X);
-    narya_r51x8_mul_ifma(&C, &point->T, &cached->T2d);
-    narya_r51x8_mul_ifma(&D, &point->Z, &cached->Z);
-    narya_r51x8_add_ifma(&D, &D, &D);
-    narya_r51x8_sub_ifma(&E, &B, &A);
-    narya_r51x8_sub_ifma(&F, &D, &C);
-    narya_r51x8_add_ifma(&G, &D, &C);
-    narya_r51x8_add_ifma(&H, &B, &A);
-    narya_r51x8_mul_ifma(&out->X, &E, &F);
-    narya_r51x8_mul_ifma(&out->Y, &G, &H);
-    narya_r51x8_mul_ifma(&out->T, &E, &H);
-    narya_r51x8_mul_ifma(&out->Z, &F, &G);
+    narya_r51x8_sub_ifma(&stage2.slot[0], &point->Y, &point->X);
+    narya_r51x8_add_ifma(&stage2.slot[1], &point->Y, &point->X);
+    narya_projective_niels_stage2_ifma(&stage2, point, cached);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->T, &stage2.slot[0], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
 }
 
 void
@@ -155,8 +140,7 @@ narya_edwards_add_affine_niels_x8(
     const narya_edwards_point_x8 *point,
     const narya_affine_niels_x8 *cached)
 {
-    narya_r51x8 y_minus_x, y_plus_x;
-    narya_r51x8 A, B, C, D, E, F, G, H;
+    narya_niels_stage2_workspace_x8 stage2;
 
     /*
      * Affine-Niels specialization of the formula above. The cached point has
@@ -167,18 +151,11 @@ narya_edwards_add_affine_niels_x8(
      * This is seven field multiplications total including the four output
      * products. Inputs are dead before output stores, so out==point is safe.
      */
-    narya_r51x8_sub_ifma(&y_minus_x, &point->Y, &point->X);
-    narya_r51x8_add_ifma(&y_plus_x, &point->Y, &point->X);
-    narya_r51x8_mul_ifma(&A, &y_minus_x, &cached->Y_minus_X);
-    narya_r51x8_mul_ifma(&B, &y_plus_x, &cached->Y_plus_X);
-    narya_r51x8_mul_ifma(&C, &point->T, &cached->T2d);
-    narya_r51x8_add_ifma(&D, &point->Z, &point->Z);
-    narya_r51x8_sub_ifma(&E, &B, &A);
-    narya_r51x8_sub_ifma(&F, &D, &C);
-    narya_r51x8_add_ifma(&G, &D, &C);
-    narya_r51x8_add_ifma(&H, &B, &A);
-    narya_r51x8_mul_ifma(&out->X, &E, &F);
-    narya_r51x8_mul_ifma(&out->Y, &G, &H);
-    narya_r51x8_mul_ifma(&out->T, &E, &H);
-    narya_r51x8_mul_ifma(&out->Z, &F, &G);
+    narya_r51x8_sub_ifma(&stage2.slot[0], &point->Y, &point->X);
+    narya_r51x8_add_ifma(&stage2.slot[1], &point->Y, &point->X);
+    narya_affine_niels_stage2_ifma(&stage2, point, cached);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->T, &stage2.slot[0], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
 }

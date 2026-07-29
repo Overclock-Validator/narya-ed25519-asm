@@ -218,6 +218,97 @@
     vpaddq \E, \E, \E
 .endm
 
+/*
+ * One limb of the Niels-addition linear layer. Inputs are exact folded raw
+ * A, B, C and D products, except that affine D is the composable-u52 point Z.
+ * Registers are overwritten in [E,H,F,G] order:
+ *
+ *   E = B + 535p - A, H = B + A,
+ *   F = 2D + 535p - C, G = 2D + C.
+ *
+ * P535 prevents unsigned underflow for either one-negative-term expression.
+ */
+.macro NIELS_STAGE2_LINEAR A, B, C, D, P535, scratchA, scratchC
+    vmovdqa64 \scratchA, \A
+    vmovdqa64 \scratchC, \C
+    vpaddq \A, \B, \P535
+    vpsubq \A, \A, \scratchA
+    vpaddq \B, \B, \scratchA
+    vpaddq \D, \D, \D
+    vpaddq \C, \D, \P535
+    vpsubq \C, \C, \scratchC
+    vpaddq \D, \D, \scratchC
+.endm
+
+/*
+ * Consume the four workspace slots as [A,B,C,D], perform the Niels linear
+ * layer and its single parallel carry boundary, then store [E,F,G,H]. The
+ * twenty source vectors are loaded before the first store.
+ */
+.macro NIELS_STAGE2_FINISH
+    vmovdqu64 zmm0,  ZMMWORD PTR [rdi +    0]
+    vmovdqu64 zmm1,  ZMMWORD PTR [rdi +   64]
+    vmovdqu64 zmm2,  ZMMWORD PTR [rdi +  128]
+    vmovdqu64 zmm3,  ZMMWORD PTR [rdi +  192]
+    vmovdqu64 zmm4,  ZMMWORD PTR [rdi +  256]
+    vmovdqu64 zmm5,  ZMMWORD PTR [rdi +  320]
+    vmovdqu64 zmm6,  ZMMWORD PTR [rdi +  384]
+    vmovdqu64 zmm7,  ZMMWORD PTR [rdi +  448]
+    vmovdqu64 zmm8,  ZMMWORD PTR [rdi +  512]
+    vmovdqu64 zmm9,  ZMMWORD PTR [rdi +  576]
+    vmovdqu64 zmm10, ZMMWORD PTR [rdi +  640]
+    vmovdqu64 zmm11, ZMMWORD PTR [rdi +  704]
+    vmovdqu64 zmm12, ZMMWORD PTR [rdi +  768]
+    vmovdqu64 zmm13, ZMMWORD PTR [rdi +  832]
+    vmovdqu64 zmm14, ZMMWORD PTR [rdi +  896]
+    vmovdqu64 zmm15, ZMMWORD PTR [rdi +  960]
+    vmovdqu64 zmm16, ZMMWORD PTR [rdi + 1024]
+    vmovdqu64 zmm17, ZMMWORD PTR [rdi + 1088]
+    vmovdqu64 zmm18, ZMMWORD PTR [rdi + 1152]
+    vmovdqu64 zmm19, ZMMWORD PTR [rdi + 1216]
+
+    vpbroadcastq zmm20, QWORD PTR [rip + narya_ifma_stage2_bias535_p0]
+    vpbroadcastq zmm21, QWORD PTR [rip + narya_ifma_stage2_bias535_pn]
+    NIELS_STAGE2_LINEAR zmm0, zmm5, zmm10, zmm15, zmm20, zmm26, zmm27
+    NIELS_STAGE2_LINEAR zmm1, zmm6, zmm11, zmm16, zmm21, zmm26, zmm27
+    NIELS_STAGE2_LINEAR zmm2, zmm7, zmm12, zmm17, zmm21, zmm26, zmm27
+    NIELS_STAGE2_LINEAR zmm3, zmm8, zmm13, zmm18, zmm21, zmm26, zmm27
+    NIELS_STAGE2_LINEAR zmm4, zmm9, zmm14, zmm19, zmm21, zmm26, zmm27
+
+    vpbroadcastq zmm20, QWORD PTR [rip + narya_ifma_mask51]
+    vpbroadcastq zmm21, QWORD PTR [rip + narya_ifma_fold19]
+    NORMALIZE_5 zmm0, zmm1, zmm2, zmm3, zmm4, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm10, zmm11, zmm12, zmm13, zmm14, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm15, zmm16, zmm17, zmm18, zmm19, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm5, zmm6, zmm7, zmm8, zmm9, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+
+    /* Register order [E,H,F,G] becomes workspace order [E,F,G,H]. */
+    vmovdqu64 ZMMWORD PTR [rdi +    0], zmm0
+    vmovdqu64 ZMMWORD PTR [rdi +   64], zmm1
+    vmovdqu64 ZMMWORD PTR [rdi +  128], zmm2
+    vmovdqu64 ZMMWORD PTR [rdi +  192], zmm3
+    vmovdqu64 ZMMWORD PTR [rdi +  256], zmm4
+    vmovdqu64 ZMMWORD PTR [rdi +  320], zmm10
+    vmovdqu64 ZMMWORD PTR [rdi +  384], zmm11
+    vmovdqu64 ZMMWORD PTR [rdi +  448], zmm12
+    vmovdqu64 ZMMWORD PTR [rdi +  512], zmm13
+    vmovdqu64 ZMMWORD PTR [rdi +  576], zmm14
+    vmovdqu64 ZMMWORD PTR [rdi +  640], zmm15
+    vmovdqu64 ZMMWORD PTR [rdi +  704], zmm16
+    vmovdqu64 ZMMWORD PTR [rdi +  768], zmm17
+    vmovdqu64 ZMMWORD PTR [rdi +  832], zmm18
+    vmovdqu64 ZMMWORD PTR [rdi +  896], zmm19
+    vmovdqu64 ZMMWORD PTR [rdi +  960], zmm5
+    vmovdqu64 ZMMWORD PTR [rdi + 1024], zmm6
+    vmovdqu64 ZMMWORD PTR [rdi + 1088], zmm7
+    vmovdqu64 ZMMWORD PTR [rdi + 1152], zmm8
+    vmovdqu64 ZMMWORD PTR [rdi + 1216], zmm9
+.endm
+
 .p2align 5
 .globl narya_r51x8_mul_ifma
 .hidden narya_r51x8_mul_ifma
@@ -541,6 +632,78 @@ narya_r51x8_double_stage2_ifma:
     vzeroupper
     ret
 .size narya_r51x8_double_stage2_ifma, .-narya_r51x8_double_stage2_ifma
+
+/*
+ * Projective-Niels multiplication and linear layer.
+ *
+ * System V AMD64: RDI=workspace, RSI=point, RDX=cached. On entry workspace
+ * slots 0 and 1 hold normalized point-side Y-X and Y+X. The leaf forms exact
+ * folded raw products
+ *
+ *   A=(Y-X)(Yc-Xc), B=(Y+X)(Yc+Xc), C=T(2dTc), D=ZZc,
+ *
+ * then NIELS_STAGE2_FINISH stores normalized [E,F,G,H]. Workspace may alias
+ * neither point nor cached; each same-slot source is fully loaded before its
+ * raw product overwrites that slot.
+ */
+.p2align 5
+.globl narya_projective_niels_stage2_ifma
+.hidden narya_projective_niels_stage2_ifma
+.type narya_projective_niels_stage2_ifma, @function
+narya_projective_niels_stage2_ifma:
+    vpbroadcastq zmm31, QWORD PTR [rip + narya_ifma_fold19]
+    lea r8, [rdi]
+    lea r9, [rdx + 320]
+    MUL_RAW_TO   0, r8, r9
+    lea r8, [rdi + 320]
+    lea r9, [rdx]
+    MUL_RAW_TO 320, r8, r9
+    lea r8, [rsi + 960]
+    lea r9, [rdx + 960]
+    MUL_RAW_TO 640, r8, r9
+    lea r8, [rsi + 640]
+    lea r9, [rdx + 640]
+    MUL_RAW_TO 960, r8, r9
+    NIELS_STAGE2_FINISH
+    vzeroupper
+    ret
+.size narya_projective_niels_stage2_ifma, .-narya_projective_niels_stage2_ifma
+
+/*
+ * Affine-Niels specialization. The cached Z coordinate is one, so D is the
+ * already-normalized point Z and only A, B and C require multiplication.
+ * Copying Z into slot 3 preserves the same Niels linear/carry proof boundary
+ * as the projective leaf while deleting one full field multiplication.
+ */
+.p2align 5
+.globl narya_affine_niels_stage2_ifma
+.hidden narya_affine_niels_stage2_ifma
+.type narya_affine_niels_stage2_ifma, @function
+narya_affine_niels_stage2_ifma:
+    vpbroadcastq zmm31, QWORD PTR [rip + narya_ifma_fold19]
+    lea r8, [rdi]
+    lea r9, [rdx + 320]
+    MUL_RAW_TO   0, r8, r9
+    lea r8, [rdi + 320]
+    lea r9, [rdx]
+    MUL_RAW_TO 320, r8, r9
+    lea r8, [rsi + 960]
+    lea r9, [rdx + 640]
+    MUL_RAW_TO 640, r8, r9
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi + 640]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi + 704]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 768]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 832]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 896]
+    vmovdqu64 ZMMWORD PTR [rdi +  960], zmm0
+    vmovdqu64 ZMMWORD PTR [rdi + 1024], zmm1
+    vmovdqu64 ZMMWORD PTR [rdi + 1088], zmm2
+    vmovdqu64 ZMMWORD PTR [rdi + 1152], zmm3
+    vmovdqu64 ZMMWORD PTR [rdi + 1216], zmm4
+    NIELS_STAGE2_FINISH
+    vzeroupper
+    ret
+.size narya_affine_niels_stage2_ifma, .-narya_affine_niels_stage2_ifma
 
 /*
  * The three linear operations below use the same parallel carry proven in

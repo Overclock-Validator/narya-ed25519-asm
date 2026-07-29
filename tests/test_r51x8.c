@@ -255,6 +255,90 @@ check_double_stage2(const narya_edwards_point_x8 *point)
 }
 
 static int
+check_niels_stage2_outputs(
+    const narya_niels_stage2_workspace_x8 *got,
+    const narya_niels_stage2_workspace_x8 *want,
+    const char *name)
+{
+    for (size_t slot = 0; slot < 4; slot++) {
+        for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
+            for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+                if (got->slot[slot].limb[limb][lane] >=
+                    (UINT64_C(1) << 52)) {
+                    fprintf(stderr,
+                        "%s output exceeded u52: slot=%zu limb=%zu lane=%zu\n",
+                        name, slot, limb, lane);
+                    return 0;
+                }
+            }
+        }
+        for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+            if (!reference_r51x8_equal_lane(
+                    &got->slot[slot], &want->slot[slot], lane)) {
+                fprintf(stderr, "%s mismatch: slot=%zu lane=%zu\n",
+                    name, slot, lane);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+static void
+reference_niels_stage2(
+    narya_niels_stage2_workspace_x8 *out,
+    const narya_r51x8 *y_minus_x,
+    const narya_r51x8 *y_plus_x,
+    const narya_r51x8 *T,
+    const narya_r51x8 *Z,
+    const narya_r51x8 *cached_y_minus_x,
+    const narya_r51x8 *cached_y_plus_x,
+    const narya_r51x8 *cached_T2d,
+    const narya_r51x8 *cached_Z)
+{
+    narya_r51x8 A, B, C, D;
+    reference_r51x8_mul(&A, y_minus_x, cached_y_minus_x);
+    reference_r51x8_mul(&B, y_plus_x, cached_y_plus_x);
+    reference_r51x8_mul(&C, T, cached_T2d);
+    if (cached_Z != NULL)
+        reference_r51x8_mul(&D, Z, cached_Z);
+    else
+        D = *Z;
+    reference_r51x8_add(&D, &D, &D);
+    reference_r51x8_sub(&out->slot[0], &B, &A);
+    reference_r51x8_sub(&out->slot[1], &D, &C);
+    reference_r51x8_add(&out->slot[2], &D, &C);
+    reference_r51x8_add(&out->slot[3], &B, &A);
+}
+
+static int
+check_niels_stage2(
+    const narya_edwards_point_x8 *point,
+    const narya_projective_niels_x8 *projective,
+    const narya_affine_niels_x8 *affine)
+{
+    narya_niels_stage2_workspace_x8 input;
+    reference_r51x8_sub(&input.slot[0], &point->Y, &point->X);
+    reference_r51x8_add(&input.slot[1], &point->Y, &point->X);
+
+    narya_niels_stage2_workspace_x8 want;
+    reference_niels_stage2(&want, &input.slot[0], &input.slot[1],
+        &point->T, &point->Z, &projective->Y_minus_X,
+        &projective->Y_plus_X, &projective->T2d, &projective->Z);
+    narya_niels_stage2_workspace_x8 got = input;
+    narya_projective_niels_stage2_ifma(&got, point, projective);
+    if (!check_niels_stage2_outputs(&got, &want, "projective Niels Stage-2"))
+        return 0;
+
+    reference_niels_stage2(&want, &input.slot[0], &input.slot[1],
+        &point->T, &point->Z, &affine->Y_minus_X, &affine->Y_plus_X,
+        &affine->T2d, NULL);
+    got = input;
+    narya_affine_niels_stage2_ifma(&got, point, affine);
+    return check_niels_stage2_outputs(&got, &want, "affine Niels Stage-2");
+}
+
+static int
 check_point_doubling(void)
 {
     static const uint64_t base_x[5] = {
@@ -520,6 +604,20 @@ main(void)
     };
     if (!check_double_stage2(&arbitrary_point))
         return 1;
+    narya_projective_niels_x8 arbitrary_projective = {
+        .Y_plus_X = x,
+        .Y_minus_X = y,
+        .Z = y,
+        .T2d = x,
+    };
+    narya_affine_niels_x8 arbitrary_affine = {
+        .Y_plus_X = x,
+        .Y_minus_X = y,
+        .T2d = x,
+    };
+    if (!check_niels_stage2(
+            &arbitrary_point, &arbitrary_projective, &arbitrary_affine))
+        return 1;
 
     for (size_t iteration = 0; iteration < 10000; iteration++) {
         for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
@@ -541,9 +639,24 @@ main(void)
             arbitrary_point.X = x;
             arbitrary_point.Y = y;
             arbitrary_point.Z = (iteration & 1) == 0 ? x : y;
+            arbitrary_point.T = (iteration & 1) == 0 ? y : x;
             if (!check_double_stage2(&arbitrary_point)) {
                 fprintf(stderr,
                     "failed Stage-2 random iteration %zu\n", iteration);
+                return 1;
+            }
+            arbitrary_projective.Y_plus_X = x;
+            arbitrary_projective.Y_minus_X = y;
+            arbitrary_projective.Z = (iteration & 2) == 0 ? x : y;
+            arbitrary_projective.T2d = (iteration & 2) == 0 ? y : x;
+            arbitrary_affine.Y_plus_X = arbitrary_projective.Y_plus_X;
+            arbitrary_affine.Y_minus_X = arbitrary_projective.Y_minus_X;
+            arbitrary_affine.T2d = arbitrary_projective.T2d;
+            if (!check_niels_stage2(
+                    &arbitrary_point, &arbitrary_projective,
+                    &arbitrary_affine)) {
+                fprintf(stderr,
+                    "failed Niels Stage-2 random iteration %zu\n", iteration);
                 return 1;
             }
         }
