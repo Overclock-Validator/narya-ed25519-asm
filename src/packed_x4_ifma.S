@@ -88,26 +88,11 @@
 .endm
 
 /*
- * Consume normalized [E,G,H,F] in zmm0..zmm4, form the two packed operands
- * with lane-local permutations, multiply them, fold B^5=19, carry once, and
- * store through RDI.  Keeping this boundary in registers removes ten stores
- * and ten reloads from every doubling and cached addition.
- *
- * This multiplication schedule is intentionally character-identical to
- * narya_r51x8_mul_ifma.  Only the source operands are produced in-register.
+ * Multiply sources in zmm0..zmm4 and zmm5..zmm9, fold B^5=19, carry once,
+ * and store through RDI. The instruction order is intentionally identical to
+ * narya_r51x8_mul_ifma; callers differ only in how they form the sources.
  */
-.macro PACKED_FINAL_MUL_STORE
-    vpermq zmm5, zmm0, 0x6b
-    vpermq zmm0, zmm0, 0xc4
-    vpermq zmm6, zmm1, 0x6b
-    vpermq zmm1, zmm1, 0xc4
-    vpermq zmm7, zmm2, 0x6b
-    vpermq zmm2, zmm2, 0xc4
-    vpermq zmm8, zmm3, 0x6b
-    vpermq zmm3, zmm3, 0xc4
-    vpermq zmm9, zmm4, 0x6b
-    vpermq zmm4, zmm4, 0xc4
-
+.macro PACKED_MUL_STORE
     vpxorq zmm10, zmm10, zmm10
     vpxorq zmm11, zmm11, zmm11
     vpxorq zmm12, zmm12, zmm12
@@ -180,6 +165,24 @@
     vmovdqu64 ZMMWORD PTR [rdi + 256], zmm14
 .endm
 
+/*
+ * Consume normalized [E,G,H,F], form both packed multiplication operands via
+ * lane-local permutations, and keep them in registers through the product.
+ */
+.macro PACKED_FINAL_MUL_STORE
+    vpermq zmm5, zmm0, 0x6b
+    vpermq zmm0, zmm0, 0xc4
+    vpermq zmm6, zmm1, 0x6b
+    vpermq zmm1, zmm1, 0xc4
+    vpermq zmm7, zmm2, 0x6b
+    vpermq zmm2, zmm2, 0xc4
+    vpermq zmm8, zmm3, 0x6b
+    vpermq zmm3, zmm3, 0xc4
+    vpermq zmm9, zmm4, 0x6b
+    vpermq zmm4, zmm4, 0xc4
+    PACKED_MUL_STORE
+.endm
+
 .p2align 5
 .globl narya_packed_double_first_operands_ifma
 .hidden narya_packed_double_first_operands_ifma
@@ -214,6 +217,35 @@ narya_packed_double_first_operands_ifma:
     ret
 .size narya_packed_double_first_operands_ifma, .-narya_packed_double_first_operands_ifma
 
+/*
+ * Fused form of narya_packed_double_first_operands_ifma followed by the r51
+ * multiply. V is formed before each source vector is overwritten with U.
+ */
+.p2align 6
+.globl narya_packed_double_first_multiply_ifma
+.hidden narya_packed_double_first_multiply_ifma
+.type narya_packed_double_first_multiply_ifma, @function
+narya_packed_double_first_multiply_ifma:
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
+    vpermq zmm5, zmm0, 0x74
+    vpermq zmm0, zmm0, 0x34
+    vpermq zmm6, zmm1, 0x74
+    vpermq zmm1, zmm1, 0x34
+    vpermq zmm7, zmm2, 0x74
+    vpermq zmm2, zmm2, 0x34
+    vpermq zmm8, zmm3, 0x74
+    vpermq zmm3, zmm3, 0x34
+    vpermq zmm9, zmm4, 0x74
+    vpermq zmm4, zmm4, 0x34
+    PACKED_MUL_STORE
+    vzeroupper
+    ret
+.size narya_packed_double_first_multiply_ifma, .-narya_packed_double_first_multiply_ifma
+
 .p2align 5
 .globl narya_packed_cached_first_operand_ifma
 .hidden narya_packed_cached_first_operand_ifma
@@ -247,6 +279,46 @@ narya_packed_cached_first_operand_ifma:
     vzeroupper
     ret
 .size narya_packed_cached_first_operand_ifma, .-narya_packed_cached_first_operand_ifma
+
+/*
+ * Normalize [Y-X,Y+X,T,Z] and consume it with the cached point before either
+ * operand crosses a memory boundary. RDX may alias RDI because all cached
+ * limbs are loaded before PACKED_MUL_STORE performs its first output store.
+ */
+.p2align 6
+.globl narya_packed_cached_first_multiply_ifma
+.hidden narya_packed_cached_first_multiply_ifma
+.type narya_packed_cached_first_multiply_ifma, @function
+narya_packed_cached_first_multiply_ifma:
+    vmovdqu64 zmm0, ZMMWORD PTR [rsi +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [rsi +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
+    mov eax, 0x11
+    kmovb k1, eax
+    mov eax, 0x22
+    kmovb k2, eax
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_first_bias0]
+    CACHED_FIRST_LINEAR zmm0, zmm5, zmm7, zmm8
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_first_biasn]
+    CACHED_FIRST_LINEAR zmm1, zmm5, zmm7, zmm8
+    CACHED_FIRST_LINEAR zmm2, zmm5, zmm7, zmm8
+    CACHED_FIRST_LINEAR zmm3, zmm5, zmm7, zmm8
+    CACHED_FIRST_LINEAR zmm4, zmm5, zmm7, zmm8
+    vpbroadcastq zmm5, QWORD PTR [rip + packed_mask51]
+    vpbroadcastq zmm11, QWORD PTR [rip + packed_fold19]
+    NORMALIZE_5 zmm0, zmm1, zmm2, zmm3, zmm4, zmm5, \
+                zmm6, zmm7, zmm8, zmm9, zmm10, zmm11
+    vmovdqu64 zmm5, ZMMWORD PTR [rdx +   0]
+    vmovdqu64 zmm6, ZMMWORD PTR [rdx +  64]
+    vmovdqu64 zmm7, ZMMWORD PTR [rdx + 128]
+    vmovdqu64 zmm8, ZMMWORD PTR [rdx + 192]
+    vmovdqu64 zmm9, ZMMWORD PTR [rdx + 256]
+    PACKED_MUL_STORE
+    vzeroupper
+    ret
+.size narya_packed_cached_first_multiply_ifma, .-narya_packed_cached_first_multiply_ifma
 
 .p2align 5
 .globl narya_packed_double_final_operands_ifma

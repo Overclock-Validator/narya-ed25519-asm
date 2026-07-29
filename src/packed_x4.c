@@ -106,10 +106,9 @@ cache_point(
 static void
 packed_double(narya_packed_point_x4 *out, const narya_packed_point_x4 *point)
 {
-    narya_r51x8 left, right, products;
-    narya_packed_double_first_operands_ifma(
-        &left, &right, &point->coordinates);
-    narya_r51x8_mul_ifma(&products, &left, &right);
+    narya_r51x8 products;
+    narya_packed_double_first_multiply_ifma(
+        &products, &point->coordinates);
     narya_packed_double_final_multiply_ifma(&out->coordinates, &products);
 }
 
@@ -119,9 +118,9 @@ packed_add_cached(
     const narya_packed_point_x4 *point,
     const narya_packed_cached_x4 *cached)
 {
-    narya_r51x8 point_operand, products;
-    cached_first_operand(&point_operand, point);
-    narya_r51x8_mul_ifma(&products, &point_operand, &cached->coordinates);
+    narya_r51x8 products;
+    narya_packed_cached_first_multiply_ifma(
+        &products, &point->coordinates, &cached->coordinates);
     narya_packed_cached_final_multiply_ifma(&out->coordinates, &products);
 }
 

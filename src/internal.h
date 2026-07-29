@@ -151,9 +151,16 @@ void narya_packed_double_first_operands_ifma(
     narya_r51x8 *left,
     narya_r51x8 *right,
     const narya_r51x8 *point);
+void narya_packed_double_first_multiply_ifma(
+    narya_r51x8 *out,
+    const narya_r51x8 *point);
 void narya_packed_cached_first_operand_ifma(
     narya_r51x8 *out,
     const narya_r51x8 *point);
+void narya_packed_cached_first_multiply_ifma(
+    narya_r51x8 *out,
+    const narya_r51x8 *point,
+    const narya_r51x8 *cached);
 void narya_packed_double_final_operands_ifma(
     narya_r51x8 *left,
     narya_r51x8 *right,
