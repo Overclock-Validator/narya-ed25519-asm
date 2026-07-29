@@ -149,17 +149,24 @@ run_batch(
 int
 main(int argc, char **argv)
 {
-    if (argc != 6) {
+    if (argc != 6 && argc != 7) {
         fprintf(stderr,
-            "usage: %s FIXTURE LANE COUNT ITERATIONS SAMPLES\n", argv[0]);
+            "usage: %s FIXTURE LANE COUNT ITERATIONS SAMPLES "
+            "[both|public|padded]\n", argv[0]);
         return 2;
     }
     const size_t fixture_lane = (size_t)strtoull(argv[2], NULL, 10);
     const size_t count = (size_t)strtoull(argv[3], NULL, 10);
     const size_t iterations = (size_t)strtoull(argv[4], NULL, 10);
     const size_t samples = (size_t)strtoull(argv[5], NULL, 10);
+    const char *mode = argc == 7 ? argv[6] : "both";
+    const int run_public = strcmp(mode, "both") == 0 ||
+        strcmp(mode, "public") == 0;
+    const int run_padded = strcmp(mode, "both") == 0 ||
+        strcmp(mode, "padded") == 0;
     if (fixture_lane >= lanes || count == 0 || count > maximum ||
-        iterations == 0 || samples == 0 || !narya_r51x8_available())
+        iterations == 0 || samples == 0 || (!run_public && !run_padded) ||
+        !narya_r51x8_available())
         return 2;
 
     fixture input = {0};
@@ -181,16 +188,23 @@ main(int argc, char **argv)
     if (x8_workspace == NULL || batch_workspace == NULL) return 2;
     volatile uint64_t sink = 0;
     for (size_t warmup = 0; warmup < 64; warmup++) {
-        if (!run_padded_x8(&sink, public_key, signature, message, length, count,
-                           x8_workspace, x8_size) ||
-            !run_batch(&sink, public_key, signature, message, length, count,
-                       batch_workspace, batch_size))
+        if ((run_padded &&
+             !run_padded_x8(
+                 &sink, public_key, signature, message, length, count,
+                 x8_workspace, x8_size)) ||
+            (run_public &&
+             !run_batch(
+                 &sink, public_key, signature, message, length, count,
+                 batch_workspace, batch_size)))
             return 1;
     }
     for (size_t sample = 0; sample < samples; sample++) {
         const int batch_first = (sample & 1U) != 0;
-        for (size_t pass = 0; pass < 2; pass++) {
-            const int batch = batch_first ? pass == 0 : pass != 0;
+        const size_t passes = run_public && run_padded ? 2 : 1;
+        for (size_t pass = 0; pass < passes; pass++) {
+            const int batch = passes == 1
+                ? run_public
+                : (batch_first ? pass == 0 : pass != 0);
             const uint64_t start = nanoseconds();
             for (size_t iteration = 0; iteration < iterations; iteration++) {
                 const int ok = batch
