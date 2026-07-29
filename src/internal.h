@@ -278,4 +278,12 @@ uint8_t narya_edwards_decode_x8(
     const uint8_t encoded[8 * 32],
     uint8_t active);
 
+/* Exact field exponents shared by decompression and batch finalization. */
+void narya_r51x8_pow22523(
+    narya_r51x8 *out,
+    const narya_r51x8 *x);
+void narya_r51x8_invert_x8(
+    narya_r51x8 *out,
+    const narya_r51x8 *x);
+
 #endif

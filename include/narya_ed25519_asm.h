@@ -18,13 +18,15 @@ extern "C" {
 #define NARYA_ED25519_ASM_ABI_VERSION 0u
 #define NARYA_R51_LIMBS 5u
 #define NARYA_X8_LANES 8u
+#define NARYA_VERIFY_STRICT_BATCH_MAX 64u
 
 typedef enum narya_status {
     NARYA_OK = 0,
     NARYA_ERR_UNSUPPORTED_CPU = 1,
     NARYA_ERR_RANGE = 2,
     NARYA_ERR_INVALID_ARGUMENT = 3,
-    NARYA_ERR_NOT_IMPLEMENTED = 4
+    NARYA_ERR_NOT_IMPLEMENTED = 4,
+    NARYA_ERR_INTERNAL = 5
 } narya_status;
 
 /*
@@ -141,8 +143,8 @@ size_t narya_ed25519_verify_strict_x8_workspace_alignment(void);
  *
  * Signature rejection is not an API error: NARYA_OK is returned and the
  * corresponding verdict bit is clear. On an argument/CPU error, verdict_mask
- * is unchanged. The fixed base uses one process-shared immutable radix-256
- * comb; cold public keys require no retained state outside this call.
+ * is unchanged. The fixed base uses one process-shared immutable width-10
+ * table; cold public keys require no retained state outside this call.
  */
 narya_status narya_ed25519_verify_strict_x8(
     uint8_t *verdict_mask,
@@ -151,6 +153,39 @@ narya_status narya_ed25519_verify_strict_x8(
     const uint8_t *const message[NARYA_X8_LANES],
     const size_t message_length[NARYA_X8_LANES],
     uint8_t active,
+    void *workspace,
+    size_t workspace_size);
+
+/*
+ * Caller-owned scratch for narya_ed25519_verify_strict_batch. The batch
+ * workspace retains up to eight equation points and the cross-group prefix
+ * products needed to share one field inversion across at most 64 signatures.
+ * It may be reused after a call and has the same non-overlap rule as the x8
+ * workspace.
+ */
+size_t narya_ed25519_verify_strict_batch_workspace_size(void);
+size_t narya_ed25519_verify_strict_batch_workspace_alignment(void);
+
+/*
+ * Verifies 1..64 independent cold signatures. Public keys and signatures are
+ * contiguous arrays of count 32- and 64-byte rows. Messages and lengths have
+ * count entries. Bit i of verdict_bits is the verdict for item i.
+ *
+ * Counts through eight preserve the single-group decode-R/projective-compare
+ * path. Wider batches evaluate ceil(count/8) exact x8 groups, then share one
+ * Montgomery inversion across those groups to encode and compare every
+ * equation point. This is not randomized aggregate batch verification: each
+ * signature retains its own equation, lane, and verdict. Signature rejection
+ * returns NARYA_OK with that bit clear. Any API, CPU, or internal arithmetic
+ * error leaves verdict_bits unchanged.
+ */
+narya_status narya_ed25519_verify_strict_batch(
+    uint64_t *verdict_bits,
+    const uint8_t *public_key,
+    const uint8_t *signature,
+    const uint8_t *const *message,
+    const size_t *message_length,
+    size_t count,
     void *workspace,
     size_t workspace_size);
 

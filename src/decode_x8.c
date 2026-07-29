@@ -147,8 +147,8 @@ repeated_square_multiply(
 }
 
 /* z = x^(2^252-3), the standard pow22523 addition chain. */
-static void
-pow22523(narya_r51x8 *z, const narya_r51x8 *x)
+void
+narya_r51x8_pow22523(narya_r51x8 *z, const narya_r51x8 *x)
 {
     const narya_r51x8 base = *x;
     narya_r51x8 x2, x9, x11, x5, x10, x20, x40;
@@ -167,6 +167,18 @@ pow22523(narya_r51x8 *z, const narya_r51x8 *x)
     repeated_square_multiply(z, &x250, &base, 2);
 }
 
+/* x^(p-2) = (x^(2^252-3))^8 * x^3 for p=2^255-19. */
+void
+narya_r51x8_invert_x8(narya_r51x8 *out, const narya_r51x8 *x)
+{
+    narya_r51x8 power, power8, x2, x3;
+    narya_r51x8_pow22523(&power, x);
+    narya_r51x8_repeated_square_ifma(&power8, &power, 3);
+    narya_r51x8_mul_ifma(&x2, x, x);
+    narya_r51x8_mul_ifma(&x3, &x2, x);
+    narya_r51x8_mul_ifma(out, &power8, &x3);
+}
+
 static uint8_t
 sqrt_ratio(narya_r51x8 *out, const narya_r51x8 *u, const narya_r51x8 *v)
 {
@@ -174,7 +186,7 @@ sqrt_ratio(narya_r51x8 *out, const narya_r51x8 *u, const narya_r51x8 *v)
     narya_r51x8 root_i, root_times_i;
     broadcast(&root_i, sqrt_m1);
     narya_r51x8_mul_ifma(&uv, u, v);
-    pow22523(&power, &uv);
+    narya_r51x8_pow22523(&power, &uv);
     narya_r51x8_mul_ifma(&root, u, &power);
     narya_r51x8_mul_ifma(&root2, &root, &root);
     narya_r51x8_mul_ifma(&check, v, &root2);

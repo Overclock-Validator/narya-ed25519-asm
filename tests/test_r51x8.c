@@ -211,6 +211,38 @@ check_decode(void)
 }
 
 static int
+check_inversion(const narya_r51x8 *input)
+{
+    narya_r51x8 inverse, product;
+    narya_r51x8_invert_x8(&inverse, input);
+    reference_r51x8_mul(&product, input, &inverse);
+    for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+        uint64_t canonical[5];
+        reference_r51x8_canonical_lane(canonical, input, lane);
+        uint64_t combined = 0;
+        for (size_t limb = 0; limb < 5; limb++)
+            combined |= canonical[limb];
+        uint64_t product_lane[5];
+        reference_r51x8_canonical_lane(product_lane, &product, lane);
+        const uint64_t expected = combined == 0 ? 0 : 1;
+        if (product_lane[0] != expected || product_lane[1] != 0 ||
+            product_lane[2] != 0 || product_lane[3] != 0 ||
+            product_lane[4] != 0) {
+            fprintf(stderr, "field inversion mismatch lane=%zu\n", lane);
+            return 0;
+        }
+    }
+
+    narya_r51x8 alias = *input;
+    narya_r51x8_invert_x8(&alias, &alias);
+    if (!equal(&alias, &inverse)) {
+        fputs("in-place field inversion mismatch\n", stderr);
+        return 0;
+    }
+    return 1;
+}
+
+static int
 check_double_stage2(const narya_edwards_point_x8 *point)
 {
     narya_r51x8 A, B, C, D;
@@ -584,6 +616,8 @@ main(void)
     narya_r51x8 y = {0};
     if (!check_case(&x, &y))
         return 1;
+    if (!check_inversion(&x))
+        return 1;
 
     /* Maximum legal composable limbs exercise every proven upper bound. */
     for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
@@ -595,6 +629,8 @@ main(void)
     if (!check_case(&x, &y))
         return 1;
     if (!check_repeated_squares(&x))
+        return 1;
+    if (!check_inversion(&x))
         return 1;
     narya_edwards_point_x8 arbitrary_point = {
         .X = x,
@@ -633,6 +669,11 @@ main(void)
         if (iteration < 64 && !check_repeated_squares(&x)) {
             fprintf(stderr,
                 "failed repeated-square random iteration %zu\n", iteration);
+            return 1;
+        }
+        if (iteration < 64 && !check_inversion(&x)) {
+            fprintf(stderr,
+                "failed inversion random iteration %zu\n", iteration);
             return 1;
         }
         if (iteration < 256) {

@@ -5,7 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { lanes = 8, maximum_message = 4096, expected_cases = 2954 };
+enum {
+    lanes = 8,
+    batch_maximum = NARYA_VERIFY_STRICT_BATCH_MAX,
+    maximum_message = 4096,
+    expected_cases = 2954
+};
 
 typedef struct external_case {
     char name[192];
@@ -146,6 +151,55 @@ run_group(
     return 1;
 }
 
+static int
+run_batch(
+    const external_case batch[batch_maximum],
+    size_t count,
+    void *x8_workspace,
+    size_t x8_workspace_size,
+    void *batch_workspace,
+    size_t batch_workspace_size)
+{
+    uint8_t public_key[batch_maximum * 32] = {0};
+    uint8_t signature[batch_maximum * 64] = {0};
+    const uint8_t *message[batch_maximum] = {0};
+    size_t message_length[batch_maximum] = {0};
+    uint64_t expected = 0;
+    for (size_t item = 0; item < count; item++) {
+        memcpy(&public_key[item * 32], batch[item].public_key, 32);
+        memcpy(&signature[item * 64], batch[item].signature, 64);
+        message[item] = batch[item].message;
+        message_length[item] = batch[item].message_length;
+        if (batch[item].expected)
+            expected |= UINT64_C(1) << item;
+    }
+
+    uint64_t verdict = UINT64_C(0xa5a5a5a5a5a5a5a5);
+    const narya_status status = narya_ed25519_verify_strict_batch(
+        &verdict, public_key, signature, message, message_length, count,
+        batch_workspace, batch_workspace_size);
+    if (status != NARYA_OK || verdict != expected) {
+        fprintf(stderr,
+            "external batch count=%zu status=%d verdict=%016llx want=%016llx\n",
+            count, (int)status, (unsigned long long)verdict,
+            (unsigned long long)expected);
+        for (size_t item = 0; item < count; item++)
+            if (((verdict ^ expected) & (UINT64_C(1) << item)) != 0)
+                fprintf(stderr, "  item %zu: %s\n", item, batch[item].name);
+        return 0;
+    }
+
+    /* The established x8 API remains an independent grouping oracle. */
+    for (size_t offset = 0; offset < count; offset += lanes) {
+        const size_t remaining = count - offset;
+        const size_t group_count = remaining < lanes ? remaining : lanes;
+        if (!run_group(&batch[offset], group_count,
+                       x8_workspace, x8_workspace_size))
+            return 0;
+    }
+    return 1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -168,55 +222,70 @@ main(int argc, char **argv)
         return 1;
     }
 
-    void *workspace = NULL;
-    const size_t workspace_size = narya_ed25519_verify_strict_x8_workspace_size();
+    void *x8_workspace = NULL;
+    void *batch_workspace = NULL;
+    const size_t x8_workspace_size =
+        narya_ed25519_verify_strict_x8_workspace_size();
+    const size_t batch_workspace_size =
+        narya_ed25519_verify_strict_batch_workspace_size();
     if (native) {
-        workspace = malloc(workspace_size);
-        if (workspace == NULL) {
+        x8_workspace = malloc(x8_workspace_size);
+        batch_workspace = malloc(batch_workspace_size);
+        if (x8_workspace == NULL || batch_workspace == NULL) {
+            free(x8_workspace);
+            free(batch_workspace);
             fclose(file);
             return 1;
         }
     }
 
-    external_case group[lanes] = {0};
-    size_t group_count = 0;
+    external_case batch[batch_maximum] = {0};
+    size_t batch_count = 0;
     size_t total = 0;
     char line[2 * maximum_message + 1024];
     while (fgets(line, sizeof(line), file) != NULL) {
         if (strchr(line, '\n') == NULL && !feof(file)) {
             fputs("external corpus line exceeds parser capacity\n", stderr);
-            free(workspace);
+            free(x8_workspace);
+            free(batch_workspace);
             fclose(file);
             return 1;
         }
-        if (!parse_case(line, &group[group_count])) {
+        if (!parse_case(line, &batch[batch_count])) {
             fprintf(stderr, "invalid external corpus record %zu\n", total + 1);
-            free(workspace);
+            free(x8_workspace);
+            free(batch_workspace);
             fclose(file);
             return 1;
         }
-        group_count++;
+        batch_count++;
         total++;
-        if (group_count == lanes) {
-            if (native && !run_group(group, group_count, workspace, workspace_size)) {
-                free(workspace);
+        if (batch_count == batch_maximum) {
+            if (native && !run_batch(
+                    batch, batch_count, x8_workspace, x8_workspace_size,
+                    batch_workspace, batch_workspace_size)) {
+                free(x8_workspace);
+                free(batch_workspace);
                 fclose(file);
                 return 1;
             }
-            group_count = 0;
+            batch_count = 0;
         }
     }
     if (ferror(file) || total != expected_cases ||
-        (native && group_count != 0 &&
-         !run_group(group, group_count, workspace, workspace_size))) {
+        (native && batch_count != 0 &&
+         !run_batch(batch, batch_count, x8_workspace, x8_workspace_size,
+                    batch_workspace, batch_workspace_size))) {
         if (total != expected_cases)
             fprintf(stderr, "external corpus cases=%zu want=%d\n", total, expected_cases);
-        free(workspace);
+        free(x8_workspace);
+        free(batch_workspace);
         fclose(file);
         return 1;
     }
 
-    free(workspace);
+    free(x8_workspace);
+    free(batch_workspace);
     fclose(file);
     if (native)
         printf("PASS: %zu RFC/CCTV/Wycheproof and boundary vectors\n", total);

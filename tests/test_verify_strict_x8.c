@@ -138,6 +138,160 @@ expect_invalid_atomic(
     return 1;
 }
 
+static int
+expect_batch_invalid_atomic(
+    const char *label,
+    uint64_t *verdict,
+    const uint8_t *public_key,
+    const uint8_t *signature,
+    const uint8_t *const *message,
+    const size_t *length,
+    size_t count,
+    void *workspace,
+    size_t workspace_size)
+{
+    uint64_t local = UINT64_C(0xa5a5a5a5a5a5a5a5);
+    uint64_t *output = verdict == NULL ? NULL : &local;
+    const narya_status status = narya_ed25519_verify_strict_batch(
+        output, public_key, signature, message, length, count,
+        workspace, workspace_size);
+    if (status != NARYA_ERR_INVALID_ARGUMENT ||
+        (output != NULL && local != UINT64_C(0xa5a5a5a5a5a5a5a5))) {
+        fprintf(stderr, "%s status=%d verdict=%016llx\n", label, status,
+                (unsigned long long)local);
+        return 0;
+    }
+    return 1;
+}
+
+static int
+check_batch_api(const verify_fixture fixture[lanes])
+{
+    enum { maximum = NARYA_VERIFY_STRICT_BATCH_MAX };
+    uint8_t public_key[maximum * 32];
+    uint8_t signature[maximum * 64];
+    const uint8_t *message[maximum];
+    size_t length[maximum];
+    for (size_t item = 0; item < maximum; item++) {
+        const size_t lane = item % lanes;
+        memcpy(&public_key[item * 32], fixture[lane].public_key, 32);
+        memcpy(&signature[item * 64], fixture[lane].signature, 64);
+        message[item] = fixture[lane].message;
+        length[item] = fixture[lane].message_length;
+    }
+
+    const size_t workspace_size =
+        narya_ed25519_verify_strict_batch_workspace_size();
+    void *workspace = malloc(workspace_size);
+    if (workspace == NULL)
+        return 0;
+    if ((uintptr_t)workspace %
+            narya_ed25519_verify_strict_batch_workspace_alignment() != 0) {
+        fputs("malloc did not satisfy batch workspace alignment\n", stderr);
+        free(workspace);
+        return 0;
+    }
+
+    const size_t counts[] = {1, 2, 4, 8, 9, 17, 32, 63, 64};
+    for (size_t index = 0; index < sizeof(counts) / sizeof(counts[0]); index++) {
+        const size_t count = counts[index];
+        const uint64_t expected = count == 64
+            ? UINT64_MAX
+            : (UINT64_C(1) << count) - 1U;
+        uint64_t verdict = 0;
+        const narya_status status = narya_ed25519_verify_strict_batch(
+            &verdict, public_key, signature, message, length, count,
+            workspace, workspace_size);
+        if (status != NARYA_OK || verdict != expected) {
+            fprintf(stderr,
+                "valid batch count=%zu status=%d verdict=%016llx want=%016llx\n",
+                count, status, (unsigned long long)verdict,
+                (unsigned long long)expected);
+            free(workspace);
+            return 0;
+        }
+    }
+
+    /* Exercise group edges and prove a late failure cannot cross a lane. */
+    const size_t bad_items[] = {0, 7, 8, 16, 63};
+    for (size_t index = 0;
+         index < sizeof(bad_items) / sizeof(bad_items[0]); index++) {
+        const size_t bad = bad_items[index];
+        uint8_t changed[maximum_message] = {0};
+        memcpy(changed, message[bad], length[bad]);
+        size_t changed_length = length[bad];
+        if (changed_length == 0)
+            changed_length = 1;
+        changed[0] ^= 1;
+        const uint8_t *saved_message = message[bad];
+        const size_t saved_length = length[bad];
+        message[bad] = changed;
+        length[bad] = changed_length;
+        uint64_t verdict = 0;
+        const narya_status status = narya_ed25519_verify_strict_batch(
+            &verdict, public_key, signature, message, length, maximum,
+            workspace, workspace_size);
+        const uint64_t expected = UINT64_MAX ^ (UINT64_C(1) << bad);
+        message[bad] = saved_message;
+        length[bad] = saved_length;
+        if (status != NARYA_OK || verdict != expected) {
+            fprintf(stderr,
+                "late-invalid batch item=%zu status=%d verdict=%016llx\n",
+                bad, status, (unsigned long long)verdict);
+            free(workspace);
+            return 0;
+        }
+    }
+
+    uint64_t output_token = 0;
+    if (!expect_batch_invalid_atomic(
+            "batch null output", NULL, public_key, signature, message, length,
+            maximum, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch null public key", &output_token, NULL, signature, message,
+            length, maximum, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch null signature", &output_token, public_key, NULL, message,
+            length, maximum, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch null messages", &output_token, public_key, signature, NULL,
+            length, maximum, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch null lengths", &output_token, public_key, signature, message,
+            NULL, maximum, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch count zero", &output_token, public_key, signature, message,
+            length, 0, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch count too large", &output_token, public_key, signature,
+            message, length, maximum + 1, workspace, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch null workspace", &output_token, public_key, signature,
+            message, length, maximum, NULL, workspace_size) ||
+        !expect_batch_invalid_atomic(
+            "batch short workspace", &output_token, public_key, signature,
+            message, length, maximum, workspace, workspace_size - 1) ||
+        !expect_batch_invalid_atomic(
+            "batch misaligned workspace", &output_token, public_key, signature,
+            message, length, maximum, (uint8_t *)workspace + 1,
+            workspace_size)) {
+        free(workspace);
+        return 0;
+    }
+
+    const uint8_t *saved_message = message[9];
+    const size_t saved_length = length[9];
+    message[9] = NULL;
+    length[9] = 1;
+    const int null_message_rejected = expect_batch_invalid_atomic(
+        "batch null nonempty message", &output_token, public_key, signature,
+        message, length, 17, workspace, workspace_size);
+    message[9] = saved_message;
+    length[9] = saved_length;
+    free(workspace);
+    return null_message_rejected;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -324,7 +478,12 @@ main(int argc, char **argv)
     message[0] = saved_message;
     length[0] = saved_length;
 
+    if (!check_batch_api(fixture)) {
+        free(workspace);
+        return 1;
+    }
+
     free(workspace);
-    puts("PASS: complete x8 DalekStrict equation matches independent signatures");
+    puts("PASS: complete x8 and 1..64 DalekStrict equations preserve verdicts");
     return 0;
 }
