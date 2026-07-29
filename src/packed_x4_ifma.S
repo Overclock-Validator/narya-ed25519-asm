@@ -119,9 +119,9 @@ narya_packed_cached_first_operand_ifma:
     kmovb k1, eax
     mov eax, 0x02
     kmovb k2, eax
-    vmovdqa64 zmm5, ZMMWORD PTR [rip + packed_cached_first_bias0]
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_first_bias0]
     CACHED_FIRST_LINEAR zmm0, zmm5, zmm7, zmm8
-    vmovdqa64 zmm5, ZMMWORD PTR [rip + packed_cached_first_biasn]
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_first_biasn]
     CACHED_FIRST_LINEAR zmm1, zmm5, zmm7, zmm8
     CACHED_FIRST_LINEAR zmm2, zmm5, zmm7, zmm8
     CACHED_FIRST_LINEAR zmm3, zmm5, zmm7, zmm8
@@ -155,8 +155,8 @@ narya_packed_double_final_operands_ifma:
     kmovb k2, eax
     mov eax, 0x08
     kmovb k3, eax
-    vmovdqa64 zmm5, ZMMWORD PTR [rip + packed_double_bias8p0]
-    vmovdqa64 zmm6, ZMMWORD PTR [rip + packed_double_bias8pn]
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_double_bias8p0]
+    vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_double_bias8pn]
     vpxorq zmm7, zmm7, zmm7
     DOUBLE_LINEAR zmm0, zmm5, zmm8, zmm9, zmm10, zmm7
     DOUBLE_LINEAR zmm1, zmm6, zmm8, zmm9, zmm10, zmm7
@@ -205,8 +205,8 @@ narya_packed_cached_final_operands_ifma:
     kmovb k1, eax
     mov eax, 0x06
     kmovb k2, eax
-    vmovdqa64 zmm5, ZMMWORD PTR [rip + packed_cached_final_bias8p0]
-    vmovdqa64 zmm6, ZMMWORD PTR [rip + packed_cached_final_bias8pn]
+    vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_final_bias8p0]
+    vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_cached_final_bias8pn]
     CACHED_FINAL_LINEAR zmm0, zmm5, zmm7, zmm8, zmm9
     CACHED_FINAL_LINEAR zmm1, zmm6, zmm7, zmm8, zmm9
     CACHED_FINAL_LINEAR zmm2, zmm6, zmm7, zmm8, zmm9
