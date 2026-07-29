@@ -26,47 +26,68 @@ narya_broadcast_r51x8(narya_r51x8 *out, const uint64_t limbs[5])
             out->limb[limb][lane] = limbs[limb];
 }
 
+/*
+ * The native Stage-2 leaf forms [E,F,G,H] from raw products with one carry
+ * layer. The four final products remain separate, independently tested field
+ * leaves. This boundary mirrors the current Go backend without turning the
+ * whole point formula into one opaque assembly monolith; see
+ * docs/proofs/R51_FIELD_CONTRACT.md and docs/architecture/PORTING_PLAN.md.
+ */
+
 void
 narya_edwards_double_x8(
     narya_edwards_point_x8 *out,
     const narya_edwards_point_x8 *point)
 {
-    narya_r51x8 A;
-    narya_r51x8 B;
-    narya_r51x8 C;
-    narya_r51x8 D;
-    narya_r51x8 E;
-    narya_r51x8 F;
-    narya_r51x8 G;
-    narya_r51x8 H;
-
-    /*
-     * Complete extended-coordinate doubling for a=-1, using direct E=2XY:
-     *
-     *   A=X², B=Y², C=2Z², D=-A, E=2XY
-     *   G=D+B, F=G-C, H=D-B
-     *   X'=EF, Y'=GH, T'=EH, Z'=FG.
-     *
-     * Direct XY avoids the (X+Y)²-A-B identity and its extra carry boundary.
-     * Every native leaf returns a composable u52 value, so the next leaf's
-     * machine-range precondition is local and explicit.
-     */
-    narya_r51x8_mul_ifma(&A, &point->X, &point->X);
-    narya_r51x8_mul_ifma(&B, &point->Y, &point->Y);
-    narya_r51x8_mul_ifma(&C, &point->Z, &point->Z);
-    narya_r51x8_add_ifma(&C, &C, &C);
-    narya_r51x8_mul_ifma(&E, &point->X, &point->Y);
-    narya_r51x8_add_ifma(&E, &E, &E);
-    narya_r51x8_neg_ifma(&D, &A);
-    narya_r51x8_add_ifma(&G, &D, &B);
-    narya_r51x8_sub_ifma(&F, &G, &C);
-    narya_r51x8_sub_ifma(&H, &D, &B);
+    narya_double_stage2_workspace_x8 stage2;
+    narya_r51x8_double_stage2_ifma(
+        &stage2, &point->X, &point->Y, &point->Z);
 
     /* All input coordinates are dead here, so exact out==point is safe. */
-    narya_r51x8_mul_ifma(&out->X, &E, &F);
-    narya_r51x8_mul_ifma(&out->Y, &G, &H);
-    narya_r51x8_mul_ifma(&out->T, &E, &H);
-    narya_r51x8_mul_ifma(&out->Z, &F, &G);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->T, &stage2.slot[0], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
+}
+
+void
+narya_edwards_double_to_projective_x8(
+    narya_projective_point_x8 *out,
+    const narya_edwards_point_x8 *point)
+{
+    narya_double_stage2_workspace_x8 stage2;
+    narya_r51x8_double_stage2_ifma(
+        &stage2, &point->X, &point->Y, &point->Z);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
+}
+
+void
+narya_projective_double_x8(
+    narya_projective_point_x8 *out,
+    const narya_projective_point_x8 *point)
+{
+    narya_double_stage2_workspace_x8 stage2;
+    narya_r51x8_double_stage2_ifma(
+        &stage2, &point->X, &point->Y, &point->Z);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
+}
+
+void
+narya_projective_double_to_edwards_x8(
+    narya_edwards_point_x8 *out,
+    const narya_projective_point_x8 *point)
+{
+    narya_double_stage2_workspace_x8 stage2;
+    narya_r51x8_double_stage2_ifma(
+        &stage2, &point->X, &point->Y, &point->Z);
+    narya_r51x8_mul_ifma(&out->X, &stage2.slot[0], &stage2.slot[1]);
+    narya_r51x8_mul_ifma(&out->Y, &stage2.slot[2], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->T, &stage2.slot[0], &stage2.slot[3]);
+    narya_r51x8_mul_ifma(&out->Z, &stage2.slot[1], &stage2.slot[2]);
 }
 
 void

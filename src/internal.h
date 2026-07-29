@@ -114,6 +114,39 @@ typedef struct narya_edwards_point_x8 {
     narya_r51x8 T;
 } narya_edwards_point_x8;
 
+/*
+ * Projective P2 coordinates for a run of dependent doublings.  This is a
+ * distinct type, rather than an Edwards point with a stale T coordinate:
+ * additions require narya_edwards_point_x8 and therefore cannot consume an
+ * intermediate whose T was deliberately omitted.  See the cold-path parity
+ * note in docs/architecture/PORTING_PLAN.md.
+ */
+typedef struct narya_projective_point_x8 {
+    narya_r51x8 X;
+    narya_r51x8 Y;
+    narya_r51x8 Z;
+} narya_projective_point_x8;
+
+/*
+ * Private state transition for doubling. On entry the assembly leaf derives
+ * exact folded raw products [X^2,Y^2,Z^2,XY] from three composable-u52
+ * coordinates. On return these slots hold normalized [E,F,G,H], where
+ *
+ *   E=2XY, G=Y^2-X^2, F=G-2Z^2, H=-X^2-Y^2 (mod p).
+ *
+ * The distinct type prevents raw u61 products from being mistaken for legal
+ * IFMA sources. The output never overlaps any input coordinate.
+ */
+typedef struct narya_double_stage2_workspace_x8 {
+    narya_r51x8 slot[4];
+} narya_double_stage2_workspace_x8;
+
+void narya_r51x8_double_stage2_ifma(
+    narya_double_stage2_workspace_x8 *workspace,
+    const narya_r51x8 *X,
+    const narya_r51x8 *Y,
+    const narya_r51x8 *Z);
+
 /* Cached projective-Niels form (Y+X, Y-X, Z, 2dT). */
 typedef struct narya_projective_niels_x8 {
     narya_r51x8 Y_plus_X;
@@ -183,6 +216,15 @@ uint8_t narya_variable_scalar_mult_x8(
 void narya_edwards_double_x8(
     narya_edwards_point_x8 *out,
     const narya_edwards_point_x8 *point);
+void narya_edwards_double_to_projective_x8(
+    narya_projective_point_x8 *out,
+    const narya_edwards_point_x8 *point);
+void narya_projective_double_x8(
+    narya_projective_point_x8 *out,
+    const narya_projective_point_x8 *point);
+void narya_projective_double_to_edwards_x8(
+    narya_edwards_point_x8 *out,
+    const narya_projective_point_x8 *point);
 void narya_edwards_to_projective_niels_x8(
     narya_projective_niels_x8 *out,
     const narya_edwards_point_x8 *point);

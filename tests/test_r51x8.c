@@ -34,6 +34,37 @@ point_equal_exact(const narya_edwards_point_x8 *a, const narya_edwards_point_x8 
            equal(&a->Z, &b->Z) && equal(&a->T, &b->T);
 }
 
+static int
+point_equal_modp_all(
+    const narya_edwards_point_x8 *a,
+    const narya_edwards_point_x8 *b)
+{
+    for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+        if (!reference_r51x8_equal_lane(&a->X, &b->X, lane) ||
+            !reference_r51x8_equal_lane(&a->Y, &b->Y, lane) ||
+            !reference_r51x8_equal_lane(&a->Z, &b->Z, lane) ||
+            !reference_r51x8_equal_lane(&a->T, &b->T, lane)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int
+projective_point_matches_edwards_modp(
+    const narya_projective_point_x8 *a,
+    const narya_edwards_point_x8 *b)
+{
+    for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+        if (!reference_r51x8_equal_lane(&a->X, &b->X, lane) ||
+            !reference_r51x8_equal_lane(&a->Y, &b->Y, lane) ||
+            !reference_r51x8_equal_lane(&a->Z, &b->Z, lane)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void
 broadcast_limbs(narya_r51x8 *out, const uint64_t limbs[5])
 {
@@ -180,6 +211,50 @@ check_decode(void)
 }
 
 static int
+check_double_stage2(const narya_edwards_point_x8 *point)
+{
+    narya_r51x8 A, B, C, D;
+    narya_double_stage2_workspace_x8 want;
+    reference_r51x8_mul(&A, &point->X, &point->X);
+    reference_r51x8_mul(&B, &point->Y, &point->Y);
+    reference_r51x8_mul(&C, &point->Z, &point->Z);
+    reference_r51x8_mul(&want.slot[0], &point->X, &point->Y);
+    reference_r51x8_add(&want.slot[0], &want.slot[0], &want.slot[0]);
+    reference_r51x8_add(&C, &C, &C);
+    reference_r51x8_neg(&D, &A);
+    reference_r51x8_add(&want.slot[2], &D, &B);
+    reference_r51x8_sub(&want.slot[1], &want.slot[2], &C);
+    reference_r51x8_sub(&want.slot[3], &D, &B);
+
+    narya_double_stage2_workspace_x8 got;
+    narya_r51x8_double_stage2_ifma(
+        &got, &point->X, &point->Y, &point->Z);
+    for (size_t slot = 0; slot < 4; slot++) {
+        for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
+            for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+                if (got.slot[slot].limb[limb][lane] >=
+                    (UINT64_C(1) << 52)) {
+                    fprintf(stderr,
+                        "Stage-2 output exceeded u52: slot=%zu limb=%zu lane=%zu\n",
+                        slot, limb, lane);
+                    return 0;
+                }
+            }
+        }
+        for (size_t lane = 0; lane < NARYA_X8_LANES; lane++) {
+            if (!reference_r51x8_equal_lane(
+                    &got.slot[slot], &want.slot[slot], lane)) {
+                fprintf(stderr,
+                    "Stage-2 field mismatch: slot=%zu lane=%zu\n",
+                    slot, lane);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+static int
 check_point_doubling(void)
 {
     static const uint64_t base_x[5] = {
@@ -205,19 +280,65 @@ check_point_doubling(void)
     broadcast_limbs(&state.Y, base_y);
     broadcast_limbs(&state.Z, one);
     broadcast_limbs(&state.T, base_t);
+    if (!check_double_stage2(&state))
+        return 0;
 
     narya_edwards_point_x8 heterogeneous = {0};
     for (size_t step = 0; step < 256; step++) {
         if (step < 8)
             copy_point_lane(&heterogeneous, step, &state, 0);
+        if (step < 64 && !check_double_stage2(&state)) {
+            fprintf(stderr, "Stage-2 failed at point step %zu\n", step);
+            return 0;
+        }
+
+        /*
+         * The production Horner loop performs five dependent doublings with
+         * P2 intermediates. Pin every transition against the complete P3
+         * oracle, including exact P2 aliasing and the final reconstruction of
+         * T before an addition can consume the point.
+         */
+        if (step < 32) {
+            narya_edwards_point_x8 chain_want;
+            narya_projective_point_x8 projective;
+            reference_edwards_double_x8(&chain_want, &state);
+            narya_edwards_double_to_projective_x8(&projective, &state);
+            if (!projective_point_matches_edwards_modp(
+                    &projective, &chain_want)) {
+                fprintf(stderr, "P3-to-P2 double mismatch at step %zu\n", step);
+                return 0;
+            }
+            for (size_t middle = 1; middle < NARYA_RADIX32_BITS - 1; middle++) {
+                narya_edwards_point_x8 next;
+                reference_edwards_double_x8(&next, &chain_want);
+                chain_want = next;
+                narya_projective_double_x8(&projective, &projective);
+                if (!projective_point_matches_edwards_modp(
+                        &projective, &chain_want)) {
+                    fprintf(stderr,
+                        "in-place P2 double mismatch at step %zu middle %zu\n",
+                        step, middle);
+                    return 0;
+                }
+            }
+            narya_edwards_point_x8 next;
+            reference_edwards_double_x8(&next, &chain_want);
+            chain_want = next;
+            narya_projective_double_to_edwards_x8(&got, &projective);
+            if (!point_equal_modp_all(&got, &chain_want)) {
+                fprintf(stderr, "P2-to-P3 double mismatch at step %zu\n", step);
+                return 0;
+            }
+        }
+
         reference_edwards_double_x8(&want, &state);
         narya_edwards_double_x8(&got, &state);
-        if (!point_equal_exact(&got, &want)) {
+        if (!point_equal_modp_all(&got, &want)) {
             fprintf(stderr, "point-double mismatch at step %zu\n", step);
             return 0;
         }
         narya_edwards_double_x8(&state, &state);
-        if (!point_equal_exact(&state, &want)) {
+        if (!point_equal_modp_all(&state, &want)) {
             fprintf(stderr, "in-place point-double mismatch at step %zu\n", step);
             return 0;
         }
@@ -391,6 +512,14 @@ main(void)
         return 1;
     if (!check_repeated_squares(&x))
         return 1;
+    narya_edwards_point_x8 arbitrary_point = {
+        .X = x,
+        .Y = y,
+        .Z = x,
+        .T = y,
+    };
+    if (!check_double_stage2(&arbitrary_point))
+        return 1;
 
     for (size_t iteration = 0; iteration < 10000; iteration++) {
         for (size_t limb = 0; limb < NARYA_R51_LIMBS; limb++) {
@@ -407,6 +536,16 @@ main(void)
             fprintf(stderr,
                 "failed repeated-square random iteration %zu\n", iteration);
             return 1;
+        }
+        if (iteration < 256) {
+            arbitrary_point.X = x;
+            arbitrary_point.Y = y;
+            arbitrary_point.Z = (iteration & 1) == 0 ? x : y;
+            if (!check_double_stage2(&arbitrary_point)) {
+                fprintf(stderr,
+                    "failed Stage-2 random iteration %zu\n", iteration);
+                return 1;
+            }
         }
     }
 

@@ -32,8 +32,22 @@ narya_variable_scalar_mult_x8(
     /* Horner evaluation of the exact signed radix-32 expansion. */
     for (size_t round = NARYA_RADIX32_ROUNDS; round-- > 0;) {
         if (round != NARYA_RADIX32_ROUNDS - 1) {
-            for (size_t doubling = 0; doubling < NARYA_RADIX32_BITS; doubling++)
-                narya_edwards_double_x8(&accumulator, &accumulator);
+            /*
+             * Only the last of five dependent doublings needs T for the
+             * following Niels addition.  Use the P2 type for the four
+             * intermediate results so a missing T cannot accidentally cross
+             * an addition boundary.  This is the standalone SysV counterpart
+             * of the current Go backend's P2/P3 schedule.
+             */
+            narya_projective_point_x8 projective;
+            narya_edwards_double_to_projective_x8(&projective, &accumulator);
+            for (size_t doubling = 1;
+                 doubling + 1 < NARYA_RADIX32_BITS;
+                 doubling++) {
+                narya_projective_double_x8(&projective, &projective);
+            }
+            narya_projective_double_to_edwards_x8(
+                &accumulator, &projective);
         }
         if ((digits.round[round].nonzero_mask & valid) != 0) {
             narya_projective_niels_x8 selected;

@@ -114,6 +114,110 @@
     vpmadd52luq \in0, \fold19, \c4
 .endm
 
+/*
+ * Exact folded-u61 multiplication without the final carry. This macro is
+ * private to the doubling Stage-2 transition below. Its four invocations have
+ * a disjoint output workspace; output/input overlap is forbidden.
+ */
+.macro MUL_RAW_TO outoff, xptr, yptr
+    vmovdqu64 zmm0, ZMMWORD PTR [\xptr +   0]
+    vmovdqu64 zmm1, ZMMWORD PTR [\xptr +  64]
+    vmovdqu64 zmm2, ZMMWORD PTR [\xptr + 128]
+    vmovdqu64 zmm3, ZMMWORD PTR [\xptr + 192]
+    vmovdqu64 zmm4, ZMMWORD PTR [\xptr + 256]
+    vmovdqu64 zmm5, ZMMWORD PTR [\yptr +   0]
+    vmovdqu64 zmm6, ZMMWORD PTR [\yptr +  64]
+    vmovdqu64 zmm7, ZMMWORD PTR [\yptr + 128]
+    vmovdqu64 zmm8, ZMMWORD PTR [\yptr + 192]
+    vmovdqu64 zmm9, ZMMWORD PTR [\yptr + 256]
+
+    CLEAR zmm10
+    CLEAR zmm11
+    CLEAR zmm12
+    CLEAR zmm13
+    CLEAR zmm14
+    CLEAR zmm15
+    CLEAR zmm16
+    CLEAR zmm17
+    CLEAR zmm18
+    CLEAR zmm19
+    CLEAR zmm20
+    CLEAR zmm21
+    CLEAR zmm22
+    CLEAR zmm23
+    CLEAR zmm24
+    CLEAR zmm25
+    CLEAR zmm26
+    CLEAR zmm27
+
+    MUL_PAIR zmm0, zmm5, zmm10, zmm19
+    MUL_PAIR zmm0, zmm6, zmm11, zmm20
+    MUL_PAIR zmm0, zmm7, zmm12, zmm21
+    MUL_PAIR zmm0, zmm8, zmm13, zmm22
+    MUL_PAIR zmm0, zmm9, zmm14, zmm23
+    MUL_PAIR zmm1, zmm5, zmm11, zmm20
+    MUL_PAIR zmm1, zmm6, zmm12, zmm21
+    MUL_PAIR zmm1, zmm7, zmm13, zmm22
+    MUL_PAIR zmm1, zmm8, zmm14, zmm23
+    MUL_PAIR zmm1, zmm9, zmm15, zmm24
+    MUL_PAIR zmm2, zmm5, zmm12, zmm21
+    MUL_PAIR zmm2, zmm6, zmm13, zmm22
+    MUL_PAIR zmm2, zmm7, zmm14, zmm23
+    MUL_PAIR zmm2, zmm8, zmm15, zmm24
+    MUL_PAIR zmm2, zmm9, zmm16, zmm25
+    MUL_PAIR zmm3, zmm5, zmm13, zmm22
+    MUL_PAIR zmm3, zmm6, zmm14, zmm23
+    MUL_PAIR zmm3, zmm7, zmm15, zmm24
+    MUL_PAIR zmm3, zmm8, zmm16, zmm25
+    MUL_PAIR zmm3, zmm9, zmm17, zmm26
+    MUL_PAIR zmm4, zmm5, zmm14, zmm23
+    MUL_PAIR zmm4, zmm6, zmm15, zmm24
+    MUL_PAIR zmm4, zmm7, zmm16, zmm25
+    MUL_PAIR zmm4, zmm8, zmm17, zmm26
+    MUL_PAIR zmm4, zmm9, zmm18, zmm27
+
+    COMBINE_HIGH zmm19, zmm11
+    COMBINE_HIGH zmm20, zmm12
+    COMBINE_HIGH zmm21, zmm13
+    COMBINE_HIGH zmm22, zmm14
+    COMBINE_HIGH zmm23, zmm15
+    COMBINE_HIGH zmm24, zmm16
+    COMBINE_HIGH zmm25, zmm17
+    COMBINE_HIGH zmm26, zmm18
+    vpsllq zmm27, zmm27, 1
+
+    FOLD_INTO zmm10, zmm15, zmm28, zmm31
+    FOLD_INTO zmm11, zmm16, zmm28, zmm31
+    FOLD_INTO zmm12, zmm17, zmm28, zmm31
+    FOLD_INTO zmm13, zmm18, zmm28, zmm31
+    FOLD_INTO zmm14, zmm27, zmm28, zmm31
+
+    vmovdqu64 ZMMWORD PTR [rdi + \outoff +   0], zmm10
+    vmovdqu64 ZMMWORD PTR [rdi + \outoff +  64], zmm11
+    vmovdqu64 ZMMWORD PTR [rdi + \outoff + 128], zmm12
+    vmovdqu64 ZMMWORD PTR [rdi + \outoff + 192], zmm13
+    vmovdqu64 ZMMWORD PTR [rdi + \outoff + 256], zmm14
+.endm
+
+/*
+ * One limb of the direct-XY doubling linear layer. Input registers are raw
+ * A=X^2, B=Y^2, C=Z^2, and XY. They are overwritten with H,G,F,E. Biases are
+ * exact radix limbs of 535p, 1068p, and 1069p.
+ */
+.macro DOUBLE_STAGE2_LINEAR A, B, C, E, P535, P1068, P1069, scratch
+    vmovdqa64 \scratch, \A
+    vpsubq \A, \P1069, \A
+    vpsubq \A, \A, \B
+    vpaddq \B, \B, \P535
+    vpsubq \B, \B, \scratch
+    vpaddq \C, \C, \C
+    vmovdqa64 \scratch, \B
+    vpaddq \scratch, \scratch, \P1068
+    vpsubq \scratch, \scratch, \C
+    vmovdqa64 \C, \scratch
+    vpaddq \E, \E, \E
+.endm
+
 .p2align 5
 .globl narya_r51x8_mul_ifma
 .hidden narya_r51x8_mul_ifma
@@ -334,6 +438,111 @@ narya_r51x8_repeated_square_ifma:
 .size narya_r51x8_repeated_square_ifma, .-narya_r51x8_repeated_square_ifma
 
 /*
+ * Direct-XY point-doubling Stage 1+2.
+ *
+ * System V AMD64: RDI=workspace, RSI=X, RDX=Y, RCX=Z. The three inputs are
+ * composable-u52 field elements and must not overlap the workspace.
+ *
+ * Stage 1 expands the reviewed multiplication schedule four times, producing
+ * exact folded raw [A=X^2,B=Y^2,C=Z^2,XY] products. Stage 2 applies
+ *
+ *   E = 2XY
+ *   G = B + 535p - A
+ *   F = G + 1068p - 2C
+ *   H = 1069p - A - B
+ *
+ * limb-wise, then performs one independent carry/fold pass per output. The
+ * raw-product bounds and biases are documented in
+ * docs/proofs/R51_FIELD_CONTRACT.md: every wide expression is non-negative
+ * and below 2^64, and every stored [E,F,G,H] limb is below 2^52.
+ *
+ * The final three/four coordinate products remain separate, profiler-visible
+ * field leaves. This is the SysV counterpart of Narya's reviewed Go Stage-2
+ * boundary, not a new Edwards formula.
+ */
+.p2align 5
+.globl narya_r51x8_double_stage2_ifma
+.hidden narya_r51x8_double_stage2_ifma
+.type narya_r51x8_double_stage2_ifma, @function
+narya_r51x8_double_stage2_ifma:
+    vpbroadcastq zmm31, QWORD PTR [rip + narya_ifma_fold19]
+    MUL_RAW_TO    0, rsi, rsi
+    MUL_RAW_TO  320, rdx, rdx
+    MUL_RAW_TO  640, rcx, rcx
+    MUL_RAW_TO  960, rsi, rdx
+
+    /* Load all twenty raw vectors before overwriting the workspace. */
+    vmovdqu64 zmm0,  ZMMWORD PTR [rdi +    0]
+    vmovdqu64 zmm1,  ZMMWORD PTR [rdi +   64]
+    vmovdqu64 zmm2,  ZMMWORD PTR [rdi +  128]
+    vmovdqu64 zmm3,  ZMMWORD PTR [rdi +  192]
+    vmovdqu64 zmm4,  ZMMWORD PTR [rdi +  256]
+    vmovdqu64 zmm5,  ZMMWORD PTR [rdi +  320]
+    vmovdqu64 zmm6,  ZMMWORD PTR [rdi +  384]
+    vmovdqu64 zmm7,  ZMMWORD PTR [rdi +  448]
+    vmovdqu64 zmm8,  ZMMWORD PTR [rdi +  512]
+    vmovdqu64 zmm9,  ZMMWORD PTR [rdi +  576]
+    vmovdqu64 zmm10, ZMMWORD PTR [rdi +  640]
+    vmovdqu64 zmm11, ZMMWORD PTR [rdi +  704]
+    vmovdqu64 zmm12, ZMMWORD PTR [rdi +  768]
+    vmovdqu64 zmm13, ZMMWORD PTR [rdi +  832]
+    vmovdqu64 zmm14, ZMMWORD PTR [rdi +  896]
+    vmovdqu64 zmm15, ZMMWORD PTR [rdi +  960]
+    vmovdqu64 zmm16, ZMMWORD PTR [rdi + 1024]
+    vmovdqu64 zmm17, ZMMWORD PTR [rdi + 1088]
+    vmovdqu64 zmm18, ZMMWORD PTR [rdi + 1152]
+    vmovdqu64 zmm19, ZMMWORD PTR [rdi + 1216]
+
+    vpbroadcastq zmm20, QWORD PTR [rip + narya_ifma_stage2_bias535_p0]
+    vpbroadcastq zmm21, QWORD PTR [rip + narya_ifma_stage2_bias535_pn]
+    vpbroadcastq zmm22, QWORD PTR [rip + narya_ifma_stage2_bias1068_p0]
+    vpbroadcastq zmm23, QWORD PTR [rip + narya_ifma_stage2_bias1068_pn]
+    vpbroadcastq zmm24, QWORD PTR [rip + narya_ifma_stage2_bias1069_p0]
+    vpbroadcastq zmm25, QWORD PTR [rip + narya_ifma_stage2_bias1069_pn]
+
+    DOUBLE_STAGE2_LINEAR zmm0, zmm5, zmm10, zmm15, zmm20, zmm22, zmm24, zmm26
+    DOUBLE_STAGE2_LINEAR zmm1, zmm6, zmm11, zmm16, zmm21, zmm23, zmm25, zmm26
+    DOUBLE_STAGE2_LINEAR zmm2, zmm7, zmm12, zmm17, zmm21, zmm23, zmm25, zmm26
+    DOUBLE_STAGE2_LINEAR zmm3, zmm8, zmm13, zmm18, zmm21, zmm23, zmm25, zmm26
+    DOUBLE_STAGE2_LINEAR zmm4, zmm9, zmm14, zmm19, zmm21, zmm23, zmm25, zmm26
+
+    vpbroadcastq zmm20, QWORD PTR [rip + narya_ifma_mask51]
+    vpbroadcastq zmm21, QWORD PTR [rip + narya_ifma_fold19]
+    NORMALIZE_5 zmm15, zmm16, zmm17, zmm18, zmm19, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm10, zmm11, zmm12, zmm13, zmm14, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm5, zmm6, zmm7, zmm8, zmm9, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+    NORMALIZE_5 zmm0, zmm1, zmm2, zmm3, zmm4, zmm20, \
+                zmm22, zmm23, zmm24, zmm25, zmm26, zmm21
+
+    /* Store in [E,F,G,H] order for the three/four final products. */
+    vmovdqu64 ZMMWORD PTR [rdi +    0], zmm15
+    vmovdqu64 ZMMWORD PTR [rdi +   64], zmm16
+    vmovdqu64 ZMMWORD PTR [rdi +  128], zmm17
+    vmovdqu64 ZMMWORD PTR [rdi +  192], zmm18
+    vmovdqu64 ZMMWORD PTR [rdi +  256], zmm19
+    vmovdqu64 ZMMWORD PTR [rdi +  320], zmm10
+    vmovdqu64 ZMMWORD PTR [rdi +  384], zmm11
+    vmovdqu64 ZMMWORD PTR [rdi +  448], zmm12
+    vmovdqu64 ZMMWORD PTR [rdi +  512], zmm13
+    vmovdqu64 ZMMWORD PTR [rdi +  576], zmm14
+    vmovdqu64 ZMMWORD PTR [rdi +  640], zmm5
+    vmovdqu64 ZMMWORD PTR [rdi +  704], zmm6
+    vmovdqu64 ZMMWORD PTR [rdi +  768], zmm7
+    vmovdqu64 ZMMWORD PTR [rdi +  832], zmm8
+    vmovdqu64 ZMMWORD PTR [rdi +  896], zmm9
+    vmovdqu64 ZMMWORD PTR [rdi +  960], zmm0
+    vmovdqu64 ZMMWORD PTR [rdi + 1024], zmm1
+    vmovdqu64 ZMMWORD PTR [rdi + 1088], zmm2
+    vmovdqu64 ZMMWORD PTR [rdi + 1152], zmm3
+    vmovdqu64 ZMMWORD PTR [rdi + 1216], zmm4
+    vzeroupper
+    ret
+.size narya_r51x8_double_stage2_ifma, .-narya_r51x8_double_stage2_ifma
+
+/*
  * The three linear operations below use the same parallel carry proven in
  * docs/proofs/R51_FIELD_CONTRACT.md.  Addition produces u53 intermediates.
  * Subtraction and negation first add the radix limbs of 4p:
@@ -448,5 +657,17 @@ narya_ifma_sub_bias0:
     .quad 0x001fffffffffffb4
 narya_ifma_sub_biasn:
     .quad 0x001ffffffffffffc
+narya_ifma_stage2_bias535_p0:
+    .quad 0x10b7ffffffffd84b
+narya_ifma_stage2_bias535_pn:
+    .quad 0x10b7fffffffffde9
+narya_ifma_stage2_bias1068_p0:
+    .quad 0x215fffffffffb0bc
+narya_ifma_stage2_bias1068_pn:
+    .quad 0x215ffffffffffbd4
+narya_ifma_stage2_bias1069_p0:
+    .quad 0x2167ffffffffb0a9
+narya_ifma_stage2_bias1069_pn:
+    .quad 0x2167fffffffffbd3
 
 .section .note.GNU-stack,"",@progbits
