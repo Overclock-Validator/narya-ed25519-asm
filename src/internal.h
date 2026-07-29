@@ -50,6 +50,12 @@ void narya_r51x8_canonical_lane(
 void narya_sha512_compress_x8_asm(
     narya_sha512_state_x8 *state,
     const narya_sha512_block_x8 *block);
+narya_status narya_sha512_r_a_message_scalar(
+    uint8_t digest[64],
+    const uint8_t r[32],
+    const uint8_t a[32],
+    const uint8_t *message,
+    size_t length);
 
 /*
  * In-place signed radix-2^21 reducer. limbs[index][lane] contains 24 limbs

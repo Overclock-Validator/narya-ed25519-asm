@@ -286,23 +286,18 @@ verify_packed_small(
     if (live == 0)
         return NARYA_OK;
 
-    uint8_t r_bytes[8 * 32] = {0};
-    uint8_t a_bytes[8 * 32] = {0};
-    const uint8_t *messages[8] = {0};
-    size_t lengths[8] = {0};
-    for (size_t item = 0; item < count; item++) {
-        memcpy(&r_bytes[item * 32], &signature[item * 64], 32);
-        memcpy(&a_bytes[item * 32], &public_key[item * 32], 32);
-        messages[item] = message[item];
-        lengths[item] = message_length[item];
-    }
-    narya_digest_batch_x8 digest;
+    narya_digest_batch_x8 digest = {0};
     narya_scalar_batch_x8 challenge;
-    narya_status status = narya_sha512_r_a_message_x8(
-        digest.lane, r_bytes, a_bytes, messages, lengths, live);
-    if (status != NARYA_OK)
-        return status;
-    status = narya_scalar_reduce_x8(
+    for (size_t item = 0; item < count; item++) {
+        if ((live & (UINT8_C(1) << item)) == 0)
+            continue;
+        const narya_status status = narya_sha512_r_a_message_scalar(
+            digest.lane[item], &signature[item * 64], &public_key[item * 32],
+            message[item], message_length[item]);
+        if (status != NARYA_OK)
+            return status;
+    }
+    narya_status status = narya_scalar_reduce_x8(
         challenge.lane, digest.flat, live);
     if (status != NARYA_OK)
         return status;

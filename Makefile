@@ -30,6 +30,7 @@ OBJECTS := \
 	$(BUILD)/scalar_reduce_x8.o \
 	$(BUILD)/scalar_recode.o \
 	$(BUILD)/scalar_mult_x8.o \
+	$(BUILD)/sha512_scalar.o \
 	$(BUILD)/sha512x8.o \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
@@ -90,6 +91,9 @@ $(BUILD)/affine_niels_transpose_x8.o: src/affine_niels_transpose_x8.S | $(BUILD)
 	$(CC) $(CPPFLAGS) -c $< -o $@
 
 $(BUILD)/sha512x8.o: src/sha512x8.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/sha512_scalar.o: src/sha512_scalar.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/scalar_reduce.o: src/scalar_reduce.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)

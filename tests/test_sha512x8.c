@@ -7,6 +7,7 @@
  * assembly macro schedule or its rolling sixteen-register recurrence.
  */
 #include "narya_ed25519_asm.h"
+#include "internal.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -352,6 +353,20 @@ check_segmented_hash(void)
             fprintf(stderr, "segmented SHA-512 mismatch for active mask=%02x\n", active);
             return 0;
         }
+        for (size_t lane = 0; lane < 8; lane++) {
+            if ((active & (1u << lane)) == 0)
+                continue;
+            uint8_t scalar[64];
+            if (narya_sha512_r_a_message_scalar(
+                    scalar, &r[lane * 32], &a[lane * 32],
+                    message_ptrs[lane], lengths[lane]) != NARYA_OK ||
+                memcmp(scalar, want[lane], sizeof(scalar)) != 0) {
+                fprintf(stderr,
+                    "scalar SHA-512 mismatch for active mask=%02x lane=%zu\n",
+                    active, lane);
+                return 0;
+            }
+        }
     }
 
     /* External known answer for SHA-512 over exactly 64 zero bytes. */
@@ -387,6 +402,17 @@ check_segmented_hash(void)
             got, r, a, bad_ptrs, bad_lengths, UINT8_C(1)) !=
             NARYA_ERR_RANGE ||
         memcmp(got, unchanged, sizeof(got)) != 0)
+        return 0;
+    uint8_t scalar[64];
+    memset(scalar, 0xa5, sizeof(scalar));
+    uint8_t scalar_unchanged[64];
+    memcpy(scalar_unchanged, scalar, sizeof(scalar));
+    if (narya_sha512_r_a_message_scalar(
+            scalar, r, a, NULL, 1) != NARYA_ERR_INVALID_ARGUMENT ||
+        memcmp(scalar, scalar_unchanged, sizeof(scalar)) != 0 ||
+        narya_sha512_r_a_message_scalar(
+            scalar, r, a, NULL, SIZE_MAX) != NARYA_ERR_RANGE ||
+        memcmp(scalar, scalar_unchanged, sizeof(scalar)) != 0)
         return 0;
     return 1;
 }
