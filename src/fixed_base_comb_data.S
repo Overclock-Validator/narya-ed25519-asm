@@ -32,4 +32,18 @@ narya_fixed_base_b10:
 .incbin "data/narya_fixed_base_b10.bin"
 .size narya_fixed_base_b10, .-narya_fixed_base_b10
 
+/*
+ * Coordinate-parallel width-8 NAF table for the singleton verifier. Each
+ * 160-byte entry is one positive odd multiple in five [Y-X,Y+X,2dT,2Z]
+ * rows. The independent affine generator is
+ * tools/generate_packed_naf_basepoint.py.
+ */
+.p2align 6
+.globl narya_packed_naf_basepoint
+.hidden narya_packed_naf_basepoint
+.type narya_packed_naf_basepoint, @object
+narya_packed_naf_basepoint:
+.incbin "data/narya_packed_naf_basepoint.bin"
+.size narya_packed_naf_basepoint, .-narya_packed_naf_basepoint
+
 .section .note.GNU-stack,"",@progbits

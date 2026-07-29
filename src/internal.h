@@ -118,6 +118,53 @@ typedef struct narya_edwards_point_x8 {
 } narya_edwards_point_x8;
 
 /*
+ * Coordinate-parallel singleton representation. Lanes 0..3 contain
+ * [X,Y,T,Z] for one point; lanes 4..7 are zero. Keeping the storage type as
+ * r51x8 lets the packed path reuse the reviewed native-512 multiplication
+ * leaf on Zen 5. No horizontal arithmetic crosses coordinates.
+ */
+typedef struct narya_packed_point_x4 {
+    narya_r51x8 coordinates;
+} narya_packed_point_x4;
+
+/* Packed cached point [Y-X,Y+X,2dT,2Z]. */
+typedef struct narya_packed_cached_x4 {
+    narya_r51x8 coordinates;
+} narya_packed_cached_x4;
+
+typedef struct narya_packed_naf_table5_x4 {
+    narya_packed_cached_x4 positive[8];
+} narya_packed_naf_table5_x4;
+
+/* Dense 160-byte source entry: five rows of the four packed coordinates. */
+typedef struct narya_packed_naf_micro_entry_x4 {
+    uint64_t limb[5][4];
+} narya_packed_naf_micro_entry_x4;
+
+_Static_assert(
+    sizeof(narya_packed_naf_micro_entry_x4) == 160,
+    "packed NAF source ABI changed");
+
+extern const narya_packed_naf_micro_entry_x4 narya_packed_naf_basepoint[64];
+
+void narya_packed_point_from_lane_x4(
+    narya_packed_point_x4 *out,
+    const narya_edwards_point_x8 *point,
+    size_t lane);
+void narya_packed_naf_table5_build_x4(
+    narya_packed_naf_table5_x4 *out,
+    const narya_packed_point_x4 *base);
+int narya_packed_double_scalar_mult_x4(
+    narya_packed_point_x4 *out,
+    const narya_packed_naf_table5_x4 *a_table,
+    const uint8_t s[32],
+    const uint8_t k[32]);
+int narya_packed_equal_decoded_lane_x4(
+    const narya_packed_point_x4 *point,
+    const narya_edwards_point_x8 *decoded,
+    size_t lane);
+
+/*
  * Projective P2 coordinates for a run of dependent doublings.  This is a
  * distinct type, rather than an Edwards point with a stale T coordinate:
  * additions require narya_edwards_point_x8 and therefore cannot consume an

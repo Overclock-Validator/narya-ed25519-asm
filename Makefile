@@ -20,6 +20,7 @@ OBJECTS := \
 	$(BUILD)/fixed_base_comb_data.o \
 	$(BUILD)/affine_niels_transpose_x8.o \
 	$(BUILD)/point_x8.o \
+	$(BUILD)/packed_x4.o \
 	$(BUILD)/projective_niels_table.o \
 	$(BUILD)/projective_niels_transpose_x8.o \
 	$(BUILD)/r51x8.o \
@@ -63,6 +64,9 @@ $(BUILD)/r51x8.o: src/r51x8.c include/narya_ed25519_asm.h src/internal.h | $(BUI
 $(BUILD)/point_x8.o: src/point_x8.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD)/packed_x4.o: src/packed_x4.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
 $(BUILD)/projective_niels_table.o: src/projective_niels_table.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
@@ -75,7 +79,7 @@ $(BUILD)/asymmetric_fixed_b10.o: src/asymmetric_fixed_b10.c include/narya_ed2551
 $(BUILD)/fixed_base_comb.o: src/fixed_base_comb.c include/narya_ed25519_asm.h src/internal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD)/fixed_base_comb_data.o: src/fixed_base_comb_data.S data/narya_fixed_base_comb_r256.bin data/narya_fixed_base_b10.bin | $(BUILD)
+$(BUILD)/fixed_base_comb_data.o: src/fixed_base_comb_data.S data/narya_fixed_base_comb_r256.bin data/narya_fixed_base_b10.bin data/narya_packed_naf_basepoint.bin | $(BUILD)
 	$(CC) $(CPPFLAGS) -c $< -o $@
 
 $(BUILD)/affine_niels_transpose_x8.o: src/affine_niels_transpose_x8.S | $(BUILD)

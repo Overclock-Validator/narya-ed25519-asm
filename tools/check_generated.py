@@ -108,6 +108,17 @@ def main() -> None:
             vectors.read_bytes(),
         )
 
+        packed_naf = directory / "packed-naf.bin"
+        run(
+            "tools/generate_packed_naf_basepoint.py",
+            "--output",
+            str(packed_naf),
+        )
+        require_equal(
+            ROOT / "data/narya_packed_naf_basepoint.bin",
+            packed_naf.read_bytes(),
+        )
+
         fuzz = directory / "fuzz"
         run(
             "tools/generate_fuzz_seeds.py",

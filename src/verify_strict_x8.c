@@ -18,8 +18,9 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct narya_verify_strict_workspace_x8 {
+typedef union narya_verify_strict_workspace_x8 {
     narya_projective_niels_presigned_table_x8 public_table;
+    narya_packed_naf_table5_x4 packed_public_table;
 } narya_verify_strict_workspace_x8;
 
 enum { strict_batch_groups = NARYA_VERIFY_STRICT_BATCH_MAX / NARYA_X8_LANES };
@@ -160,6 +161,18 @@ byte_precheck(
     return live;
 }
 
+static int
+byte_precheck_one(
+    const uint8_t public_key[32],
+    const uint8_t signature[64])
+{
+    const uint8_t *r = signature;
+    const uint8_t *s = signature + 32;
+    return bytes_less_than(s, scalar_order) &&
+           !small_order_encoding(public_key) &&
+           !small_order_encoding(r) && canonical_r_encoding(r);
+}
+
 static uint8_t
 field_equal_mask(const narya_r51x8 *a, const narya_r51x8 *b)
 {
@@ -245,6 +258,65 @@ prepare_batch_equation(
     live &= narya_asymmetric_fixed_b10_double_scalar_mult_x8(
         equation, &scratch->public_table, s_bytes, challenge.flat, live);
     *prepared_mask = live;
+    return NARYA_OK;
+}
+
+/*
+ * Exact coordinate-parallel singleton verifier. A and R share one x8 decode
+ * schedule in lanes 0 and 1; the equation then moves to packed [X,Y,T,Z]
+ * lanes and uses the width-5/width-8 signed NAF schedule. The final comparison
+ * is projective and therefore performs no inversion or serialization.
+ */
+static narya_status
+verify_packed_single(
+    uint8_t *verdict,
+    const uint8_t public_key[32],
+    const uint8_t signature[64],
+    const uint8_t *message,
+    size_t message_length,
+    narya_verify_strict_workspace_x8 *scratch)
+{
+    *verdict = 0;
+    if (!byte_precheck_one(public_key, signature))
+        return NARYA_OK;
+
+    uint8_t r_bytes[8 * 32] = {0};
+    uint8_t a_bytes[8 * 32] = {0};
+    memcpy(r_bytes, signature, 32);
+    memcpy(a_bytes, public_key, 32);
+    const uint8_t *messages[8] = {message};
+    size_t lengths[8] = {message_length};
+    narya_digest_batch_x8 digest;
+    narya_scalar_batch_x8 challenge;
+    narya_status status = narya_sha512_r_a_message_x8(
+        digest.lane, r_bytes, a_bytes, messages, lengths, UINT8_C(1));
+    if (status != NARYA_OK)
+        return status;
+    status = narya_scalar_reduce_x8(
+        challenge.lane, digest.flat, UINT8_C(1));
+    if (status != NARYA_OK)
+        return status;
+
+    /* Decode A and R together: lane 0 is A, lane 1 is R. */
+    uint8_t encoded[8 * 32] = {0};
+    memcpy(&encoded[0], public_key, 32);
+    memcpy(&encoded[32], signature, 32);
+    narya_edwards_point_x8 decoded;
+    if ((narya_edwards_decode_x8(&decoded, encoded, UINT8_C(3)) & 3U) != 3U)
+        return NARYA_OK;
+
+    narya_packed_point_x4 public_point;
+    narya_packed_point_from_lane_x4(&public_point, &decoded, 0);
+    narya_packed_naf_table5_build_x4(
+        &scratch->packed_public_table, &public_point);
+
+    narya_packed_point_x4 equation;
+    if (!narya_packed_double_scalar_mult_x4(
+            &equation, &scratch->packed_public_table,
+            signature + 32, challenge.lane[0]))
+        return NARYA_OK;
+    *verdict = (uint8_t)narya_packed_equal_decoded_lane_x4(
+        &equation, &decoded, 1);
     return NARYA_OK;
 }
 
@@ -486,6 +558,26 @@ narya_ed25519_verify_strict_batch(
         return NARYA_ERR_UNSUPPORTED_CPU;
 
     narya_verify_strict_batch_workspace *scratch = workspace;
+
+    /*
+     * One or two signatures cannot fill the signature-parallel x8 equation.
+     * Verify them through the coordinate-parallel path instead. Every verdict
+     * is staged locally so an error on a later item preserves output atomicity.
+     */
+    if (count <= 2) {
+        uint64_t staged = 0;
+        for (size_t item = 0; item < count; item++) {
+            uint8_t valid = 0;
+            const narya_status status = verify_packed_single(
+                &valid, &public_key[item * 32], &signature[item * 64],
+                message[item], message_length[item], &scratch->group);
+            if (status != NARYA_OK)
+                return status;
+            staged |= (uint64_t)valid << item;
+        }
+        *verdict_bits = staged;
+        return NARYA_OK;
+    }
 
     /*
      * One group is faster through the established decode-R/projective-compare
