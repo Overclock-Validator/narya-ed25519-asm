@@ -100,7 +100,8 @@ The recommended human-review order is:
    including its separate Stage-2 proof boundary;
 5. scalar reduction and recoding;
 6. SHA-512 message segmentation and compression;
-7. variable-base and fixed-base scalar multiplication; and
+7. variable-base scalar multiplication, the merged asymmetric B10 schedule,
+   and the independent radix-256 fixed-base oracle; and
 8. complete-verifier differentials, faults, masks, and inactive lanes.
 
 The [audit scope](AUDIT_SCOPE.md) lists the high-priority questions. The

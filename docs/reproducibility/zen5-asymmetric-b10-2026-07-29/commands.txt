@@ -1,0 +1,23 @@
+# Create detached worktrees at the named baseline and candidate commits.
+git worktree add --detach /tmp/narya-b10-before 344afa3d180f24cee3dfe15b661362b56086358c
+git worktree add --detach /tmp/narya-b10-after fe951d3
+
+# In each worktree, build the exact native library and the stable harness from
+# the preceding doubling evidence directory.
+make clean
+make -j2 CFLAGS="-O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror" build/libnarya_ed25519_asm.a
+cc -O3 -std=c11 -Wall -Wextra -Wpedantic -Werror -Iinclude docs/reproducibility/zen5-doubling-stage2-p2-2026-07-29/bench_verify.c build/libnarya_ed25519_asm.a -o bench-verify
+
+# Alternate process order for six samples per binary. Each process performs
+# 256 untimed warm-up calls before 100,000 measured x8 calls.
+taskset -c 2 ./bench-verify tests/vectors/narya_strict_verify_v1.txt 100000 1
+
+# Repeat five times per exact binary.
+perf stat -x, -e cycles,instructions,task-clock -r 5 taskset -c 2 ./bench-verify tests/vectors/narya_strict_verify_v1.txt 10000 1
+
+# Candidate release gates.
+make clean
+make -j2 CFLAGS="-O3 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror" test-native
+make test-sanitize
+make check-generated
+make check

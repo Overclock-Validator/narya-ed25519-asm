@@ -26,8 +26,9 @@ boundary are frozen.
   compression and exact segmented verifier hashing; x8 canonical scalar
   reduction and exact signed radix-32 recoding; pre-signed projective-Niels
   tables and the micro-AoS transpose selector; full-width x8 variable-base
-  scalar multiplication; an immutable radix-256 basepoint comb with a masked
-  affine-Niels transpose leaf; the complete x8 `DalekStrict` equation and
+  scalar multiplication; a merged asymmetric `[s]B-[k]A` schedule with an
+  immutable width-10 generator table and one 250-doubling chain; an independent
+  radix-256 basepoint-comb oracle; the complete x8 `DalekStrict` equation and
   public workspace ABI; alias, lane-independence, known-answer, and range
   tests; and a machine-checked Lean scalar trace generated from the radix-51
   IFMA multiply source, including the exact product order and register route,
@@ -147,6 +148,8 @@ The promoted point schedule and its P2/P3 type boundary are described in
 [`docs/architecture/POINT_DOUBLING.md`](docs/architecture/POINT_DOUBLING.md).
 The bounded mixed-addition boundary is described in
 [`docs/architecture/NIELS_ADDITION.md`](docs/architecture/NIELS_ADDITION.md).
+The exact merged generator/variable-base recurrence is described in
+[`docs/architecture/ASYMMETRIC_FIXED_B10.md`](docs/architecture/ASYMMETRIC_FIXED_B10.md).
 The [documentation index](docs/README.md) separates architecture, proofs,
 audit material, performance reports, and raw reproducibility evidence.
 

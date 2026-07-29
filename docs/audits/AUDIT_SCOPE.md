@@ -14,17 +14,19 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
 - SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
 - canonical scalar reduction and exact signed radix-32 recoding;
 - pre-signed projective-Niels table construction and assembly transpose;
-- variable-base scalar multiplication, an immutable radix-256 basepoint comb,
-  and complete `[S]B-[k]A` evaluation;
+- variable-base scalar multiplication, a merged asymmetric width-10 generator
+  schedule, an independent immutable radix-256 basepoint-comb oracle, and
+  complete `[S]B-[k]A` evaluation;
 - canonical-S, exact small-order A/R, canonical-R, projective equality, and
   independent lane verdicts;
 - scalar differential oracles and native Zen 5 evidence.
 
-The fixed-base term uses the checked-in radix-256 comb and its independently
-generated affine-Niels table. The table generator, binary payload, scalar
-fixtures, native active-mask sweep, and checksummed Zen 5 execution record are
-part of the current review boundary. These are correctness artifacts, not a
-general performance claim.
+The live fixed-base term uses the checked-in 120 KiB B10 table and shares the
+variable term's 250-doubling chain. The separate checked-in radix-256 comb is a
+differential oracle. Both generated payloads, their generator, scalar fixtures,
+native active-mask sweep, and checksummed Zen 5 records are part of the current
+review boundary. These are correctness artifacts, not general performance
+claims.
 
 ## High-priority review questions
 
@@ -47,6 +49,10 @@ general performance claim.
    every possible addition?
 10. Do the Niels Stage-2 `535p` biases cover both `B-A` and `2D-C` for the
     projective raw-product bounds and the affine carried-Z specialization?
+11. Do the balanced radix-1024 digits reconstruct every canonical `s` exactly,
+    does the B10 table encode both signs of `[1..512]B`, and does the merged
+    event order compute `[s]B-[k]A` without changing lane identity or torsion
+    semantics?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol

@@ -106,20 +106,25 @@ allocation.
 
 ## Fixed-base boundary
 
-The verifier uses the immutable radix-256 comb documented in
-[`FIXED_BASE_COMB.md`](FIXED_BASE_COMB.md) for `[S]B`. The earlier checkpoint
-used the variable-base radix-32 engine for both terms, establishing the whole
-predicate before accepting that optimization. That checkpoint is a regression
-oracle, not a proof of the replacement. The fixed base has the independent
-universal obligation
+The verifier uses the immutable B10 table and merged double-scalar schedule
+documented in
+[`ASYMMETRIC_FIXED_B10.md`](ASYMMETRIC_FIXED_B10.md). The independent
+radix-256 comb remains a structurally different regression oracle. Earlier
+checkpoints also used the variable-base radix-32 engine for both terms,
+establishing the complete predicate before either fixed-base optimization was
+accepted. Those checkpoints are evidence, not proofs of the replacement. The
+fixed base has the independent universal obligation
 
 ```text
-for every integer S with 0 <= S < l: Comb(S) == [S]B.
+for every integer S with 0 <= S < l: B10(S) == [S]B.
 ```
 
 The obligation covers exact digit reconstruction, every table entry, signs,
 indices, offsets and carries, the highest digit, and the boundary scalars
-`S=0` and `S=l-1`. Direct comb fixtures and the unchanged complete-verifier
-corpus support this obligation but do not substitute for it.
+`S=0` and `S=l-1`. The merged evaluator additionally has to preserve the exact
+`-k` integer action on mixed-order `A` and refine the documented 250-doubling
+event recurrence. Direct B10-versus-radix-256 differentials and the unchanged
+complete-verifier corpus support these obligations but do not substitute for
+them.
 
 [dalek-verifying]: https://github.com/dalek-cryptography/curve25519-dalek/blob/8016d6d9b9cdbaa681f24147e0b9377cc8cef934/ed25519-dalek/src/verifying.rs

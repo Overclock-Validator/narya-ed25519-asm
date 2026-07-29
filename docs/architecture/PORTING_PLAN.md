@@ -68,7 +68,11 @@ The standalone verifier now includes:
   with `T` reconstructed before every Niels addition; and
 - fused raw-product and linear/carry Stage-2 leaves for both projective- and
   affine-Niels additions, with final coordinate products kept separate.
+- the Go cold verifier's asymmetric fixed-base schedule: 26 balanced
+  radix-1024 generator digits are injected into the variable term's existing
+  250-doubling radix-32 chain, while the prior radix-256 comb remains an
+  independent oracle.
 
-It does not yet include the Go verifier's asymmetric fixed-base injection
-schedule, cross-group compressed-point finalizer, or public batch dispatcher.
-Those are separate ports, not implied by field-kernel parity.
+It does not yet include the Go verifier's cross-group compressed-point
+finalizer or public batch dispatcher. Those are separate ports, not implied by
+field-kernel or scalar-schedule parity.

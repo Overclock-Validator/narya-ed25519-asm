@@ -162,13 +162,23 @@ This target can reuse an abstract Edwards group and does not need to model
 AVX-512 instructions. The instruction-refinement proof remains localized to
 the field and transpose leaves.
 
-The fixed-base comb admits an even smaller abstract-group proof. Establish
+The independent radix-256 fixed-base comb admits an even smaller abstract-group proof. Establish
 that 32 balanced radix-256 digits reconstruct `s`, define
 `P_i=[2^(16i)]B`, and prove that accumulating odd columns, multiplying the
 result by `2^8`, then accumulating even columns equals `[s]B`. Separately
 prove that each generated table record is the affine-Niels representation of
 `[m]P_i` for `m in 1..128`; the binary-to-assembly obligation is its pinned
-   SHA-256 plus the three-coordinate transpose refinement.
+SHA-256 plus the three-coordinate transpose refinement.
+
+The live asymmetric B10 evaluator needs a sibling composition theorem. Prove
+that 26 balanced radix-1024 digits reconstruct canonical `s`, reuse the exact
+51-digit theorem for `-k`, and show that the two-injection/five-double/five-
+double recurrence in `src/asymmetric_fixed_b10.c` expands to `[s]B-[k]A` after
+exactly 250 doublings. Separately connect every generated `[1..512]B` record
+and both signs to the affine-Niels abstraction, prove all magnitude/active-mask
+indices, and link the C event order and embedded payload bytes to the abstract
+schedule. Keep exact-integer negation explicit; a modulo-`l` shortcut is not
+sound for mixed-order `A`.
 
 The SHA-512 assembly's full source schedule is now mechanically checked against
 FIPS 180-4 by `tools/check_sha512_schedule.py`, including rolling `a..h` and

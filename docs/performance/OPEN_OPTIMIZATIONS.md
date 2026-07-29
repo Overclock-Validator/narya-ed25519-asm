@@ -55,3 +55,21 @@ already-fused doubling/P2 baseline, the order-balanced Zen 5 median improved
 from 47.94 to 46.77 microseconds per x8 call (2.45%). The emitted Stage-2 bytes
 remain an open formal-refinement obligation; do not infer their safety from
 the ordinary multiplier or doubling certificates.
+
+## Asymmetric fixed-base injection — implemented
+
+The complete verifier now replaces its separate radix-256 `[s]B` evaluation,
+variable-base `[-k]A` evaluation, and final point addition with one merged
+schedule. A 120 KiB signed width-10 generator table supplies 26 digits while
+the variable term retains its 51 balanced radix-32 digits. Both streams share
+the existing 250 doublings.
+
+On a pinned Ryzen 7 9700X, the longer six-sample complete-verifier A/B reduced
+the median from 47.265 to 45.376 microseconds per x8 call, or 3.99%. Hardware
+counters in a separate run fell 5.31% for cycles, 2.20% for instructions, and
+5.05% for task clock. See the
+[dated record](../reproducibility/zen5-asymmetric-b10-2026-07-29/README.md).
+
+The improvement is cold: the generator table is immutable process-wide state,
+not retained public-key state. The abstract-group recurrence is documented,
+but a machine-checked recoder/table/C-schedule refinement remains open.

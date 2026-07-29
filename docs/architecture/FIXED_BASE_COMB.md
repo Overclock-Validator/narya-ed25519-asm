@@ -1,8 +1,11 @@
-# Immutable radix-256 fixed-base comb
+# Immutable radix-256 fixed-base-comb oracle
 
-The `[S]B` term uses a process-shared 480 KiB read-only table. This removes the
-variable-base path's 250 doublings and per-call basepoint-table construction.
-Cold public keys still retain no state between calls.
+The independent fixed-base oracle uses a process-shared 480 KiB read-only
+table. The complete cold verifier now uses the smaller width-10 table and
+merged schedule documented in
+[`ASYMMETRIC_FIXED_B10.md`](ASYMMETRIC_FIXED_B10.md). This radix-256 path stays
+checked and callable because its different digit decomposition, table shape,
+and event order make it a valuable differential oracle.
 
 ## Integer decomposition
 
