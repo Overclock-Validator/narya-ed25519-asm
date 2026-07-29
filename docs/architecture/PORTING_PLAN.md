@@ -51,8 +51,8 @@ backend and its Firedancer lineage are not copied into this library.
 
 Later cold-path parity work is ported in reviewable boundaries rather than by
 copying the complete Go point loop. The register-resident decoder square and
-the raw-product/direct-XY Stage-2 plus typed P2/P3 doubling schedule correspond
-to the Go implementation at
+the raw-product/direct-XY Stage-2, typed P2/P3 doubling schedule, and bounded
+projective/affine-Niels Stage-2 leaves correspond to the Go implementation at
 `3f7b6885876520f2434e0a89248e106ed144985a`. Each standalone boundary has
 its own SysV contract, native differential, dated benchmark, and explicitly
 separate formal obligation.
@@ -65,9 +65,10 @@ The standalone verifier now includes:
 - four raw doubling products plus the direct-XY linear Stage-2 in one SysV
   leaf; and
 - a distinct P2 `(X,Y,Z)` type for four of every five dependent doublings,
-  with `T` reconstructed before every Niels addition.
+  with `T` reconstructed before every Niels addition; and
+- fused raw-product and linear/carry Stage-2 leaves for both projective- and
+  affine-Niels additions, with final coordinate products kept separate.
 
-It does not yet include the Go verifier's fused Niels-addition stages,
-asymmetric fixed-base injection schedule, cross-group compressed-point
-finalizer, or public batch dispatcher. Those are separate ports, not implied by
-field-kernel parity.
+It does not yet include the Go verifier's asymmetric fixed-base injection
+schedule, cross-group compressed-point finalizer, or public batch dispatcher.
+Those are separate ports, not implied by field-kernel parity.

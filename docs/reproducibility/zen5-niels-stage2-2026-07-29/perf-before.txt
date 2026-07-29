@@ -1,0 +1,4 @@
+perf stat -r 5, 10000 x8 calls per repetition
+2714780982,,cycles,0.55%,489834946,100.00,,
+8903327257,,instructions,0.00%,489834946,100.00,,
+490.92,msec,task-clock,0.51%,489834946,100.00,,

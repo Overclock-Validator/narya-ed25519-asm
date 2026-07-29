@@ -20,8 +20,8 @@ boundary are frozen.
 - Implemented: runtime CPU/OS feature gate; checked r51×8 multiply, add,
   subtract, and negate; SysV AMD64 IFMA leaves; a register-resident decoder
   square chain; fused raw-product/direct-XY doubling Stage-2; typed P2/P3
-  intermediate doubling; projective-Niels mixed addition; portable bit-exact
-  differential oracles;
+  intermediate doubling; fused projective- and affine-Niels Stage-2 leaves;
+  portable bit-exact differential oracles;
   permissive compressed-point decompression; x8 rolling-register SHA-512
   compression and exact segmented verifier hashing; x8 canonical scalar
   reduction and exact signed radix-32 recoding; pre-signed projective-Niels
@@ -37,9 +37,8 @@ boundary are frozen.
   register route is fail-closed and mutation-tested; its 389 signed
   intermediates are source-certified, and a Lean canonical-tail theorem proves
   the reconstructed result lies in `[0,l)` under the documented parser bounds.
-- In progress: long native fuzzing, broader performance characterization,
-  further formal refinement, and fusion of the remaining C-scheduled
-  projective-Niels layer. The
+- In progress: long native fuzzing, broader performance characterization, and
+  further formal refinement. The
   checked-in external corpus covers RFC 8032, CCTV, Wycheproof, and derived
   predicate-boundary cases.
 - Supported verification target: eight independent cold Ed25519 equations
@@ -146,6 +145,8 @@ The implementation boundary is described in
 [`docs/architecture/PORTING_PLAN.md`](docs/architecture/PORTING_PLAN.md).
 The promoted point schedule and its P2/P3 type boundary are described in
 [`docs/architecture/POINT_DOUBLING.md`](docs/architecture/POINT_DOUBLING.md).
+The bounded mixed-addition boundary is described in
+[`docs/architecture/NIELS_ADDITION.md`](docs/architecture/NIELS_ADDITION.md).
 The [documentation index](docs/README.md) separates architecture, proofs,
 audit material, performance reports, and raw reproducibility evidence.
 

@@ -169,6 +169,48 @@ fourfold raw-product expansion, and exact emitted bytes do not yet have a Lean
 trace/refinement theorem; that boundary remains explicit in the formalization
 backlog.
 
+## Projective/affine-Niels Stage 2
+
+`narya_projective_niels_stage2_ifma` and
+`narya_affine_niels_stage2_ifma` are expression-specific transitions. Their
+entry workspace contains normalized point-side `Y-X` and `Y+X`. The
+projective leaf forms exact folded raw products
+
+```text
+A=(Y-X)(Yc-Xc), B=(Y+X)(Yc+Xc), C=T(2dTc), D=ZZc;
+```
+
+the affine leaf forms `A,B,C` and uses the composable-u52 point `Z` as `D`.
+Both return normalized `[E,F,G,H]`:
+
+```text
+E = B + 535p - A
+F = 2D + 535p - C
+G = 2D + C
+H = B + A.
+```
+
+For projective input, every raw product obeys the same per-limb table proved
+for doubling above. The one-negative-term bias is sufficient because limb
+zero gives `535p-A >= B-9708 > 0`; it likewise covers `535p-C` before the
+nonnegative `2D` term is added. No other limb has a smaller margin.
+
+Using `B=2^51`, each raw limb is below `534B`. Consequently:
+
+```text
+E < 1069B, F < 1603B, G < 1602B, H < 1068B.
+```
+
+The affine case is strictly tighter because `D<2B`. Thus every intermediate
+is a genuine nonnegative u64 and a carry is at most 1602. One parallel carry
+therefore returns limb zero below `B+19*1603` and all other limbs below
+`B+1603`, hence every output is below `2B=2^52` and is a legal IFMA source.
+
+Direct native tests cover maximum-u52 and heterogeneous random point/table
+inputs, compare all four outputs with an independently expressed
+`__uint128_t` schedule modulo `p`, and assert the u52 exit range. This is a
+source-level interval certificate, not yet a byte-linked Lean theorem.
+
 ## Loose values are not a closed arithmetic type
 
 The multiplier's loose output bound and the generic weak-carry theorem do not

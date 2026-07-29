@@ -94,6 +94,16 @@ needs a small abstract point theorem showing that omitting `T=E*H` on
 intermediate doublings and reconstructing it before every addition is
 equivalent to five complete doublings.
 
+The promoted projective/affine-Niels Stage-2 leaves have an analogous
+source-level interval certificate and adversarial native differentials. Their
+proof should reuse the raw-product theorem, then establish: (1) the exact
+projective four-product and affine three-product-plus-carried-Z memory routes,
+(2) the `535p` non-underflow margins for `E=B-A` and `F=2D-C`, (3) the
+`<1603B` wide bound and composable-u52 exits, and (4) the System V workspace
+and alias contract. An abstract Edwards theorem must then connect `[E,F,G,H]`
+and the four visible final products to the complete projective- and
+affine-Niels formulas.
+
 Do not model these with one nominal “wide” state. Two values below `2^62` can
 sum above `2^62`, and a bias near `2^61` does not cover an arbitrary operand
 below `2^62`. The theorem hypotheses must preserve the actual per-limb

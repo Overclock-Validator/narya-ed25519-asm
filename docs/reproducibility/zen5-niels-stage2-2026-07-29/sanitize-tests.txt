@@ -1,0 +1,2 @@
+ASan/UBSan build completed for every C wrapper and test binary.
+All ten NARYA_REQUIRE_IFMA=1 native test programs passed, including the 2,954-vector external corpus.

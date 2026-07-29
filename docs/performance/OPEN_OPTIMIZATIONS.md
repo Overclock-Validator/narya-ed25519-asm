@@ -40,7 +40,7 @@ permit. It must retain arbitrary per-lane message lengths, inactive-lane
 non-dereference, exact padding at all block boundaries, and output atomicity.
 Measure the complete verifier at 64, 200, 1232, and 4096-byte messages.
 
-## Point-layer fusion — doubling Stage 1+2 implemented
+## Point-layer fusion — doubling and Niels Stage 2 implemented
 
 The four raw products and direct-XY linear stage of point doubling now execute
 in one SysV leaf, followed by separately visible final products. Typed P2
@@ -48,7 +48,10 @@ intermediates omit `T` on four of every five dependent doublings. On the dated
 Zen 5 run this combination reduced complete x8 verification by 5.8% and
 retired instructions by 7.7%.
 
-The analogous projective-Niels addition remains scheduled by C over separate
-field leaves. It is the next fusion candidate, but it needs its own raw-product
-provenance, subtraction-bias certificate, native differentials, and
-complete-verifier A/B. Do not infer its safety from the doubling certificate.
+The analogous projective- and affine-Niels Stage-2 leaves are now implemented
+with their own raw-product provenance, `535p` subtraction-bias certificate,
+maximum-u52/random differentials, and complete-verifier A/B. Against the
+already-fused doubling/P2 baseline, the order-balanced Zen 5 median improved
+from 47.94 to 46.77 microseconds per x8 call (2.45%). The emitted Stage-2 bytes
+remain an open formal-refinement obligation; do not infer their safety from
+the ordinary multiplier or doubling certificates.

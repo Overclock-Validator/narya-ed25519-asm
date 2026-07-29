@@ -8,7 +8,8 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
 - checked r51×8 multiply/add/subtract/negate wrappers;
 - SysV AVX-512 IFMA field leaves;
 - fused raw-product/direct-XY doubling Stage-2, typed P2/P3 intermediate
-  doubling, and a C projective-Niels addition schedule over reviewed leaves;
+  doubling, and bounded projective/affine-Niels Stage-2 leaves with visible
+  final field products;
 - permissive compressed-point decoder with pinned scalar-Go fixtures;
 - SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
 - canonical scalar reduction and exact signed radix-32 recoding;
@@ -44,6 +45,8 @@ general performance claim.
 9. Do the doubling Stage-2 535/1068/1069 biases cover the exact raw-product
    ranges at every limb, and does the P2 schedule reconstruct `T` before
    every possible addition?
+10. Do the Niels Stage-2 `535p` biases cover both `B-A` and `2D-C` for the
+    projective raw-product bounds and the affine carried-Z specialization?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol
@@ -86,6 +89,12 @@ route, and P2 consumer are not covered by the multiplier's byte-linked theorem.
 Review its source-level interval certificate and native adversarial tests as
 separate evidence, then treat the dedicated Lean/refinement item in the
 formalization backlog as open.
+
+The projective/affine-Niels leaves reuse the same raw-product schedule but
+have a distinct linear DAG, bias proof, workspace route, and consumer formula.
+Their maximum-u52/random direct differentials and complete-verifier corpus are
+evidence, not a byte-linked theorem. Review the separate Niels interval
+certificate and keep its formalization-backlog item open.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

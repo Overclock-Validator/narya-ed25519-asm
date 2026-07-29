@@ -1,0 +1,10 @@
+PASS: r51x8 field, point, and permissive decode gates passed
+PASS: 256 pinned permissive-decoder vectors
+PASS: x8 SHA-512 compression and segmented hash match independent oracles
+PASS: x8 scalar reduction matches independent modulo-l oracle
+PASS: round-major radix-32 recoding is an exact signed integer map
+PASS: pre-signed micro-AoS table, group law, and x8 transpose selector
+PASS: x8 variable-base scalar multiplication matches affine fixtures
+PASS: immutable radix-256 basepoint comb matches affine fixtures
+PASS: complete x8 DalekStrict equation matches independent signatures
+PASS: 2954 RFC/CCTV/Wycheproof and boundary vectors
