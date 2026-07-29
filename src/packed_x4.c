@@ -43,20 +43,35 @@ packed_identity(narya_packed_point_x4 *point)
     *point = (narya_packed_point_x4){0};
     point->coordinates.limb[0][1] = 1;
     point->coordinates.limb[0][3] = 1;
+    point->coordinates.limb[0][5] = 1;
+    point->coordinates.limb[0][7] = 1;
 }
 
 void
-narya_packed_point_from_lane_x4(
+narya_packed_point_from_lanes_x4(
     narya_packed_point_x4 *out,
     const narya_edwards_point_x8 *point,
-    size_t lane)
+    const size_t lane[2],
+    uint8_t active)
 {
     *out = (narya_packed_point_x4){0};
-    for (size_t limb = 0; limb < 5; limb++) {
-        out->coordinates.limb[limb][0] = point->X.limb[limb][lane];
-        out->coordinates.limb[limb][1] = point->Y.limb[limb][lane];
-        out->coordinates.limb[limb][2] = point->T.limb[limb][lane];
-        out->coordinates.limb[limb][3] = point->Z.limb[limb][lane];
+    for (size_t chain = 0; chain < 2; chain++) {
+        const size_t base = chain * packed_lanes;
+        if ((active & (UINT8_C(1) << chain)) == 0) {
+            out->coordinates.limb[0][base + 1] = 1;
+            out->coordinates.limb[0][base + 3] = 1;
+            continue;
+        }
+        for (size_t limb = 0; limb < 5; limb++) {
+            out->coordinates.limb[limb][base + 0] =
+                point->X.limb[limb][lane[chain]];
+            out->coordinates.limb[limb][base + 1] =
+                point->Y.limb[limb][lane[chain]];
+            out->coordinates.limb[limb][base + 2] =
+                point->T.limb[limb][lane[chain]];
+            out->coordinates.limb[limb][base + 3] =
+                point->Z.limb[limb][lane[chain]];
+        }
     }
 }
 
@@ -77,8 +92,13 @@ cache_point(
     scale.limb[0][0] = 1;
     scale.limb[0][1] = 1;
     scale.limb[0][3] = 2;
-    for (size_t limb = 0; limb < 5; limb++)
+    scale.limb[0][4] = 1;
+    scale.limb[0][5] = 1;
+    scale.limb[0][7] = 2;
+    for (size_t limb = 0; limb < 5; limb++) {
         scale.limb[limb][2] = curve_2d[limb];
+        scale.limb[limb][6] = curve_2d[limb];
+    }
     narya_r51x8_mul_ifma(&out->coordinates, &coordinates, &scale);
 }
 
@@ -173,85 +193,141 @@ recode_naf(int8_t out[packed_naf_bits], const uint8_t scalar[32], unsigned width
 }
 
 static void
-negate_cached(narya_packed_cached_x4 *point)
+negate_cached_half(narya_packed_cached_x4 *point, size_t chain)
 {
+    const size_t base = chain * packed_lanes;
     uint64_t negative[5];
     for (size_t limb = 0; limb < 5; limb++) {
-        const uint64_t temporary = point->coordinates.limb[limb][0];
-        point->coordinates.limb[limb][0] = point->coordinates.limb[limb][1];
-        point->coordinates.limb[limb][1] = temporary;
+        const uint64_t temporary = point->coordinates.limb[limb][base + 0];
+        point->coordinates.limb[limb][base + 0] =
+            point->coordinates.limb[limb][base + 1];
+        point->coordinates.limb[limb][base + 1] = temporary;
         negative[limb] =
-            subtraction_bias(limb) - point->coordinates.limb[limb][2];
+            subtraction_bias(limb) - point->coordinates.limb[limb][base + 2];
     }
     const uint64_t mask = (UINT64_C(1) << 51) - 1;
     uint64_t carry[5];
     for (size_t limb = 0; limb < 5; limb++)
         carry[limb] = negative[limb] >> 51;
-    point->coordinates.limb[0][2] = (negative[0] & mask) + 19 * carry[4];
+    point->coordinates.limb[0][base + 2] =
+        (negative[0] & mask) + 19 * carry[4];
     for (size_t limb = 1; limb < 5; limb++)
-        point->coordinates.limb[limb][2] =
+        point->coordinates.limb[limb][base + 2] =
             (negative[limb] & mask) + carry[limb - 1];
+}
+
+static void
+cached_identity(narya_packed_cached_x4 *point)
+{
+    *point = (narya_packed_cached_x4){0};
+    point->coordinates.limb[0][0] = 1;
+    point->coordinates.limb[0][1] = 1;
+    point->coordinates.limb[0][3] = 2;
+    point->coordinates.limb[0][4] = 1;
+    point->coordinates.limb[0][5] = 1;
+    point->coordinates.limb[0][7] = 2;
+}
+
+static void
+copy_cached_half(
+    narya_packed_cached_x4 *out,
+    const narya_packed_cached_x4 *source,
+    size_t chain)
+{
+    const size_t base = chain * packed_lanes;
+    for (size_t limb = 0; limb < 5; limb++)
+        for (size_t coordinate = 0; coordinate < packed_lanes; coordinate++)
+            out->coordinates.limb[limb][base + coordinate] =
+                source->coordinates.limb[limb][base + coordinate];
 }
 
 static void
 select_a(
     narya_packed_cached_x4 *out,
     const narya_packed_naf_table5_x4 *table,
-    int digit)
+    const int digit[2],
+    uint8_t active)
 {
-    const unsigned magnitude = (unsigned)(digit < 0 ? -digit : digit);
-    *out = table->positive[magnitude / 2];
-    if (digit < 0)
-        negate_cached(out);
+    cached_identity(out);
+    for (size_t chain = 0; chain < 2; chain++) {
+        if ((active & (UINT8_C(1) << chain)) == 0 || digit[chain] == 0)
+            continue;
+        const unsigned magnitude =
+            (unsigned)(digit[chain] < 0 ? -digit[chain] : digit[chain]);
+        copy_cached_half(out, &table->positive[magnitude / 2], chain);
+        if (digit[chain] < 0)
+            negate_cached_half(out, chain);
+    }
 }
 
 static void
-select_b(narya_packed_cached_x4 *out, int digit)
+select_b(
+    narya_packed_cached_x4 *out,
+    const int digit[2],
+    uint8_t active)
 {
-    const unsigned magnitude = (unsigned)(digit < 0 ? -digit : digit);
-    const narya_packed_naf_micro_entry_x4 *source =
-        &narya_packed_naf_basepoint[magnitude / 2];
-    *out = (narya_packed_cached_x4){0};
-    for (size_t limb = 0; limb < 5; limb++)
-        for (size_t lane = 0; lane < packed_lanes; lane++)
-            out->coordinates.limb[limb][lane] = source->limb[limb][lane];
-    if (digit < 0)
-        negate_cached(out);
+    cached_identity(out);
+    for (size_t chain = 0; chain < 2; chain++) {
+        if ((active & (UINT8_C(1) << chain)) == 0 || digit[chain] == 0)
+            continue;
+        const unsigned magnitude =
+            (unsigned)(digit[chain] < 0 ? -digit[chain] : digit[chain]);
+        const narya_packed_naf_micro_entry_x4 *source =
+            &narya_packed_naf_basepoint[magnitude / 2];
+        const size_t base = chain * packed_lanes;
+        for (size_t limb = 0; limb < 5; limb++)
+            for (size_t coordinate = 0; coordinate < packed_lanes; coordinate++)
+                out->coordinates.limb[limb][base + coordinate] =
+                    source->limb[limb][coordinate];
+        if (digit[chain] < 0)
+            negate_cached_half(out, chain);
+    }
 }
 
 int
 narya_packed_double_scalar_mult_x4(
     narya_packed_point_x4 *out,
     const narya_packed_naf_table5_x4 *a_table,
-    const uint8_t s[32],
-    const uint8_t k[32])
+    const uint8_t s[2][32],
+    const uint8_t k[2][32],
+    uint8_t active)
 {
-    int8_t a_naf[packed_naf_bits], b_naf[packed_naf_bits];
-    const int valid = recode_naf(a_naf, k, 5) && recode_naf(b_naf, s, 8);
+    int8_t a_naf[2][packed_naf_bits] = {{0}};
+    int8_t b_naf[2][packed_naf_bits] = {{0}};
+    uint8_t valid = 0;
+    for (size_t chain = 0; chain < 2; chain++) {
+        const uint8_t mask = (uint8_t)(UINT8_C(1) << chain);
+        if ((active & mask) != 0 && recode_naf(a_naf[chain], k[chain], 5) &&
+            recode_naf(b_naf[chain], s[chain], 8))
+            valid |= mask;
+    }
     narya_packed_point_x4 accumulator;
     packed_identity(&accumulator);
-    if (!valid) {
+    if (valid == 0) {
         *out = accumulator;
         return 0;
     }
     int high = packed_naf_bits - 1;
-    while (high >= 0 && a_naf[high] == 0 && b_naf[high] == 0)
+    while (high >= 0 && a_naf[0][high] == 0 && b_naf[0][high] == 0 &&
+           a_naf[1][high] == 0 && b_naf[1][high] == 0)
         high--;
     for (int bit = high; bit >= 0; bit--) {
         packed_double(&accumulator, &accumulator);
-        if (a_naf[bit] != 0) {
+        const int a_digit[2] = {-a_naf[0][bit], -a_naf[1][bit]};
+        if (a_digit[0] != 0 || a_digit[1] != 0) {
             narya_packed_cached_x4 selected;
-            select_a(&selected, a_table, -a_naf[bit]);
+            select_a(&selected, a_table, a_digit, valid);
             packed_add_cached(&accumulator, &accumulator, &selected);
         }
-        if (b_naf[bit] != 0) {
+        const int b_digit[2] = {b_naf[0][bit], b_naf[1][bit]};
+        if (b_digit[0] != 0 || b_digit[1] != 0) {
             narya_packed_cached_x4 selected;
-            select_b(&selected, b_naf[bit]);
+            select_b(&selected, b_digit, valid);
             packed_add_cached(&accumulator, &accumulator, &selected);
         }
     }
     *out = accumulator;
-    return 1;
+    return valid;
 }
 
 static int
@@ -269,27 +345,43 @@ canonical_lanes_equal(
     return difference == 0;
 }
 
-int
-narya_packed_equal_decoded_lane_x4(
+uint8_t
+narya_packed_equal_decoded_lanes_x4(
     const narya_packed_point_x4 *point,
     const narya_edwards_point_x8 *decoded,
-    size_t lane)
+    const size_t lane[2],
+    uint8_t active)
 {
-    uint64_t canonical_z[5], z_or = 0;
-    narya_r51x8_canonical_lane(canonical_z, &point->coordinates, 3);
-    for (size_t limb = 0; limb < 5; limb++)
-        z_or |= canonical_z[limb];
-    if (z_or == 0)
-        return 0;
-
     narya_r51x8 affine = {0}, z = {0}, cross;
-    for (size_t limb = 0; limb < 5; limb++) {
-        affine.limb[limb][0] = decoded->X.limb[limb][lane];
-        affine.limb[limb][1] = decoded->Y.limb[limb][lane];
-        z.limb[limb][0] = point->coordinates.limb[limb][3];
-        z.limb[limb][1] = point->coordinates.limb[limb][3];
+    for (size_t chain = 0; chain < 2; chain++) {
+        if ((active & (UINT8_C(1) << chain)) == 0)
+            continue;
+        const size_t base = chain * packed_lanes;
+        for (size_t limb = 0; limb < 5; limb++) {
+            affine.limb[limb][base + 0] = decoded->X.limb[limb][lane[chain]];
+            affine.limb[limb][base + 1] = decoded->Y.limb[limb][lane[chain]];
+            z.limb[limb][base + 0] = point->coordinates.limb[limb][base + 3];
+            z.limb[limb][base + 1] = point->coordinates.limb[limb][base + 3];
+        }
     }
     narya_r51x8_mul_ifma(&cross, &affine, &z);
-    return canonical_lanes_equal(&point->coordinates, 0, &cross, 0) &&
-           canonical_lanes_equal(&point->coordinates, 1, &cross, 1);
+    uint8_t equal = 0;
+    for (size_t chain = 0; chain < 2; chain++) {
+        const uint8_t mask = (uint8_t)(UINT8_C(1) << chain);
+        if ((active & mask) == 0)
+            continue;
+        const size_t base = chain * packed_lanes;
+        uint64_t canonical_z[5], z_or = 0;
+        narya_r51x8_canonical_lane(
+            canonical_z, &point->coordinates, base + 3);
+        for (size_t limb = 0; limb < 5; limb++)
+            z_or |= canonical_z[limb];
+        if (z_or != 0 &&
+            canonical_lanes_equal(
+                &point->coordinates, base + 0, &cross, base + 0) &&
+            canonical_lanes_equal(
+                &point->coordinates, base + 1, &cross, base + 1))
+            equal |= mask;
+    }
+    return equal;
 }

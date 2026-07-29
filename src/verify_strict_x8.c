@@ -268,55 +268,86 @@ prepare_batch_equation(
  * is projective and therefore performs no inversion or serialization.
  */
 static narya_status
-verify_packed_single(
+verify_packed_small(
     uint8_t *verdict,
-    const uint8_t public_key[32],
-    const uint8_t signature[64],
-    const uint8_t *message,
-    size_t message_length,
+    const uint8_t *public_key,
+    const uint8_t *signature,
+    const uint8_t *const *message,
+    const size_t *message_length,
+    size_t count,
     narya_verify_strict_workspace_x8 *scratch)
 {
     *verdict = 0;
-    if (!byte_precheck_one(public_key, signature))
+    uint8_t live = 0;
+    for (size_t item = 0; item < count; item++)
+        if (byte_precheck_one(
+                &public_key[item * 32], &signature[item * 64]))
+            live |= (uint8_t)(UINT8_C(1) << item);
+    if (live == 0)
         return NARYA_OK;
 
     uint8_t r_bytes[8 * 32] = {0};
     uint8_t a_bytes[8 * 32] = {0};
-    memcpy(r_bytes, signature, 32);
-    memcpy(a_bytes, public_key, 32);
-    const uint8_t *messages[8] = {message};
-    size_t lengths[8] = {message_length};
+    const uint8_t *messages[8] = {0};
+    size_t lengths[8] = {0};
+    for (size_t item = 0; item < count; item++) {
+        memcpy(&r_bytes[item * 32], &signature[item * 64], 32);
+        memcpy(&a_bytes[item * 32], &public_key[item * 32], 32);
+        messages[item] = message[item];
+        lengths[item] = message_length[item];
+    }
     narya_digest_batch_x8 digest;
     narya_scalar_batch_x8 challenge;
     narya_status status = narya_sha512_r_a_message_x8(
-        digest.lane, r_bytes, a_bytes, messages, lengths, UINT8_C(1));
+        digest.lane, r_bytes, a_bytes, messages, lengths, live);
     if (status != NARYA_OK)
         return status;
     status = narya_scalar_reduce_x8(
-        challenge.lane, digest.flat, UINT8_C(1));
+        challenge.lane, digest.flat, live);
     if (status != NARYA_OK)
         return status;
 
-    /* Decode A and R together: lane 0 is A, lane 1 is R. */
+    /* Decode each (A,R) pair together in adjacent lanes. */
     uint8_t encoded[8 * 32] = {0};
-    memcpy(&encoded[0], public_key, 32);
-    memcpy(&encoded[32], signature, 32);
+    uint8_t decode_active = 0;
+    for (size_t item = 0; item < count; item++) {
+        if ((live & (UINT8_C(1) << item)) == 0)
+            continue;
+        memcpy(&encoded[(2 * item) * 32], &public_key[item * 32], 32);
+        memcpy(&encoded[(2 * item + 1) * 32], &signature[item * 64], 32);
+        decode_active |= (uint8_t)(UINT8_C(3) << (2 * item));
+    }
     narya_edwards_point_x8 decoded;
-    if ((narya_edwards_decode_x8(&decoded, encoded, UINT8_C(3)) & 3U) != 3U)
+    const uint8_t decoded_mask =
+        narya_edwards_decode_x8(&decoded, encoded, decode_active);
+    for (size_t item = 0; item < count; item++) {
+        const uint8_t pair = (uint8_t)(UINT8_C(3) << (2 * item));
+        if ((decoded_mask & pair) != pair)
+            live &= (uint8_t)~(UINT8_C(1) << item);
+    }
+    if (live == 0)
         return NARYA_OK;
 
     narya_packed_point_x4 public_point;
-    narya_packed_point_from_lane_x4(&public_point, &decoded, 0);
+    const size_t public_lane[2] = {0, 2};
+    narya_packed_point_from_lanes_x4(
+        &public_point, &decoded, public_lane, live);
     narya_packed_naf_table5_build_x4(
         &scratch->packed_public_table, &public_point);
 
+    uint8_t s[2][32] = {{0}}, k[2][32] = {{0}};
+    for (size_t item = 0; item < count; item++) {
+        memcpy(s[item], &signature[item * 64 + 32], 32);
+        memcpy(k[item], challenge.lane[item], 32);
+    }
     narya_packed_point_x4 equation;
-    if (!narya_packed_double_scalar_mult_x4(
-            &equation, &scratch->packed_public_table,
-            signature + 32, challenge.lane[0]))
+    live &= (uint8_t)narya_packed_double_scalar_mult_x4(
+        &equation, &scratch->packed_public_table, s, k, live);
+    if (live == 0)
         return NARYA_OK;
-    *verdict = (uint8_t)narya_packed_equal_decoded_lane_x4(
-        &equation, &decoded, 1);
+    const size_t r_lane[2] = {1, 3};
+    *verdict = narya_packed_equal_decoded_lanes_x4(
+        &equation, &decoded, r_lane, live) & live;
     return NARYA_OK;
 }
 
@@ -565,16 +596,12 @@ narya_ed25519_verify_strict_batch(
      * is staged locally so an error on a later item preserves output atomicity.
      */
     if (count <= 2) {
-        uint64_t staged = 0;
-        for (size_t item = 0; item < count; item++) {
-            uint8_t valid = 0;
-            const narya_status status = verify_packed_single(
-                &valid, &public_key[item * 32], &signature[item * 64],
-                message[item], message_length[item], &scratch->group);
-            if (status != NARYA_OK)
-                return status;
-            staged |= (uint64_t)valid << item;
-        }
+        uint8_t staged = 0;
+        const narya_status status = verify_packed_small(
+            &staged, public_key, signature, message, message_length, count,
+            &scratch->group);
+        if (status != NARYA_OK)
+            return status;
         *verdict_bits = staged;
         return NARYA_OK;
     }

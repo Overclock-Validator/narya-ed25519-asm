@@ -115,9 +115,9 @@ narya_packed_cached_first_operand_ifma:
     vmovdqu64 zmm2, ZMMWORD PTR [rsi + 128]
     vmovdqu64 zmm3, ZMMWORD PTR [rsi + 192]
     vmovdqu64 zmm4, ZMMWORD PTR [rsi + 256]
-    mov eax, 0x01
+    mov eax, 0x11
     kmovb k1, eax
-    mov eax, 0x02
+    mov eax, 0x22
     kmovb k2, eax
     vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_first_bias0]
     CACHED_FIRST_LINEAR zmm0, zmm5, zmm7, zmm8
@@ -149,11 +149,11 @@ narya_packed_double_final_operands_ifma:
     vmovdqu64 zmm2, ZMMWORD PTR [rdx + 128]
     vmovdqu64 zmm3, ZMMWORD PTR [rdx + 192]
     vmovdqu64 zmm4, ZMMWORD PTR [rdx + 256]
-    mov eax, 0x01
+    mov eax, 0x11
     kmovb k1, eax
-    mov eax, 0x04
+    mov eax, 0x44
     kmovb k2, eax
-    mov eax, 0x08
+    mov eax, 0x88
     kmovb k3, eax
     vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_double_bias8p0]
     vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_double_bias8pn]
@@ -201,9 +201,9 @@ narya_packed_cached_final_operands_ifma:
     vmovdqu64 zmm2, ZMMWORD PTR [rdx + 128]
     vmovdqu64 zmm3, ZMMWORD PTR [rdx + 192]
     vmovdqu64 zmm4, ZMMWORD PTR [rdx + 256]
-    mov eax, 0x09
+    mov eax, 0x99
     kmovb k1, eax
-    mov eax, 0x06
+    mov eax, 0x66
     kmovb k2, eax
     vmovdqu64 zmm5, ZMMWORD PTR [rip + packed_cached_final_bias8p0]
     vmovdqu64 zmm6, ZMMWORD PTR [rip + packed_cached_final_bias8pn]
@@ -248,20 +248,22 @@ packed_fold19:
     .quad 19
 
 packed_cached_first_bias0:
-    .quad 0x001fffffffffffb4, 0, 0, 0, 0, 0, 0, 0
+    .quad 0x001fffffffffffb4, 0, 0, 0
+    .quad 0x001fffffffffffb4, 0, 0, 0
 packed_cached_first_biasn:
-    .quad 0x001ffffffffffffc, 0, 0, 0, 0, 0, 0, 0
+    .quad 0x001ffffffffffffc, 0, 0, 0
+    .quad 0x001ffffffffffffc, 0, 0, 0
 packed_double_bias8p0:
     .quad 0, 0x003fffffffffff68, 0x003fffffffffff68, 0x003fffffffffff68
-    .quad 0, 0, 0, 0
+    .quad 0, 0x003fffffffffff68, 0x003fffffffffff68, 0x003fffffffffff68
 packed_double_bias8pn:
     .quad 0, 0x003ffffffffffff8, 0x003ffffffffffff8, 0x003ffffffffffff8
-    .quad 0, 0, 0, 0
+    .quad 0, 0x003ffffffffffff8, 0x003ffffffffffff8, 0x003ffffffffffff8
 packed_cached_final_bias8p0:
     .quad 0x003fffffffffff68, 0, 0, 0x003fffffffffff68
-    .quad 0, 0, 0, 0
+    .quad 0x003fffffffffff68, 0, 0, 0x003fffffffffff68
 packed_cached_final_bias8pn:
     .quad 0x003ffffffffffff8, 0, 0, 0x003ffffffffffff8
-    .quad 0, 0, 0, 0
+    .quad 0x003ffffffffffff8, 0, 0, 0x003ffffffffffff8
 
 .section .note.GNU-stack,"",@progbits

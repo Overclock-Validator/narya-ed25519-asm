@@ -163,22 +163,25 @@ void narya_packed_cached_final_operands_ifma(
     narya_r51x8 *right,
     const narya_r51x8 *products);
 
-void narya_packed_point_from_lane_x4(
+void narya_packed_point_from_lanes_x4(
     narya_packed_point_x4 *out,
     const narya_edwards_point_x8 *point,
-    size_t lane);
+    const size_t lane[2],
+    uint8_t active);
 void narya_packed_naf_table5_build_x4(
     narya_packed_naf_table5_x4 *out,
     const narya_packed_point_x4 *base);
 int narya_packed_double_scalar_mult_x4(
     narya_packed_point_x4 *out,
     const narya_packed_naf_table5_x4 *a_table,
-    const uint8_t s[32],
-    const uint8_t k[32]);
-int narya_packed_equal_decoded_lane_x4(
+    const uint8_t s[2][32],
+    const uint8_t k[2][32],
+    uint8_t active);
+uint8_t narya_packed_equal_decoded_lanes_x4(
     const narya_packed_point_x4 *point,
     const narya_edwards_point_x8 *decoded,
-    size_t lane);
+    const size_t lane[2],
+    uint8_t active);
 
 /*
  * Projective P2 coordinates for a run of dependent doublings.  This is a
