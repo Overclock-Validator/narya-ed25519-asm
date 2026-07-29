@@ -1,0 +1,12 @@
+Date: 2026-07-29
+Host: dedicated Zen 5 benchmark machine
+CPU: AMD Ryzen 7 9700X 8-Core Processor
+CPUID family/model/stepping: 26/68/0
+Architecture: x86_64
+OS: Ubuntu Linux, kernel 7.0.0-28-generic
+Compiler: gcc (Ubuntu 12.5.0-9ubuntu1) 12.5.0
+Governor for CPU 2: performance
+Pinned logical CPU: 2
+Baseline commit: 1b017662881e09c93f7fe387ece65df841124add
+Candidate commit: 217323b6238b9c756bc61f5d9c8860263e4dd386
+Canonical candidate proof ELF SHA-256: cf498ed1c3c77d96257e28c4b115e6189f9f9b0a85640a52b7e8b9fc568c34b3

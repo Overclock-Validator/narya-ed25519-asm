@@ -108,6 +108,67 @@ limbs bit-for-bit with the independent general-product oracle. The remaining
 formal trace and binary-refinement obligation is listed in
 [`FORMALIZATION_BACKLOG.md`](FORMALIZATION_BACKLOG.md).
 
+## Direct-XY doubling Stage 1+2
+
+`narya_r51x8_double_stage2_ifma` is an expression-specific transition, not a
+general field operation. It accepts three composable-u52 coordinates
+`X,Y,Z`, forms four exact folded raw products
+
+```text
+A = X^2, B = Y^2, C = Z^2, XY = X*Y,
+```
+
+and returns normalized `[E,F,G,H]`:
+
+```text
+E = 2XY
+G = B + 535p - A
+F = G + 1068p - 2C
+H = 1069p - A - B.
+```
+
+The output is congruent to the direct-XY Edwards doubling layer. The workspace
+has a distinct C type because its entry limbs are raw products and therefore
+are not legal IFMA sources.
+
+Writing `T = 2^52 = 2B`, the exact folded raw-product limb bounds are:
+
+| limb | strict upper bound |
+| ---: | ---: |
+| 0 | `267T - 456` |
+| 1 | `213T - 366` |
+| 2 | `159T - 276` |
+| 3 | `105T - 186` |
+| 4 | `51T - 96` |
+
+The slightly stronger non-strict maxima used by the independent oracle are
+one smaller. Limb zero dominates each subtraction proof:
+
+- `535p - A >= B - 9708 > 0`;
+- `1069p - A - B >= B - 19397 > 0`; and
+- `1603p - A - 2C >= B - 29086 > 0`.
+
+The other limbs have at least as much margin. The widest positive expression
+is `F < 2137B`; `E`, `G`, and `H` are below `1069B`. Thus no
+unsigned 64-bit operation wraps. Each carry is at most 2136, so one parallel
+carry/fold produces:
+
+```text
+out[0] < B + 19*2136 < 2B
+out[1..4] < B + 2136 < 2B.
+```
+
+Every output limb is consequently below `2^52`. The native gate checks this
+bound and compares all four outputs modulo `p` against an independently
+expressed `__uint128_t` field schedule for maximum-u52 and heterogeneous
+random inputs. The complete point, scalar-multiplication, strict-verifier, and
+external-corpus tests cover the consumer.
+
+This section is a source-level interval certificate. The Stage-2 macro,
+fourfold raw-product expansion, and exact emitted bytes do not yet have a Lean
+trace/refinement theorem; that boundary remains explicit in the formalization
+backlog.
+
 ## Loose values are not a closed arithmetic type
 
 The multiplier's loose output bound and the generic weak-carry theorem do not

@@ -96,7 +96,8 @@ The recommended human-review order is:
    and lane-to-result mapping;
 3. [r51 field contract](../proofs/R51_FIELD_CONTRACT.md), source extractors,
    restricted decoder, and exact theorem statements;
-4. decoder and point/group schedules in C;
+4. decoder and the [point-doubling schedule](../architecture/POINT_DOUBLING.md),
+   including its separate Stage-2 proof boundary;
 5. scalar reduction and recoding;
 6. SHA-512 message segmentation and compression;
 7. variable-base and fixed-base scalar multiplication; and

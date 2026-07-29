@@ -83,6 +83,17 @@ The generic u52-input linear leaves are now closed. Fused point-formula
 expressions with wider inputs remain separate obligations: each must prove the
 exact maximum negative operand covered by its bias and its own output bounds.
 
+The promoted direct-XY doubling transition now has that source-level interval
+certificate in `R51_FIELD_CONTRACT.md`, adversarial native range tests, and
+complete-verifier differentials. It is not covered by the multiplier's
+byte-linked theorem. A dedicated proof must connect: (1) each of the four
+expanded raw multiplications to the proved raw-product trace, (2) the exact
+535/1068/1069 bias schedule to `[E,F,G,H]`, (3) all wide no-wrap and u52 exit
+bounds, and (4) the System V workspace/input memory route. The P2 consumer then
+needs a small abstract point theorem showing that omitting `T=E*H` on
+intermediate doublings and reconstructing it before every addition is
+equivalent to five complete doublings.
+
 Do not model these with one nominal “wide” state. Two values below `2^62` can
 sum above `2^62`, and a bias near `2^61` does not cover an arbitrary operand
 below `2^62`. The theorem hypotheses must preserve the actual per-limb

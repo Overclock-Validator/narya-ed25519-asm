@@ -40,10 +40,15 @@ permit. It must retain arbitrary per-lane message lengths, inactive-lane
 non-dereference, exact padding at all block boundaries, and output atomicity.
 Measure the complete verifier at 64, 200, 1232, and 4096-byte messages.
 
-## Point-layer fusion
+## Point-layer fusion — doubling Stage 1+2 implemented
 
-Point doubling and mixed addition remain scheduled by C over reviewed field
-leaves. Fusing linear stages can remove call and memory traffic, but increases
-the native audit surface and creates new expression-specific range obligations.
-Promote only a schedule with per-expression interval certificates and a
-complete-verifier improvement on native hardware.
+The four raw products and direct-XY linear stage of point doubling now execute
+in one SysV leaf, followed by separately visible final products. Typed P2
+intermediates omit `T` on four of every five dependent doublings. On the dated
+Zen 5 run this combination reduced complete x8 verification by 5.8% and
+retired instructions by 7.7%.
+
+The analogous projective-Niels addition remains scheduled by C over separate
+field leaves. It is the next fusion candidate, but it needs its own raw-product
+provenance, subtraction-bias certificate, native differentials, and
+complete-verifier A/B. Do not infer its safety from the doubling certificate.

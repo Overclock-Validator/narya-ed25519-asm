@@ -25,6 +25,7 @@ particular run, never general performance or correctness claims.
 - [System V ABI and data layouts](architecture/ABI.md)
 - [Eight-lane SHA-512 compression](architecture/SHA512_X8.md)
 - [Exact signed scalar recoding](architecture/SCALAR_RECODING.md)
+- [x8 point-doubling schedule](architecture/POINT_DOUBLING.md)
 - [Projective-Niels table and selector](architecture/PROJECTIVE_NIELS_TABLE.md)
 - [Variable-base scalar multiplication](architecture/VARIABLE_SCALAR_MULTIPLICATION.md)
 - [Immutable fixed-base comb](architecture/FIXED_BASE_COMB.md)
@@ -67,3 +68,4 @@ manifest. A result applies only to the source commit and scope it names.
 - [Zen 5 complete strict-verifier checkpoint, 2026-07-27](reproducibility/zen5-strict-verifier-2026-07-27/README.md)
 - [Zen 5 fixed-base-comb checkpoint, 2026-07-27](reproducibility/zen5-fixed-base-comb-2026-07-27/README.md)
 - [Zen 5 decoder square-chain A/B, 2026-07-28](reproducibility/zen5-decoder-square-chain-2026-07-28/README.md)
+- [Zen 5 fused doubling Stage-2/P2 A/B, 2026-07-29](reproducibility/zen5-doubling-stage2-p2-2026-07-29/README.md)

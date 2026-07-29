@@ -7,7 +7,8 @@ The current reviewable scope contains a complete ABI-zero strict verifier:
 - CPUID/XCR0 gate for the complete r51 feature set;
 - checked r51×8 multiply/add/subtract/negate wrappers;
 - SysV AVX-512 IFMA field leaves;
-- C point doubling and projective-Niels addition schedules over those leaves;
+- fused raw-product/direct-XY doubling Stage-2, typed P2/P3 intermediate
+  doubling, and a C projective-Niels addition schedule over reviewed leaves;
 - permissive compressed-point decoder with pinned scalar-Go fixtures;
 - SysV x8 rolling-register SHA-512 compression with scalar and FIPS oracles;
 - canonical scalar reduction and exact signed radix-32 recoding;
@@ -40,6 +41,9 @@ general performance claim.
    to dalek 2.x's terminal compressed-byte comparison?
 8. Does digit-level negation preserve exact signed-integer semantics for
    mixed-order public keys?
+9. Do the doubling Stage-2 535/1068/1069 biases cover the exact raw-product
+   ranges at every limb, and does the P2 schedule reconstruct `T` before
+   every possible addition?
 
 Question 5 now has a source-level Lean theorem and assembly-source certificate
 covering both transpose leaves. Their exact relocation-free assembled symbol
@@ -75,6 +79,13 @@ and exact byte frame, advances RSP by eight, and returns to the entry word.
 Identity with bytes in a downstream deployment, wrapper dispatch, and physical
 CPU correctness remain open; this is not a general x86 decoder or a proof
 about an arbitrary consumer binary.
+
+The promoted doubling Stage-2 reuses the multiplier's raw arithmetic schedule,
+but its fourfold expansion, expression-specific bias/carry layer, workspace
+route, and P2 consumer are not covered by the multiplier's byte-linked theorem.
+Review its source-level interval certificate and native adversarial tests as
+separate evidence, then treat the dedicated Lean/refinement item in the
+formalization backlog as open.
 
 The SHA-512 leaf now has a fail-closed source certificate for every FIPS
 constant, rotation, ternary truth table, rolling message word, working-register

@@ -48,3 +48,26 @@ The initial arithmetic leaf is a syntax/ABI translation of the independently
 implemented r51×8 Narya kernel at commit
 `eff4c8ddafdfe0448eb50f2eafc723a42b95fe2c`. The distinct r43x6 reference
 backend and its Firedancer lineage are not copied into this library.
+
+Later cold-path parity work is ported in reviewable boundaries rather than by
+copying the complete Go point loop. The register-resident decoder square and
+the raw-product/direct-XY Stage-2 plus typed P2/P3 doubling schedule correspond
+to the Go implementation at
+`3f7b6885876520f2434e0a89248e106ed144985a`. Each standalone boundary has
+its own SysV contract, native differential, dated benchmark, and explicitly
+separate formal obligation.
+
+## Current cold-path parity
+
+The standalone verifier now includes:
+
+- the register-resident 15-product decoder square chain;
+- four raw doubling products plus the direct-XY linear Stage-2 in one SysV
+  leaf; and
+- a distinct P2 `(X,Y,Z)` type for four of every five dependent doublings,
+  with `T` reconstructed before every Niels addition.
+
+It does not yet include the Go verifier's fused Niels-addition stages,
+asymmetric fixed-base injection schedule, cross-group compressed-point
+finalizer, or public batch dispatcher. Those are separate ports, not implied by
+field-kernel parity.
