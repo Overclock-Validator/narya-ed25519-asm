@@ -93,6 +93,11 @@ proves that executor sound against the byte-addressed machine model and states
 the two whole-leaf System V theorems. See the
 [whole-leaf certificate](../../docs/proofs/TRANSPOSE_WHOLE_LEAF_REFINEMENT.md).
 
+`X86IfmaSymbolic.lean` and `X86IfmaSoundness.lean` apply the same reflective
+pattern to IFMA field arithmetic, and `X86R51MulReflective.lean` re-derives the
+multiplier leaf theorem through them. See the
+[reflective checker note](../../docs/proofs/IFMA_REFLECTIVE_CHECKER.md).
+
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389
 per-instruction signed intervals and pins the exact macro/register transcript.

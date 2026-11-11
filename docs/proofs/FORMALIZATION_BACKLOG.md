@@ -75,12 +75,31 @@ The remaining transpose obligation is on the caller side: the C selectors must
 be shown to establish the leaf contract (exact-length sources, a pointer table
 of eight entries, and an output object that overlaps none of them).
 
-The same reflective pattern is the intended route for the remaining field
-leaves. Rather than one hand-composed phase proof per leaf, extend the
-symbolic domain from opaque tokens to per-limb intervals with a polynomial
-shadow, prove the step theorem once per IFMA instruction form, and discharge
-the square, fused doubling, fused Niels, and packed leaves by evaluation. The
-multiplier's existing phase lemmas supply most of the per-instruction facts.
+The same reflective pattern now exists for field leaves. `X86IfmaSymbolic.lean`
+defines a partial symbolic executor over the multiplier's instruction subset
+that tracks an exact natural-number expression and an upper bound per register,
+and `X86IfmaSoundness.lean` proves it sound against the machine model once.
+`X86R51MulReflective.lean` re-derives the multiplier leaf theorem through it
+as a known-answer test. See
+[`IFMA_REFLECTIVE_CHECKER.md`](IFMA_REFLECTIVE_CHECKER.md).
+
+New field leaves should be proved this way rather than with another
+hand-composed phase proof. In order of increasing checker work:
+
+1. the add, subtract, and negate leaves need `vpsubq` with a non-underflow
+   check (a lower bound per value, or the biased-subtract idiom) and their
+   symbols decoded;
+2. the fused doubling and fused Niels leaves additionally read back workspace
+   rows after storing them, so the memory rule must allow loads from rows the
+   leaf itself stored;
+3. the register-resident repeated-square leaf has a loop. The checker needs a
+   bounds-only loop invariant: show one iteration maps the per-limb input
+   bounds into themselves, then treat the value abstractly as a field element;
+4. the packed half-register path needs per-lane-group tracking instead of one
+   selected lane.
+
+Each extension is a change to the checker and its single soundness theorem,
+not a per-leaf proof.
 
 The decoder now uses the symmetry-reduced
 `narya_r51x8_repeated_square_ifma` leaf. Its native differential, alias, and

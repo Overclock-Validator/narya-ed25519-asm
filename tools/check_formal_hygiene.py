@@ -42,6 +42,20 @@ AUDIT_ANCHORS = {
         "run_expected_program_after_body",
         "run_r51_multiplier_refines",
     ),
+    "X86IfmaSoundness.lean": (
+        "executeSym_sound",
+        "runSym_sound",
+        "run_leaf",
+    ),
+    "X86R51MulReflective.lean": (
+        "checker_accepts",
+        "output_bounds",
+        "outputs_are_assembly_output",
+        "r51_multiplier_reflective",
+        "leaf_contract_satisfiable",
+        "wide_inputs_rejected",
+        "load_after_store_rejected",
+    ),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",
         "arithmetic_core_definite_assignment",

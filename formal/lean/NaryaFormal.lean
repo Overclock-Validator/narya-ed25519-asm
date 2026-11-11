@@ -20,6 +20,10 @@ import NaryaFormal.X86InputRefinement
 import NaryaFormal.X86MemoryRefinement
 import NaryaFormal.X86BodyRefinement
 import NaryaFormal.X86EpilogueRefinement
+import NaryaFormal.X86MemoryLemmas
+import NaryaFormal.X86IfmaSymbolic
+import NaryaFormal.X86IfmaSoundness
+import NaryaFormal.X86R51MulReflective
 import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
 import NaryaFormal.TransposeX86Decoder
