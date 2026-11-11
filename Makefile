@@ -35,7 +35,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes check-transpose-whole-trace check-transpose-whole-object test-transpose-mutations test-transpose-whole-trace-mutations test-transpose-whole-object-mutations test-transpose-whole-native check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check
 
 all: $(LIB)
 
@@ -126,6 +126,9 @@ $(LIB): $(OBJECTS)
 $(BUILD)/test_r51x8: tests/test_r51x8.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
+$(BUILD)/test_transpose_whole_leaf: tests/test_transpose_whole_leaf.c $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
+
 $(BUILD)/test_decode_vectors: tests/test_decode_vectors.c tests/reference_r51x8.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) -o $@
 
@@ -158,8 +161,9 @@ $(BUILD)/bench_verify_batch: bench/verify_batch.c $(LIB)
 
 bench-verify-batch: $(BUILD)/bench_verify_batch
 
-test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
+test: $(BUILD)/test_r51x8 $(BUILD)/test_transpose_whole_leaf $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
 	$(BUILD)/test_r51x8
+	$(BUILD)/test_transpose_whole_leaf
 	$(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	$(BUILD)/test_sha512x8
 	$(BUILD)/test_scalar_reduce
@@ -170,8 +174,9 @@ test: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(
 	$(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
 	$(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
 
-test-native: $(BUILD)/test_r51x8 $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
+test-native: $(BUILD)/test_r51x8 $(BUILD)/test_transpose_whole_leaf $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
+	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_transpose_whole_leaf
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
 	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_reduce
@@ -219,6 +224,10 @@ check-source:
 	$(MAKE) check-transpose
 	$(MAKE) check-transpose-object-bytes
 	$(MAKE) test-transpose-mutations
+	$(MAKE) check-transpose-whole-trace
+	$(MAKE) check-transpose-whole-object
+	$(MAKE) test-transpose-whole-trace-mutations
+	$(MAKE) test-transpose-whole-object-mutations
 	$(MAKE) check-scalar-bounds
 	$(MAKE) test-scalar-bounds-mutations
 	$(MAKE) check-sha512-schedule
@@ -252,8 +261,23 @@ check-transpose:
 check-transpose-object-bytes: $(PROJECTIVE_TRANSPOSE_PROOF_OBJECT) $(AFFINE_TRANSPOSE_PROOF_OBJECT)
 	python3 tools/generate_transpose_object_bytes.py --check
 
+check-transpose-whole-trace:
+	python3 tools/generate_transpose_whole_trace.py --check
+
+check-transpose-whole-object: $(PROJECTIVE_TRANSPOSE_PROOF_OBJECT) $(AFFINE_TRANSPOSE_PROOF_OBJECT)
+	python3 tools/check_transpose_object_trace.py --output $(PROOF_BUILD)/transpose-whole-leaf-report.json
+
 test-transpose-mutations:
 	python3 tools/test_transpose_schedule_mutations.py
+
+test-transpose-whole-trace-mutations:
+	python3 tools/test_transpose_whole_trace_mutations.py
+
+test-transpose-whole-object-mutations: $(PROJECTIVE_TRANSPOSE_PROOF_OBJECT) $(AFFINE_TRANSPOSE_PROOF_OBJECT)
+	python3 tools/test_transpose_object_mutations.py
+
+test-transpose-whole-native: $(BUILD)/test_transpose_whole_leaf
+	$(BUILD)/test_transpose_whole_leaf
 
 check-scalar-bounds:
 	python3 tools/check_scalar_reduce_bounds.py
@@ -270,7 +294,7 @@ check-generated:
 check-formal-hygiene:
 	python3 tools/check_formal_hygiene.py
 
-formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-formal-hygiene
+formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-transpose-whole-trace check-formal-hygiene
 	cd formal/lean && $(LAKE) build
 
 clean:
