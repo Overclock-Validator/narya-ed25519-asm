@@ -86,8 +86,12 @@ claim and trust boundary. `GeneratedTransposeObjectBytes.lean` now additionally
 pins both relocation-free assembled symbols, while `TransposeObjectBytes.lean`
 kernel-checks their extents and byte domains. `TransposeX86Decoder.lean`
 decodes all twenty emitted shuffle blocks and proves their generic register
-semantics equal the mathematical transpose. Surrounding GPR/memory/ABI
-execution remains open.
+semantics equal the mathematical transpose. `TransposeX86WholeDecoder.lean`
+decodes both complete symbols, `TransposeX86WholeLeaf.lean` runs them through a
+value-parametric symbolic executor, and `TransposeX86WholeSoundness.lean`
+proves that executor sound against the byte-addressed machine model and states
+the two whole-leaf System V theorems. See the
+[whole-leaf certificate](../../docs/proofs/TRANSPOSE_WHOLE_LEAF_REFINEMENT.md).
 
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389

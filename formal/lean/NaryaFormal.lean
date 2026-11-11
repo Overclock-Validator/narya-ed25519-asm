@@ -23,6 +23,11 @@ import NaryaFormal.X86EpilogueRefinement
 import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
 import NaryaFormal.TransposeX86Decoder
+import NaryaFormal.TransposeX86WholeInstruction
+import NaryaFormal.GeneratedTransposeWholeTrace
+import NaryaFormal.TransposeX86WholeDecoder
+import NaryaFormal.TransposeX86WholeLeaf
+import NaryaFormal.TransposeX86WholeSoundness
 import NaryaFormal.ScalarReduction
 import NaryaFormal.ScalarReductionCanonicalTail
 import NaryaFormal.VerificationSpine

@@ -62,10 +62,25 @@ The selector transpose's source-level lane map is now machine checked in
 assembly macros, pointer assignments, limb invocations, and output offsets.
 The exact relocation-free assembled bytes for both symbols are also committed
 as generated Lean input. Every assembled eight-instruction shuffle block now
-decodes in Lean to the proved 4×4 register transpose. The remaining transpose
-obligation is the surrounding GPR, masked/unmasked load, store, epilogue, and
-byte-memory execution needed for a whole-leaf ABI theorem. See
-[`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
+decodes in Lean to the proved 4×4 register transpose. The whole-leaf ABI
+theorem is now closed for both symbols: the surrounding GPR setup, masked and
+unmasked loads, stores, epilogue, and byte-memory execution are proved against
+the machine model in `TransposeX86WholeSoundness.lean`. The proof is
+reflective: `executeSym_sound` shows once that the value-parametric symbolic
+executor is simulated by the byte-addressed machine, and each program is then
+discharged by kernel evaluation. See
+[`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md) and
+[`TRANSPOSE_WHOLE_LEAF_REFINEMENT.md`](TRANSPOSE_WHOLE_LEAF_REFINEMENT.md).
+The remaining transpose obligation is on the caller side: the C selectors must
+be shown to establish the leaf contract (exact-length sources, a pointer table
+of eight entries, and an output object that overlaps none of them).
+
+The same reflective pattern is the intended route for the remaining field
+leaves. Rather than one hand-composed phase proof per leaf, extend the
+symbolic domain from opaque tokens to per-limb intervals with a polynomial
+shadow, prove the step theorem once per IFMA instruction form, and discharge
+the square, fused doubling, fused Niels, and packed leaves by evaluation. The
+multiplier's existing phase lemmas supply most of the per-instruction facts.
 
 The decoder now uses the symmetry-reduced
 `narya_r51x8_repeated_square_ifma` leaf. Its native differential, alias, and
