@@ -16,13 +16,11 @@ def littleEndianNat : List Nat → Nat
   | [] => 0
   | byte :: rest => byte + 256 * littleEndianNat rest
 
-set_option maxRecDepth 4096 in
 theorem symbol_extent_exact :
-    symbolBytes.length = symbolSize := by decide
+    symbolBytes.length = symbolSize := by decide +kernel
 
-set_option maxRecDepth 4096 in
 theorem symbol_bytes_are_octets :
-    ∀ byte ∈ symbolBytes, byte < 256 := by decide
+    ∀ byte ∈ symbolBytes, byte < 256 := by decide +kernel
 
 theorem constant_extents_exact :
     ifma_mask51Bytes.length = 8 ∧ ifma_fold19Bytes.length = 8 ∧
