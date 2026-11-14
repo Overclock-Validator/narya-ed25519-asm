@@ -24,6 +24,9 @@ import NaryaFormal.X86MemoryLemmas
 import NaryaFormal.X86IfmaSymbolic
 import NaryaFormal.X86IfmaSoundness
 import NaryaFormal.X86R51MulReflective
+import NaryaFormal.X86IfmaRelocation
+import NaryaFormal.GeneratedGoR51ObjectBytes
+import NaryaFormal.X86GoR51MulReflective
 import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
 import NaryaFormal.TransposeX86Decoder

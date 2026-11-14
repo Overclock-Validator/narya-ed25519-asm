@@ -103,9 +103,14 @@ def memoryBaseUnextended (header : EvexHeader) : Bool :=
 def groupRegUnextended (header : EvexHeader) : Bool :=
   decide (bit header.p0 7 = 1 ∧ bit header.p0 4 = 1)
 
+/-- Unextended ModRM base registers. RSP (SIB) and RBP/RIP (mode 0) are not
+accepted. RDX/RSI/RDI are used by the standalone System V leaf; RCX/RBX/RDI by
+the Go ABI0 leaf. -/
 def gprBaseOfRm (value : Nat) : Option Gpr :=
   match value with
+  | 1 => some .rcx
   | 2 => some .rdx
+  | 3 => some .rbx
   | 6 => some .rsi
   | 7 => some .rdi
   | _ => none

@@ -56,6 +56,17 @@ AUDIT_ANCHORS = {
         "wide_inputs_rejected",
         "load_after_store_rejected",
     ),
+    "X86IfmaRelocation.lean": ("runSym_relocate",),
+    "X86GoR51MulReflective.lean": (
+        "symbol_decodes",
+        "decoded_shape",
+        "checker_accepts",
+        "outputs_are_assembly_output",
+        "go_r51_multiplier_refines",
+        "go_r51_multiplier_refines_relocated",
+        "same_schedule_as_standalone",
+        "leaf_contract_satisfiable",
+    ),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",
         "arithmetic_core_definite_assignment",

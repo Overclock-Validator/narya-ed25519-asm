@@ -47,6 +47,7 @@ particular run, never general performance or correctness claims.
 - [Scalar-reduction contract](proofs/SCALAR_REDUCTION_CONTRACT.md)
 - [Whole-leaf transpose refinement](proofs/TRANSPOSE_WHOLE_LEAF_REFINEMENT.md)
 - [Reflective IFMA leaf checker](proofs/IFMA_REFLECTIVE_CHECKER.md)
+- [Production Go multiplier bytes](proofs/GO_PRODUCTION_BYTES.md)
 - [x8 transpose lane-map certificate](proofs/TRANSPOSE_LANE_MAP.md)
 - [SHA-512 x8 source-schedule certificate](proofs/SHA512_SOURCE_SCHEDULE.md)
 - [Formalization backlog](proofs/FORMALIZATION_BACKLOG.md)
