@@ -44,7 +44,7 @@ narya_scalar_recode_radix32_x8(
 
     uint8_t valid = 0;
     for (size_t lane = 0; lane < 8; lane++) {
-        const uint8_t lane_mask = UINT8_C(1) << lane;
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
         if ((active & lane_mask) != 0 &&
             narya_scalar_is_canonical(&scalar[lane * 32]))
             valid |= lane_mask;
@@ -60,7 +60,7 @@ narya_scalar_recode_radix32_x8(
         narya_radix32_round_x8 *record = &out->round[round];
         const size_t bit = round * NARYA_RADIX32_BITS;
         for (size_t lane = 0; lane < 8; lane++) {
-            const uint8_t lane_mask = UINT8_C(1) << lane;
+            const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
             if ((valid & lane_mask) == 0)
                 continue;
             int digit =

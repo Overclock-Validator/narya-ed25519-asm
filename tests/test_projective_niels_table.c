@@ -102,7 +102,7 @@ check_selector(void)
             &got, &table, &round, (uint8_t)active);
         const uint8_t lookup = round.nonzero_mask & (uint8_t)active;
         for (size_t lane = 0; lane < 8; lane++) {
-            const uint8_t lane_mask = UINT8_C(1) << lane;
+            const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
             for (size_t limb = 0; limb < 5; limb++) {
                 for (size_t coordinate = 0; coordinate < 4; coordinate++) {
                     uint64_t want = 0;
