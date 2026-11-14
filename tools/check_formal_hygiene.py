@@ -67,6 +67,17 @@ AUDIT_ANCHORS = {
         "same_schedule_as_standalone",
         "leaf_contract_satisfiable",
     ),
+    "X86GoR51NormalizeReflective.lean": (
+        "symbol_decodes",
+        "decoded_shape",
+        "checker_accepts",
+        "outputs_are_normalized",
+        "go_r51_normalize_refines",
+        "go_r51_normalize_refines_relocated",
+        "u64_inputs_accepted",
+        "wide_fold_constant_rejected",
+        "leaf_contract_satisfiable",
+    ),
     "X86Dataflow.lean": (
         "decoded_body_definite_assignment",
         "arithmetic_core_definite_assignment",

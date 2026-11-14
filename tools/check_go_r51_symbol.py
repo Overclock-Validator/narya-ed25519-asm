@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Check that a linked binary contains the proved Go r51 multiplier bytes.
+"""Check that a linked binary contains the proved Go r51 leaf bytes.
 
-`X86GoR51MulReflective.lean` proves a leaf theorem about the exact bytes in
-`GeneratedGoR51ObjectBytes.lean`, and `go_r51_multiplier_refines_relocated`
-extends it to any link layout: the same code with its two constant-broadcast
-addresses renamed.
+For each covered leaf (`LEAVES` in `generate_go_r51_object_bytes.py`) a Lean
+module proves a leaf theorem about the exact committed bytes, and a
+`..._refines_relocated` theorem extends it to any link layout: the same code
+with its two constant-broadcast addresses renamed.
 
 Two builds of the same Go assembly differ only in the two RIP-relative
 displacement fields that address the constants. This tool checks exactly that
 for an arbitrary linked ELF64 x86-64 image, for example a validator binary:
 
-1. the multiplier symbol has the reference length and the reference bytes
+1. each leaf symbol has the reference length and the reference bytes
    everywhere outside the two displacement fields;
 2. each displacement field resolves to a qword in allocated, non-writable,
    non-executable memory;
@@ -42,8 +42,7 @@ from typing import NoReturn
 import generate_go_r51_object_bytes as reference_tool
 from generate_go_r51_object_bytes import (
     FOLD19,
-    FUNCTION,
-    GENERATED,
+    LEAVES,
     MASK51,
     SHF_ALLOC,
     SHF_EXECINSTR,
@@ -51,6 +50,7 @@ from generate_go_r51_object_bytes import (
     SHT_PROGBITS,
     SHT_SYMTAB,
     GoElf,
+    Leaf,
 )
 
 FOLD19_VALUE = 19
@@ -113,10 +113,12 @@ def read_constant(elf: GoElf, address: int, label: str) -> int:
     return int.from_bytes(data, "little")
 
 
-def locate(elf: GoElf, pattern: bytes, wildcard: set[int]) -> tuple[int, bytes, str]:
+def locate(
+    elf: GoElf, leaf: Leaf, pattern: bytes, wildcard: set[int]
+) -> tuple[int, bytes, str]:
     if any(section[1] == SHT_SYMTAB for section in elf.sections):
-        entries = elf.find({FUNCTION})
-        symbol = elf.symbol_bytes(entries[FUNCTION], FUNCTION, executable=True)
+        entries = elf.find({leaf.symbol})
+        symbol = elf.symbol_bytes(entries[leaf.symbol], leaf.symbol, executable=True)
         return symbol.address, symbol.data, "symbol table"
     fixed = [index for index in range(len(pattern)) if index not in wildcard]
     anchor = pattern[: min(wildcard)]
@@ -138,12 +140,8 @@ def locate(elf: GoElf, pattern: bytes, wildcard: set[int]) -> tuple[int, bytes, 
     return matches[0][0], matches[0][1], "byte search"
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--elf", type=Path, required=True)
-    arguments = parser.parse_args()
-
-    committed = GENERATED.read_text(encoding="ascii")
+def check(leaf: Leaf, image: bytes) -> None:
+    committed = leaf.generated.read_text(encoding="ascii")
     reference = lean_bytes(committed, "symbolBytes")
     reference_address = lean_nat(committed, "symbolAddress")
     if len(reference) != lean_nat(committed, "symbolSize"):
@@ -161,11 +159,10 @@ def main() -> None:
     if len(wildcard) != 8:
         fail("reference displacement fields overlap")
 
-    image = arguments.elf.read_bytes()
     elf = GoElf(image)
-    address, code, method = locate(elf, reference, wildcard)
+    address, code, method = locate(elf, leaf, reference, wildcard)
     if len(code) != len(reference):
-        fail(f"symbol is {len(code)} bytes, reference is {len(reference)}")
+        fail(f"{leaf.function} is {len(code)} bytes, reference is {len(reference)}")
     differing = [
         index
         for index in range(len(reference))
@@ -173,7 +170,8 @@ def main() -> None:
     ]
     if differing:
         fail(
-            f"{len(differing)} bytes differ outside the displacement fields, "
+            f"{leaf.function}: {len(differing)} bytes differ outside the "
+            "displacement fields, "
             f"first at offset {differing[0]}"
         )
 
@@ -195,13 +193,26 @@ def main() -> None:
     normalized = bytearray(code)
     for index in wildcard:
         normalized[index] = 0
-    print(f"OK: proved Go r51 multiplier bytes present (located by {method})")
+    print(f"OK: proved Go r51 {leaf.description} bytes present (located by {method})")
     print(f"  image sha256        {hashlib.sha256(image).hexdigest()}")
     print(f"  symbol address      {address:#x}, {len(code)} bytes")
     print(f"  normalized sha256   {hashlib.sha256(bytes(normalized)).hexdigest()}")
     print(f"  displacement fields offsets {fold_site} and {mask_site}")
     print(f"  fold19 address      {fold_address}  (value 19)")
     print(f"  mask51 address      {mask_address}  (value 2^51-1)")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--elf", type=Path, required=True)
+    parser.add_argument(
+        "--leaf", choices=sorted(LEAVES), action="append",
+        help="leaf to check (default: every covered leaf)",
+    )
+    arguments = parser.parse_args()
+    image = arguments.elf.read_bytes()
+    for name in arguments.leaf or sorted(LEAVES):
+        check(LEAVES[name], image)
     _ = reference_tool
 
 

@@ -294,7 +294,7 @@ check-generated:
 check-formal-hygiene:
 	python3 tools/check_formal_hygiene.py
 
-# Gates for the production Go build of the multiplier. They need a linked
+# Gates for the production Go build of the covered leaves. They need a linked
 # linux/amd64 Go image, so they are not part of `check`. GO_R51_ELF is either
 # the reference `internal/r51x5` test binary of narya-ed25519 at the commit and
 # toolchain pinned in tools/generate_go_r51_object_bytes.py, or, for
@@ -304,6 +304,7 @@ require-go-r51-elf:
 
 check-go-r51-object-bytes: require-go-r51-elf
 	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --check
+	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --leaf normalize --check
 
 check-go-r51-symbol: require-go-r51-elf
 	python3 tools/check_go_r51_symbol.py --elf $(GO_R51_ELF)

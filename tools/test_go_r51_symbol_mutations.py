@@ -16,7 +16,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from generate_go_r51_object_bytes import FOLD19, FUNCTION, MASK51, GoElf
+from generate_go_r51_object_bytes import FOLD19, LEAVES, MASK51, GoElf
+
+FUNCTION = LEAVES["mul"].symbol
+NORMALIZE = LEAVES["normalize"].symbol
 
 CHECK = Path(__file__).resolve().parent / "check_go_r51_symbol.py"
 
@@ -49,6 +52,7 @@ def main() -> None:
     original = arguments.elf.read_bytes()
     elf = GoElf(original)
     code, code_address, code_size = file_offset(elf, FUNCTION)
+    norm, _norm_address, norm_size = file_offset(elf, NORMALIZE)
     fold, fold_address, _ = file_offset(elf, FOLD19)
     mask, mask_address, _ = file_offset(elf, MASK51)
 
@@ -94,6 +98,11 @@ def main() -> None:
         product + 4: 0xB4,  # VPMADD52LUQ opcode
         final_store_displacement: 0x04,  # compressed disp8 of the last store
         code + code_size - 1: 0xC3,  # RET
+        # Normalizer: 10-byte prelude, five loads (6 + 4 * 7), two 10-byte
+        # broadcasts, then VPSRLQ $51 with its immediate as the seventh byte.
+        norm + 9: 0x10,  # disp8 of MOVQ 16(SP), CX
+        norm + 10 + 34 + 20 + 6: 51,  # carry shift count
+        norm + norm_size - 5: 0x04,  # compressed disp8 of the last store
     }
     for offset, value in expected.items():
         if original[offset] != value:
@@ -116,6 +125,9 @@ def main() -> None:
             fold_site, mask_address - fold_address
         ),
         "mask displacement retargeted by 8": displaced(mask_site, 16),
+        "normalizer argument stack slot": flipped(norm + 9),
+        "normalizer carry shift count": flipped(norm + 10 + 34 + 20 + 6),
+        "normalizer final store displacement": flipped(norm + norm_size - 5),
     }
     failures = []
     for name, image in cases.items():
