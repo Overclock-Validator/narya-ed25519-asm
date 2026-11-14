@@ -26,6 +26,9 @@ def ifmaHi52 (x y : QWord) : Nat := (src52 x * src52 y) / U52
 def qwordAdd (x y : QWord) : QWord :=
   BitVec.ofNat 64 (x.toNat + y.toNat)
 
+/-- Two's-complement 64-bit subtraction, as `VPSUBQ` computes per lane. -/
+def qwordSub (x y : QWord) : QWord := x - y
+
 def qwordMul (x y : QWord) : QWord :=
   BitVec.ofNat 64 (x.toNat * y.toNat)
 
@@ -64,6 +67,7 @@ def vpmadd52huq (acc x y : Zmm) : Zmm :=
   laneMap3 vpmadd52huqLane acc x y
 
 def vpaddq (x y : Zmm) : Zmm := laneMap2 qwordAdd x y
+def vpsubq (x y : Zmm) : Zmm := laneMap2 qwordSub x y
 def vpmullq (x y : Zmm) : Zmm := laneMap2 qwordMul x y
 def vpxorq (x y : Zmm) : Zmm := laneMap2 qwordXor x y
 def vpandq (x y : Zmm) : Zmm := laneMap2 qwordAnd x y
@@ -91,6 +95,12 @@ theorem qwordAdd_toNat_of_noWrap (x y : QWord)
     (h : x.toNat + y.toNat < U64) :
     (qwordAdd x y).toNat = x.toNat + y.toNat := by
   exact ofNat64_toNat_of_lt h
+
+theorem qwordSub_toNat_of_noBorrow (x y : QWord)
+    (h : y.toNat ≤ x.toNat) :
+    (qwordSub x y).toNat = x.toNat - y.toNat := by
+  unfold qwordSub
+  exact BitVec.toNat_sub_of_le (BitVec.le_def.mpr h)
 
 theorem qwordMul_toNat_of_noWrap (x y : QWord)
     (h : x.toNat * y.toNat < U64) :

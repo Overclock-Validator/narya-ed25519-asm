@@ -305,6 +305,12 @@ theorem executeArithmeticInstruction_refines {Other : Type}
         rfl⟩
   | vpbroadcastq destination absoluteAddress =>
       simp [isArithmeticInstruction] at harithmetic
+  | vpaddqLoad destination source base displacement =>
+      simp [isArithmeticInstruction] at harithmetic
+  | vpsubqLoad destination source base displacement =>
+      simp [isArithmeticInstruction] at harithmetic
+  | vmovdqa64 destination source =>
+      simp [isArithmeticInstruction] at harithmetic
   | vzeroUpper =>
       simp [isArithmeticInstruction] at harithmetic
   | ret =>

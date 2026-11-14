@@ -29,6 +29,13 @@ import NaryaFormal.GeneratedGoR51ObjectBytes
 import NaryaFormal.X86GoR51MulReflective
 import NaryaFormal.GeneratedGoR51NormalizeObjectBytes
 import NaryaFormal.X86GoR51NormalizeReflective
+import NaryaFormal.X86GoLeaf
+import NaryaFormal.GeneratedGoR51AddObjectBytes
+import NaryaFormal.X86GoR51AddReflective
+import NaryaFormal.GeneratedGoR51SubtractObjectBytes
+import NaryaFormal.X86GoR51SubtractReflective
+import NaryaFormal.GeneratedGoR51NegateObjectBytes
+import NaryaFormal.X86GoR51NegateReflective
 import NaryaFormal.Transpose
 import NaryaFormal.TransposeObjectBytes
 import NaryaFormal.TransposeX86Decoder

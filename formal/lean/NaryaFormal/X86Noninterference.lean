@@ -197,6 +197,12 @@ theorem executeCoreInstruction_noninterference {Other : Type}
             (Fault.addressOutOfRange (BitVec.ofNat 64 absoluteAddress)) =
           Except.ok (Outcome.next rightNext) at hright
         contradiction
+  | vpaddqLoad destination source base displacement =>
+      simp [isCoreInstruction] at hcore
+  | vpsubqLoad destination source base displacement =>
+      simp [isCoreInstruction] at hcore
+  | vmovdqa64 destination source =>
+      simp [isCoreInstruction] at hcore
   | vzeroUpper => simp [isCoreInstruction] at hcore
   | ret => simp [isCoreInstruction] at hcore
 
@@ -286,6 +292,12 @@ theorem executeCoreInstruction_gpr_preserved {Other : Type}
             destination absoluteAddress hstep
           cases hrun
           exact hgpr
+  | vpaddqLoad destination source base displacement =>
+      simp [isCoreInstruction] at hcore
+  | vpsubqLoad destination source base displacement =>
+      simp [isCoreInstruction] at hcore
+  | vmovdqa64 destination source =>
+      simp [isCoreInstruction] at hcore
   | vzeroUpper => simp [isCoreInstruction] at hcore
   | ret => simp [isCoreInstruction] at hcore
 

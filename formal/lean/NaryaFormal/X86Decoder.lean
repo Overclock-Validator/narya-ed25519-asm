@@ -26,6 +26,12 @@ inductive Instruction
   | vpsllq (destination source : ZReg) (amount : Nat)
   | vpsrlq (destination source : ZReg) (amount : Nat)
   | vpbroadcastq (destination : ZReg) (absoluteAddress : Nat)
+  /-- `destination := source + qword row at displacement(base)`. -/
+  | vpaddqLoad (destination source : ZReg) (base : Gpr) (displacement : Nat)
+  /-- `destination := source - qword row at displacement(base)`. -/
+  | vpsubqLoad (destination source : ZReg) (base : Gpr) (displacement : Nat)
+  /-- Register-to-register full-width move. -/
+  | vmovdqa64 (destination source : ZReg)
   | vzeroUpper
   | ret
   deriving DecidableEq, Repr
@@ -134,6 +140,37 @@ def decodeVmovdqu64 (bytes : List Nat) (offset : Nat)
   | 0x7f => some (.vmovdqu64Store base displacement vector, nextOffset)
   | _ => none
 
+/-- `VPADDQ`/`VPSUBQ zmm, zmm, m512`: full-vector memory operand through an
+unextended base register, no broadcast, no masking, and a nonnegative
+compressed disp8 or no displacement. -/
+def decodeTernaryMemory (bytes : List Nat) (offset : Nat)
+    (header : EvexHeader) : Option (Instruction × Nat) := do
+  if !validEvexQwordZmm header 1 1 || !memoryBaseUnextended header then none else
+  let destination ← evexDestination header
+  let source ← evexSource1 header
+  let base ← gprBaseOfRm (modrmRm header)
+  let (displacement, nextOffset) ←
+    match modrmMode header with
+    | 0 => some (0, offset + 6)
+    | 1 => do
+        let compressed ← byteAt bytes (offset + 6)
+        if compressed < 128 then some (64 * compressed, offset + 7) else none
+    | _ => none
+  match header.opcode with
+  | 0xd4 => some (.vpaddqLoad destination source base displacement, nextOffset)
+  | 0xfb => some (.vpsubqLoad destination source base displacement, nextOffset)
+  | _ => none
+
+/-- `VMOVDQA64 zmm, zmm` in the store-direction encoding (`66 0F 7F /r`) that
+the Go assembler emits: ModRM `reg` is the source and `rm` the destination. -/
+def decodeVmovdqa64Register (offset : Nat)
+    (header : EvexHeader) : Option (Instruction × Nat) := do
+  if header.opcode ≠ 0x7f || !validEvexQwordZmm header 1 1 ||
+      !reservedVvvv header || modrmMode header ≠ 3 then none else
+  let source ← evexDestination header
+  let destination ← evexRmRegister header
+  some (.vmovdqa64 destination source, offset + 6)
+
 def decodeTernaryRegister (header : EvexHeader) : Option (Instruction × Nat) := do
   if !validEvexQwordZmm header (header.p0 % 8) 1 ||
       modrmMode header ≠ 3 then none else
@@ -189,8 +226,13 @@ def decodeBroadcast (baseAddress : Nat) (bytes : List Nat) (offset : Nat)
 
 def decodeEvex (baseAddress : Nat) (bytes : List Nat) (offset : Nat)
     (header : EvexHeader) : Option (Instruction × Nat) :=
-  if header.opcode = 0x6f ∨ header.opcode = 0x7f then
+  if header.opcode = 0x7f ∧ modrmMode header = 3 then
+    decodeVmovdqa64Register offset header
+  else if header.opcode = 0x6f ∨ header.opcode = 0x7f then
     decodeVmovdqu64 bytes offset header
+  else if (header.opcode = 0xd4 ∨ header.opcode = 0xfb) ∧
+      modrmMode header ≠ 3 then
+    decodeTernaryMemory bytes offset header
   else if header.opcode = 0x73 then
     decodeShift bytes offset header
   else if header.opcode = 0x59 then
@@ -260,6 +302,19 @@ theorem rejects_negative_compressed_displacement :
 
 theorem rejects_unsupported_opcode :
     decodeOne 0 [0x62, 0xf1, 0xfd, 0x48, 0x58, 0xc0] 0 = none := by
+  decide
+
+theorem rejects_embedded_broadcast_memory_add :
+    decodeOne 0 [0x62, 0xf1, 0xfd, 0x58, 0xd4, 0x03] 0 = none := by
+  decide
+
+theorem rejects_masked_memory_subtract :
+    decodeOne 0 [0x62, 0xf1, 0xfd, 0x49, 0xfb, 0x01] 0 = none := by
+  decide
+
+theorem decodes_memory_subtract :
+    decodeOne 0 [0x62, 0xf1, 0xf5, 0x48, 0xfb, 0x49, 0x01] 0 =
+      some (.vpsubqLoad ⟨1, by decide⟩ ⟨1, by decide⟩ .rcx 64, 7) := by
   decide
 
 end NaryaFormal.X86

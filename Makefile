@@ -303,8 +303,9 @@ require-go-r51-elf:
 	@test -n "$(GO_R51_ELF)" || { echo "set GO_R51_ELF to a linked Go image"; exit 2; }
 
 check-go-r51-object-bytes: require-go-r51-elf
-	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --check
-	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --leaf normalize --check
+	for leaf in mul normalize add subtract negate; do \
+		python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --leaf $$leaf --check || exit 1; \
+	done
 
 check-go-r51-symbol: require-go-r51-elf
 	python3 tools/check_go_r51_symbol.py --elf $(GO_R51_ELF)

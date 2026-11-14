@@ -4,18 +4,18 @@
 For each covered leaf (`LEAVES` in `generate_go_r51_object_bytes.py`) a Lean
 module proves a leaf theorem about the exact committed bytes, and a
 `..._refines_relocated` theorem extends it to any link layout: the same code
-with its two constant-broadcast addresses renamed.
+with its constant-broadcast addresses (two or four per leaf) renamed.
 
-Two builds of the same Go assembly differ only in the two RIP-relative
+Two builds of the same Go assembly differ only in the RIP-relative
 displacement fields that address the constants. This tool checks exactly that
 for an arbitrary linked ELF64 x86-64 image, for example a validator binary:
 
 1. each leaf symbol has the reference length and the reference bytes
-   everywhere outside the two displacement fields;
+   everywhere outside those displacement fields;
 2. each displacement field holds a nonnegative signed disp32, the only form
    the Lean decoder accepts, and resolves to a qword in allocated,
    non-writable, non-executable memory;
-3. those qwords hold 19 and 2^51-1.
+3. those qwords hold the values the leaf's specification declares.
 
 Every byte checked (code and constants) is read through the image's program
 headers, not only its sections: it must lie in the file-backed part of
@@ -24,12 +24,12 @@ and not executable for constants, with no other PT_LOAD sharing its pages.
 Where sections exist the section bytes must agree. No REL or RELA section may
 relocate a checked byte.
 
-It prints the two constant addresses, which are the `fold19` and `mask51`
-arguments of the relocated Lean theorem for that image.
+It prints the constant addresses, which are the address arguments of the
+relocated Lean theorem for that image.
 
 If the image has no symbol table the symbol is located by searching the
 file-backed bytes of executable PT_LOAD segments for the reference bytes with
-the two fields as wildcards; exactly one match is required.
+those fields as wildcards; exactly one match is required.
 
 Not checked here: that the image's callers reach this symbol (a loaded match
 does not prove runtime dispatch), the Go-compiled wrapper, CPU dispatch, or
@@ -51,10 +51,9 @@ from typing import NoReturn
 
 import generate_go_r51_object_bytes as reference_tool
 from generate_go_r51_object_bytes import (
+    CONSTANT_VALUES,
     ELF_HEADER,
-    FOLD19,
     LEAVES,
-    MASK51,
     SHF_ALLOC,
     SHF_EXECINSTR,
     SHF_WRITE,
@@ -62,10 +61,8 @@ from generate_go_r51_object_bytes import (
     SHT_SYMTAB,
     GoElf,
     Leaf,
+    constant_symbol,
 )
-
-FOLD19_VALUE = 19
-MASK51_VALUE = (1 << 51) - 1
 
 PROGRAM_HEADER = struct.Struct("<IIQQQQQQ")
 PT_LOAD = 1
@@ -243,20 +240,19 @@ def check(leaf: Leaf, image: bytes) -> None:
     reference_address = lean_nat(committed, "symbolAddress")
     if len(reference) != lean_nat(committed, "symbolSize"):
         fail("committed symbol size does not match its byte list")
-    fold_site = displacement_site(
-        reference, reference_address, lean_nat(committed, "ifmaFold19Address"), "fold19"
-    )
-    mask_site = displacement_site(
-        reference,
-        reference_address,
-        lean_nat(committed, "ifmaLimbMask51Address"),
-        "mask51",
-    )
-    wildcard = set(range(fold_site, fold_site + 4)) | set(range(mask_site, mask_site + 4))
-    if len(wildcard) != 8:
+    sites = {
+        name: displacement_site(
+            reference, reference_address, lean_nat(committed, f"{name}Address"), name
+        )
+        for name in leaf.constants
+    }
+    wildcard: set[int] = set()
+    for site in sites.values():
+        wildcard |= set(range(site, site + 4))
+    if len(wildcard) != 4 * len(sites):
         fail("reference displacement fields overlap")
 
-    for site in (fold_site, mask_site):
+    for site in sites.values():
         if struct.unpack_from("<i", reference, site)[0] < 0:
             fail("reference has a negative displacement")
 
@@ -284,25 +280,23 @@ def check(leaf: Leaf, image: bytes) -> None:
             fail(f"{label} has a negative displacement, which the Lean decoder rejects")
         return address + site + 4 + displacement
 
-    fold_address, mask_address = target(fold_site, "fold19"), target(mask_site, "mask51")
-    if fold_address == mask_address:
-        fail("both displacement fields resolve to the same address")
-    if read_constant(elf, loads, fold_address, "fold19") != FOLD19_VALUE:
-        fail(f"qword at {fold_address:#x} is not 19")
-    if read_constant(elf, loads, mask_address, "mask51") != MASK51_VALUE:
-        fail(f"qword at {mask_address:#x} is not 2^51-1")
+    targets = {name: target(site, name) for name, site in sites.items()}
+    if len(set(targets.values())) != len(targets):
+        fail("two displacement fields resolve to the same address")
+    for name, address_of in targets.items():
+        if read_constant(elf, loads, address_of, name) != CONSTANT_VALUES[name]:
+            fail(f"qword at {address_of:#x} is not {name} = {CONSTANT_VALUES[name]}")
     reject_relocations(
         elf,
-        [
-            (address, len(code), leaf.function),
-            (fold_address, 8, "fold19"),
-            (mask_address, 8, "mask51"),
-        ],
+        [(address, len(code), leaf.function)]
+        + [(address_of, 8, name) for name, address_of in targets.items()],
     )
     if any(section[1] == SHT_SYMTAB for section in elf.sections):
-        named = elf.find({FOLD19, MASK51})
-        if named[FOLD19][2] != fold_address or named[MASK51][2] != mask_address:
-            fail("displacement targets are not the named constant symbols")
+        symbols = {name: constant_symbol(name) for name in targets}
+        named = elf.find(set(symbols.values()))
+        for name, target in targets.items():
+            if named[symbols[name]][2] != target:
+                fail(f"displacement target for {name} is not the named symbol")
 
     normalized = bytearray(code)
     for index in wildcard:
@@ -311,9 +305,11 @@ def check(leaf: Leaf, image: bytes) -> None:
     print(f"  image sha256        {hashlib.sha256(image).hexdigest()}")
     print(f"  symbol address      {address:#x}, {len(code)} bytes")
     print(f"  normalized sha256   {hashlib.sha256(bytes(normalized)).hexdigest()}")
-    print(f"  displacement fields offsets {fold_site} and {mask_site}")
-    print(f"  fold19 address      {fold_address}  (value 19)")
-    print(f"  mask51 address      {mask_address}  (value 2^51-1)")
+    for name in leaf.constants:
+        print(
+            f"  {name:<19} address {targets[name]}, displacement field at "
+            f"offset {sites[name]}"
+        )
 
 
 def main() -> None:
