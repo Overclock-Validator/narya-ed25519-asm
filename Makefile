@@ -35,7 +35,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes check-transpose-whole-trace check-transpose-whole-object test-transpose-mutations test-transpose-whole-trace-mutations test-transpose-whole-object-mutations test-transpose-whole-native check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check check-go-r51-object-bytes check-go-r51-symbol test-go-r51-symbol-mutations
+.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes check-transpose-whole-trace check-transpose-whole-object test-transpose-mutations test-transpose-whole-trace-mutations test-transpose-whole-object-mutations test-transpose-whole-native check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check check-go-r51-object-bytes check-go-r51-symbol test-go-r51-symbol-mutations check-go-r51-reference
 
 all: $(LIB)
 
@@ -312,6 +312,14 @@ check-go-r51-symbol: require-go-r51-elf
 
 test-go-r51-symbol-mutations: require-go-r51-elf
 	python3 tools/test_go_r51_symbol_mutations.py --elf $(GO_R51_ELF)
+
+# Rebuild the pinned Go reference image (needs git, network, and Go 1.21 or
+# later), then run every Go-linked byte gate on it and on its stripped build.
+GO_R51_REFERENCE_DIR := $(BUILD)/go-r51-reference
+check-go-r51-reference:
+	sh tools/build_go_r51_reference.sh $(GO_R51_REFERENCE_DIR)
+	$(MAKE) GO_R51_ELF=$(GO_R51_REFERENCE_DIR)/r51x5.test check-go-r51-object-bytes check-go-r51-symbol test-go-r51-symbol-mutations
+	$(MAKE) GO_R51_ELF=$(GO_R51_REFERENCE_DIR)/r51x5.stripped.test check-go-r51-symbol
 
 formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-transpose-whole-trace check-formal-hygiene
 	cd formal/lean && $(LAKE) build

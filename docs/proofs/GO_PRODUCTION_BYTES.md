@@ -179,6 +179,15 @@ make GO_R51_ELF=/path/to/r51x5.test check-go-r51-object-bytes
 regenerates all five Lean inputs from that image and requires them to equal the
 committed files.
 
+`make check-go-r51-reference` does the whole round trip from source:
+`tools/build_go_r51_reference.sh` fetches the module at the pinned commit,
+builds the test binary twice with the pinned toolchain (requiring identical
+output) plus a stripped build, and the target then runs
+`check-go-r51-object-bytes`, `check-go-r51-symbol`, and
+`test-go-r51-symbol-mutations` on the image and `check-go-r51-symbol` on the
+stripped build. The `Go-linked leaf bytes` CI job runs it on every pull
+request.
+
 ## Checking a binary
 
 ```sh
