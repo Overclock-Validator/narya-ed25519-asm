@@ -117,8 +117,9 @@ decision.
 - One selected lane. All supported instructions act lane-wise, so the theorem
   holds for every lane separately, but a half-register packed layout needs
   per-lane-group tracking.
-- The decoder still covers only the multiplier symbol. Each new leaf needs its
-  bytes decoded to the instruction type before the checker can run on it.
+- The decoder covers the multiplier symbol in its standalone and Go-linked
+  forms (see [`GO_PRODUCTION_BYTES.md`](GO_PRODUCTION_BYTES.md)). Each new leaf
+  needs its bytes decoded to the instruction type before the checker can run.
 - The expression tree is not shared. A leaf with deep reuse of intermediate
   values may need a DAG representation to keep kernel evaluation fast.
 

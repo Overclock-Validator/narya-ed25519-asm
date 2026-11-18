@@ -172,17 +172,17 @@ theorem leafPost_output_at {spec : LeafSpec} {lane : Fin 8}
 
 
 /-- The leaf contract bounds every selected-lane input limb below `2^52`. -/
-theorem input_limbs_u52 (lane : Fin 8) (entry : MachineState Other)
-    (hpre : LeafPre spec lane entry) (base : Gpr)
-    (h0 : (⟨base, 0, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs)
-    (h1 : (⟨base, 64, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs)
-    (h2 : (⟨base, 128, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs)
-    (h3 : (⟨base, 192, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs)
-    (h4 : (⟨base, 256, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs) :
+theorem input_limbs_u52 (leafSpec : LeafSpec) (lane : Fin 8)
+    (entry : MachineState Other) (hpre : LeafPre leafSpec lane entry) (base : Gpr)
+    (h0 : (⟨base, 0, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs)
+    (h1 : (⟨base, 64, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs)
+    (h2 : (⟨base, 128, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs)
+    (h3 : (⟨base, 192, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs)
+    (h4 : (⟨base, 256, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs) :
     AssemblyTrace.LimbsU52 (inputLimbs (entryInputs lane entry) base) := by
   obtain ⟨a0, a1, a2, a3, a4⟩ := inputLimbs_apply (entryInputs lane entry) base
   have hrow (displacement : Nat)
-      (hmember : (⟨base, displacement, 2 ^ 52 - 1⟩ : InputRow) ∈ spec.inputs) :
+      (hmember : (⟨base, displacement, 2 ^ 52 - 1⟩ : InputRow) ∈ leafSpec.inputs) :
       entryInputs lane entry base displacement < Radix51.U52 := by
     have hle := hpre.inputBound ⟨base, displacement, 2 ^ 52 - 1⟩ hmember
     have hle' : entryInputs lane entry base displacement ≤ 2 ^ 52 - 1 := hle
@@ -207,9 +207,57 @@ theorem input_limbs_u52 (lane : Fin 8) (entry : MachineState Other)
     exact hrow 256 h4
 
 
-/-- Under `LeafPost`, the five stored rows are the generated scalar trace of
-the two entry-memory inputs, and each stored limb is below `2^52` by the
-checker's interval analysis. -/
+/-- Under `LeafPost`, if interval analysis bounds the five stored rows below
+`2^52` and their expressions are the generated scalar trace of the limbs read
+through `xBase` and `yBase`, then the machine output rows are that trace and
+are below `2^52`. Shared by every build of the multiplier schedule. -/
+theorem output_limbs_of_post_generic (leafSpec : LeafSpec) (bodyFinal : SymState)
+    (xBase yBase : Gpr) (hbase : leafSpec.outputBase = Gpr.rdi)
+    (hbounds :
+      (outputDefined bodyFinal 0 = true ∧ outputBound bodyFinal 0 < 2 ^ 52) ∧
+      (outputDefined bodyFinal 64 = true ∧ outputBound bodyFinal 64 < 2 ^ 52) ∧
+      (outputDefined bodyFinal 128 = true ∧ outputBound bodyFinal 128 < 2 ^ 52) ∧
+      (outputDefined bodyFinal 192 = true ∧ outputBound bodyFinal 192 < 2 ^ 52) ∧
+      (outputDefined bodyFinal 256 = true ∧ outputBound bodyFinal 256 < 2 ^ 52))
+    (hexprs : ∀ inputs : Gpr → Nat → Nat,
+      (⟨(outputExpr bodyFinal 0).eval inputs, (outputExpr bodyFinal 64).eval inputs,
+        (outputExpr bodyFinal 128).eval inputs, (outputExpr bodyFinal 192).eval inputs,
+        (outputExpr bodyFinal 256).eval inputs⟩ : Loose5) =
+        assemblyOutput (inputLimbs inputs xBase) (inputLimbs inputs yBase))
+    (lane : Fin 8) (entry returned : MachineState Other)
+    (hpost : LeafPost leafSpec lane bodyFinal entry returned) :
+    outputLimbs lane entry returned =
+        assemblyOutput (inputLimbs (entryInputs lane entry) xBase)
+          (inputLimbs (entryInputs lane entry) yBase) ∧
+      (outputLimbs lane entry returned).l0 < 2 ^ 52 ∧
+      (outputLimbs lane entry returned).l1 < 2 ^ 52 ∧
+      (outputLimbs lane entry returned).l2 < 2 ^ 52 ∧
+      (outputLimbs lane entry returned).l3 < 2 ^ 52 ∧
+      (outputLimbs lane entry returned).l4 < 2 ^ 52 := by
+  obtain ⟨hb0, hb1, hb2, hb3, hb4⟩ := hbounds
+  obtain ⟨hv0, hl0⟩ := leafPost_output_at hpost 0 hb0.1
+  obtain ⟨hv1, hl1⟩ := leafPost_output_at hpost 64 hb1.1
+  obtain ⟨hv2, hl2⟩ := leafPost_output_at hpost 128 hb2.1
+  obtain ⟨hv3, hl3⟩ := leafPost_output_at hpost 192 hb3.1
+  obtain ⟨hv4, hl4⟩ := leafPost_output_at hpost 256 hb4.1
+  rw [hbase] at hv0 hv1 hv2 hv3 hv4
+  have hrows : outputLimbs lane entry returned =
+      ⟨(outputExpr bodyFinal 0).eval (entryInputs lane entry),
+        (outputExpr bodyFinal 64).eval (entryInputs lane entry),
+        (outputExpr bodyFinal 128).eval (entryInputs lane entry),
+        (outputExpr bodyFinal 192).eval (entryInputs lane entry),
+        (outputExpr bodyFinal 256).eval (entryInputs lane entry)⟩ := by
+    simp only [outputLimbs, Loose5.mk.injEq]
+    exact ⟨hv0, hv1, hv2, hv3, hv4⟩
+  refine ⟨hrows.trans (hexprs (entryInputs lane entry)), ?_, ?_, ?_, ?_, ?_⟩
+  · exact lt_of_eq_of_lt hv0 (lt_of_le_of_lt hl0 hb0.2)
+  · exact lt_of_eq_of_lt hv1 (lt_of_le_of_lt hl1 hb1.2)
+  · exact lt_of_eq_of_lt hv2 (lt_of_le_of_lt hl2 hb2.2)
+  · exact lt_of_eq_of_lt hv3 (lt_of_le_of_lt hl3 hb3.2)
+  · exact lt_of_eq_of_lt hv4 (lt_of_le_of_lt hl4 hb4.2)
+
+
+/-- `output_limbs_of_post_generic` for the standalone System V leaf. -/
 theorem output_limbs_of_post (lane : Fin 8) (entry returned : MachineState Other)
     (hpost : LeafPost spec lane final entry returned) :
     outputLimbs lane entry returned =
@@ -219,28 +267,9 @@ theorem output_limbs_of_post (lane : Fin 8) (entry returned : MachineState Other
       (outputLimbs lane entry returned).l1 < 2 ^ 52 ∧
       (outputLimbs lane entry returned).l2 < 2 ^ 52 ∧
       (outputLimbs lane entry returned).l3 < 2 ^ 52 ∧
-      (outputLimbs lane entry returned).l4 < 2 ^ 52 := by
-  obtain ⟨hb0, hb1, hb2, hb3, hb4⟩ := output_bounds
-  obtain ⟨hv0, hl0⟩ := leafPost_output_at hpost 0 hb0.1
-  obtain ⟨hv1, hl1⟩ := leafPost_output_at hpost 64 hb1.1
-  obtain ⟨hv2, hl2⟩ := leafPost_output_at hpost 128 hb2.1
-  obtain ⟨hv3, hl3⟩ := leafPost_output_at hpost 192 hb3.1
-  obtain ⟨hv4, hl4⟩ := leafPost_output_at hpost 256 hb4.1
-  have hrows : outputLimbs lane entry returned =
-      ⟨(outputExpr final 0).eval (entryInputs lane entry),
-        (outputExpr final 64).eval (entryInputs lane entry),
-        (outputExpr final 128).eval (entryInputs lane entry),
-        (outputExpr final 192).eval (entryInputs lane entry),
-        (outputExpr final 256).eval (entryInputs lane entry)⟩ := by
-    simp only [outputLimbs, Loose5.mk.injEq]
-    exact ⟨hv0, hv1, hv2, hv3, hv4⟩
-  refine ⟨hrows.trans (outputs_are_assembly_output (entryInputs lane entry)),
-    ?_, ?_, ?_, ?_, ?_⟩
-  · exact lt_of_eq_of_lt hv0 (lt_of_le_of_lt hl0 hb0.2)
-  · exact lt_of_eq_of_lt hv1 (lt_of_le_of_lt hl1 hb1.2)
-  · exact lt_of_eq_of_lt hv2 (lt_of_le_of_lt hl2 hb2.2)
-  · exact lt_of_eq_of_lt hv3 (lt_of_le_of_lt hl3 hb3.2)
-  · exact lt_of_eq_of_lt hv4 (lt_of_le_of_lt hl4 hb4.2)
+      (outputLimbs lane entry returned).l4 < 2 ^ 52 :=
+  output_limbs_of_post_generic spec final .rsi .rdx rfl output_bounds
+    outputs_are_assembly_output lane entry returned hpost
 
 
 /-- Whole-leaf machine theorem for the r51 multiplier, obtained reflectively.
@@ -282,9 +311,9 @@ theorem r51_multiplier_reflective (lane : Fin 8) (entry : MachineState Other)
   have htrace := AssemblyTrace.radix51_mul_assembly_trace_correct
     (inputLimbs (entryInputs lane entry) .rsi)
     (inputLimbs (entryInputs lane entry) .rdx)
-    (input_limbs_u52 lane entry hpre .rsi (by decide) (by decide) (by decide)
+    (input_limbs_u52 spec lane entry hpre .rsi (by decide) (by decide) (by decide)
       (by decide) (by decide))
-    (input_limbs_u52 lane entry hpre .rdx (by decide) (by decide) (by decide)
+    (input_limbs_u52 spec lane entry hpre .rdx (by decide) (by decide) (by decide)
       (by decide) (by decide))
   have hvalue : looseValue (outputLimbs lane entry returned) % P =
       (radixValue (inputLimbs (entryInputs lane entry) .rsi) *

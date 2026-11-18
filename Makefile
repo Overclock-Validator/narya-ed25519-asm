@@ -35,7 +35,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes check-transpose-whole-trace check-transpose-whole-object test-transpose-mutations test-transpose-whole-trace-mutations test-transpose-whole-object-mutations test-transpose-whole-native check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build bench-verify-batch check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes check-transpose-whole-trace check-transpose-whole-object test-transpose-mutations test-transpose-whole-trace-mutations test-transpose-whole-object-mutations test-transpose-whole-native check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check check-go-r51-object-bytes check-go-r51-symbol test-go-r51-symbol-mutations
 
 all: $(LIB)
 
@@ -293,6 +293,24 @@ check-generated:
 
 check-formal-hygiene:
 	python3 tools/check_formal_hygiene.py
+
+# Gates for the production Go build of the covered leaves. They need a linked
+# linux/amd64 Go image, so they are not part of `check`. GO_R51_ELF is either
+# the reference `internal/r51x5` test binary of narya-ed25519 at the commit and
+# toolchain pinned in tools/generate_go_r51_object_bytes.py, or, for
+# check-go-r51-symbol only, any binary that links that module.
+require-go-r51-elf:
+	@test -n "$(GO_R51_ELF)" || { echo "set GO_R51_ELF to a linked Go image"; exit 2; }
+
+check-go-r51-object-bytes: require-go-r51-elf
+	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --check
+	python3 tools/generate_go_r51_object_bytes.py --elf $(GO_R51_ELF) --leaf normalize --check
+
+check-go-r51-symbol: require-go-r51-elf
+	python3 tools/check_go_r51_symbol.py --elf $(GO_R51_ELF)
+
+test-go-r51-symbol-mutations: require-go-r51-elf
+	python3 tools/test_go_r51_symbol_mutations.py --elf $(GO_R51_ELF)
 
 formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-transpose-whole-trace check-formal-hygiene
 	cd formal/lean && $(LAKE) build

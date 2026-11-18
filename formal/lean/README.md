@@ -98,6 +98,12 @@ pattern to IFMA field arithmetic, and `X86R51MulReflective.lean` re-derives the
 multiplier leaf theorem through them. See the
 [reflective checker note](../../docs/proofs/IFMA_REFLECTIVE_CHECKER.md).
 
+`GeneratedGoR51ObjectBytes.lean` holds the exact bytes of the multiplier as the
+Go toolchain links it in `narya-ed25519`, and `X86GoR51MulReflective.lean`
+proves the leaf theorem for those bytes under the Go ABI0 contract, for any
+link layout. See the
+[production bytes note](../../docs/proofs/GO_PRODUCTION_BYTES.md).
+
 [`ScalarReduction.lean`](NaryaFormal/ScalarReduction.lean) contains the fold
 and relational carry theorems. The assembly-source checker supplies all 389
 per-instruction signed intervals and pins the exact macro/register transcript.
