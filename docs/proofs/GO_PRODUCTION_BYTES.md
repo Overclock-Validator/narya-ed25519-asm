@@ -141,21 +141,36 @@ requires, for every covered leaf (or the one named with `--leaf`), that:
 
 1. the leaf symbol has the reference length and the reference bytes
    everywhere outside the two displacement fields;
-2. each displacement field resolves to a qword in allocated, non-writable,
-   non-executable memory;
+2. each displacement field holds a nonnegative signed disp32 (the only form
+   `X86Decoder.decodeBroadcast` accepts) and resolves to a qword in allocated,
+   non-writable, non-executable memory;
 3. those qwords hold 19 and `2^51 - 1`.
+
+Every checked byte, code and constants, is read the way the loader maps it:
+it must lie in the file-backed part of exactly one `PT_LOAD` segment that is
+readable and not writable, executable for code and not executable for
+constants, and no other `PT_LOAD` segment may share its pages. Where section
+headers exist, the section bytes must agree with the loaded bytes, and no
+`REL` or `RELA` section may relocate a checked byte.
 
 It prints the two constant addresses, which are the `fold19` and `mask51`
 arguments of the leaf's `..._refines_relocated` theorem for that image. If the
-image has no symbol table, the symbol is found by a byte search that must match
-exactly once.
+image has no symbol table, the symbol is found by a byte search over the
+file-backed bytes of executable `PT_LOAD` segments that must match exactly
+once.
 
-`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires fourteen
-single-point mutations of a linked image to be rejected. In the multiplier:
-argument slot and register, a source-load base register, an IFMA opcode, a
-product source register, a store displacement, the `RET`, each constant's
-value, and each displacement target. In the normalizer: an argument slot, the
-carry shift count, and a store displacement.
+A loaded match shows that the proved bytes are mapped executable in the image.
+It does not show that anything calls them.
+
+`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires nineteen mutations
+of a linked image to be rejected, and the image with its symbol table hidden
+to pass. In the multiplier: argument slot and register, a source-load base
+register, an IFMA opcode, a product source register, a store displacement, the
+`RET`, each constant's value, and each displacement target. In the normalizer:
+an argument slot, the carry shift count, and a store displacement. Five more
+must fail at a named check: the code segment made writable, the constant
+segment made executable, the code moved outside the file-backed part of its
+segment (with and without a symbol table), and a negative displacement.
 
 ### Evidence recorded with this change
 

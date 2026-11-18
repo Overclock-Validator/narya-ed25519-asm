@@ -16,7 +16,19 @@ import sys
 import tempfile
 from pathlib import Path
 
-from generate_go_r51_object_bytes import FOLD19, LEAVES, MASK51, GoElf
+from generate_go_r51_object_bytes import (
+    ELF_HEADER,
+    FOLD19,
+    LEAVES,
+    MASK51,
+    SECTION_HEADER,
+    SHT_SYMTAB,
+    GoElf,
+)
+
+PROGRAM_HEADER = struct.Struct("<IIQQQQQQ")
+PT_LOAD = 1
+PF_X, PF_W = 1, 2
 
 FUNCTION = LEAVES["mul"].symbol
 NORMALIZE = LEAVES["normalize"].symbol
@@ -87,6 +99,47 @@ def main() -> None:
         value = struct.unpack_from("<i", original, code + field)[0] + delta
         return patched(code + field, struct.pack("<i", value))
 
+    def load_header(address: int) -> int:
+        """File offset of the PT_LOAD program header that maps `address`."""
+        fields = ELF_HEADER.unpack_from(original)
+        for index in range(fields[10]):
+            offset = fields[5] + index * PROGRAM_HEADER.size
+            kind, _flags, _off, vaddr, _paddr, file_size, _mem, _align = (
+                PROGRAM_HEADER.unpack_from(original, offset)
+            )
+            if kind == PT_LOAD and vaddr <= address < vaddr + file_size:
+                return offset
+        raise SystemExit(f"no PT_LOAD maps {address:#x}")
+
+    def with_flags(image: bytes, address: int, extra: int) -> bytes:
+        offset = load_header(address) + 4
+        flags = struct.unpack_from("<I", image, offset)[0] | extra
+        result = bytearray(image)
+        struct.pack_into("<I", result, offset, flags)
+        return bytes(result)
+
+    def truncated_before(image: bytes, address: int) -> bytes:
+        """Shrink the segment's file-backed size so `address` is not loaded."""
+        offset = load_header(address)
+        vaddr = PROGRAM_HEADER.unpack_from(image, offset)[3]
+        result = bytearray(image)
+        struct.pack_into("<Q", result, offset + 32, address - vaddr)
+        return bytes(result)
+
+    def stripped(image: bytes) -> bytes:
+        """Hide the symbol table so the checker falls back to byte search."""
+        fields = ELF_HEADER.unpack_from(image)
+        result = bytearray(image)
+        for index in range(fields[12]):
+            offset = fields[6] + index * SECTION_HEADER.size
+            if SECTION_HEADER.unpack_from(image, offset)[1] == SHT_SYMTAB:
+                struct.pack_into("<I", result, offset + 4, 0)
+        return bytes(result)
+
+    status, message = run(stripped(original))
+    if status != 0:
+        raise SystemExit(f"unmodified image without a symbol table was rejected: {message}")
+
     # Layout of the vector body after the 15-byte prelude: ten loads (two of
     # six bytes, eight of seven), eighteen six-byte clears, then six-byte
     # IFMA products. `product` is the ninth product instruction.
@@ -110,6 +163,27 @@ def main() -> None:
                 f"image layout changed: byte at symbol offset {offset - code} "
                 f"is {original[offset]:#x}, expected {value:#x}"
             )
+
+    def negative_target(field: int) -> bytes:
+        """Point a displacement field backwards; any negative value must fail."""
+        return patched(code + field, struct.pack("<i", -16))
+
+    # Cases whose rejection must come from a specific check carry its message.
+    targeted = {
+        "code segment made writable": (
+            with_flags(original, code_address, PF_W), "not read-only"
+        ),
+        "constant segment made executable": (
+            with_flags(original, fold_address, PF_X), "execute permission"
+        ),
+        "code outside the file-backed segment": (
+            truncated_before(original, code_address), "file-backed"
+        ),
+        "no symbol table, code outside the file-backed segment": (
+            truncated_before(stripped(original), code_address), "loaded candidate"
+        ),
+        "fold displacement negative": (negative_target(fold_site), "negative displacement"),
+    }
 
     cases = {
         "argument stack slot": flipped(code + 4),
@@ -136,9 +210,16 @@ def main() -> None:
             failures.append(name)
         else:
             print(f"OK: mutation {name} rejected: {message[:96]}")
+    for name, (image, reason) in targeted.items():
+        status, message = run(image)
+        if status == 0 or reason not in message:
+            failures.append(f"{name} (status {status}: {message[:96]})")
+        else:
+            print(f"OK: mutation {name} rejected: {message[:96]}")
     if failures:
-        raise SystemExit(f"mutations accepted: {failures}")
-    print(f"PASS: all {len(cases)} Go r51 symbol mutations were rejected")
+        raise SystemExit(f"mutations not rejected as expected: {failures}")
+    total = len(cases) + len(targeted)
+    print(f"PASS: all {total} Go r51 symbol mutations were rejected")
 
 
 if __name__ == "__main__":

@@ -12,19 +12,29 @@ for an arbitrary linked ELF64 x86-64 image, for example a validator binary:
 
 1. each leaf symbol has the reference length and the reference bytes
    everywhere outside the two displacement fields;
-2. each displacement field resolves to a qword in allocated, non-writable,
-   non-executable memory;
+2. each displacement field holds a nonnegative signed disp32, the only form
+   the Lean decoder accepts, and resolves to a qword in allocated,
+   non-writable, non-executable memory;
 3. those qwords hold 19 and 2^51-1.
+
+Every byte checked (code and constants) is read through the image's program
+headers, not only its sections: it must lie in the file-backed part of
+exactly one PT_LOAD segment, readable and not writable, executable for code
+and not executable for constants, with no other PT_LOAD sharing its pages.
+Where sections exist the section bytes must agree. No REL or RELA section may
+relocate a checked byte.
 
 It prints the two constant addresses, which are the `fold19` and `mask51`
 arguments of the relocated Lean theorem for that image.
 
-If the image has no symbol table the symbol is located by searching executable
-sections for the reference bytes with the two fields as wildcards; exactly one
-match is required.
+If the image has no symbol table the symbol is located by searching the
+file-backed bytes of executable PT_LOAD segments for the reference bytes with
+the two fields as wildcards; exactly one match is required.
 
-Not checked here: that the image's callers reach this symbol, the Go-compiled
-wrapper, CPU dispatch, or any other leaf. The step from "bytes equal outside
+Not checked here: that the image's callers reach this symbol (a loaded match
+does not prove runtime dispatch), the Go-compiled wrapper, CPU dispatch, or
+any other leaf. Relocations are found through section headers; an image that
+hides dynamic relocations from its section table is out of scope. The step from "bytes equal outside
 the displacement fields" to "the decoded program is the reference program with
 renamed addresses" relies on the decoder treating a displacement uniformly; it
 is closed in Lean for an image by regenerating the Lean input from that image.
@@ -41,6 +51,7 @@ from typing import NoReturn
 
 import generate_go_r51_object_bytes as reference_tool
 from generate_go_r51_object_bytes import (
+    ELF_HEADER,
     FOLD19,
     LEAVES,
     MASK51,
@@ -55,6 +66,12 @@ from generate_go_r51_object_bytes import (
 
 FOLD19_VALUE = 19
 MASK51_VALUE = (1 << 51) - 1
+
+PROGRAM_HEADER = struct.Struct("<IIQQQQQQ")
+PT_LOAD = 1
+PF_X, PF_W, PF_R = 1, 2, 4
+SHT_RELA, SHT_REL = 4, 9
+PAGE = 4096
 
 
 def fail(message: str) -> NoReturn:
@@ -94,6 +111,82 @@ def displacement_site(code: bytes, symbol_address: int, target: int, label: str)
     return sites[0]
 
 
+class LoadMap:
+    """The image's PT_LOAD segments: what the loader actually maps."""
+
+    def __init__(self, image: bytes) -> None:
+        self.image = image
+        fields = ELF_HEADER.unpack_from(image)
+        offset, entry_size, count = fields[5], fields[9], fields[10]
+        if count == 0 or entry_size != PROGRAM_HEADER.size:
+            fail("unsupported program header table")
+        if offset + count * entry_size > len(image):
+            fail("program header table extends beyond image")
+        self.segments = []
+        for index in range(count):
+            kind, flags, file_offset, vaddr, _paddr, file_size, memory_size, align = (
+                PROGRAM_HEADER.unpack_from(image, offset + index * entry_size)
+            )
+            if kind != PT_LOAD:
+                continue
+            if file_size > memory_size or file_offset + file_size > len(image):
+                fail(f"PT_LOAD at {vaddr:#x} has an invalid file extent")
+            if align > 1 and (vaddr - file_offset) % align != 0:
+                fail(f"PT_LOAD at {vaddr:#x} is not congruent to its file offset")
+            self.segments.append((flags, file_offset, vaddr, file_size, memory_size))
+        if not self.segments:
+            fail("image has no PT_LOAD segments")
+
+    def read(self, address: int, size: int, label: str, *, executable: bool) -> bytes:
+        """Bytes at `address` as the loader maps them, with required permissions."""
+        covering = [
+            segment
+            for segment in self.segments
+            if segment[2] <= address and address + size <= segment[2] + segment[3]
+        ]
+        if len(covering) != 1:
+            fail(
+                f"{label} at {address:#x} is not in the file-backed part of exactly "
+                f"one PT_LOAD segment ({len(covering)} found)"
+            )
+        flags, file_offset, vaddr, _file_size, _memory_size = covering[0]
+        if not flags & PF_R or flags & PF_W:
+            fail(f"{label} at {address:#x} is in a PT_LOAD segment that is not read-only")
+        if bool(flags & PF_X) != executable:
+            fail(
+                f"{label} at {address:#x} is in a PT_LOAD segment whose execute "
+                "permission is wrong"
+            )
+        first_page = address // PAGE
+        last_page = (address + size - 1) // PAGE
+        for other in self.segments:
+            if other is covering[0] or other[4] == 0:
+                continue
+            if other[2] // PAGE <= last_page and first_page <= (other[2] + other[4] - 1) // PAGE:
+                fail(f"{label} at {address:#x} shares a page with another PT_LOAD segment")
+        start = file_offset + address - vaddr
+        return self.image[start : start + size]
+
+    def executable_ranges(self):
+        for flags, file_offset, vaddr, file_size, _memory_size in self.segments:
+            if flags & PF_X and flags & PF_R and not flags & PF_W:
+                yield vaddr, self.image[file_offset : file_offset + file_size]
+
+
+def reject_relocations(elf: GoElf, ranges: list[tuple[int, int, str]]) -> None:
+    """Fail if any REL or RELA entry writes into a checked range."""
+    for section in elf.sections:
+        if section[1] not in (SHT_RELA, SHT_REL):
+            continue
+        entry_size = 24 if section[1] == SHT_RELA else 16
+        data = elf.slice(section[4], section[5], "relocation section")
+        for offset in range(0, len(data) - entry_size + 1, entry_size):
+            target = struct.unpack_from("<Q", data, offset)[0]
+            for start, size, label in ranges:
+                if target < start + size and start < target + 8:
+                    fail(f"a relocation at {target:#x} writes into {label}")
+
+
 def section_of(elf: GoElf, address: int, size: int):
     for section in elf.sections:
         if section[1] != SHT_PROGBITS or not section[2] & SHF_ALLOC:
@@ -103,41 +196,45 @@ def section_of(elf: GoElf, address: int, size: int):
     return None
 
 
-def read_constant(elf: GoElf, address: int, label: str) -> int:
+def read_constant(elf: GoElf, loads: LoadMap, address: int, label: str) -> int:
+    data = loads.read(address, 8, label, executable=False)
     section = section_of(elf, address, 8)
     if section is None:
         fail(f"{label} at {address:#x} is not in allocated PROGBITS")
     if section[2] & (SHF_WRITE | SHF_EXECINSTR):
         fail(f"{label} at {address:#x} is in writable or executable memory")
-    data = elf.slice(section[4] + address - section[3], 8, label)
+    if elf.slice(section[4] + address - section[3], 8, label) != data:
+        fail(f"{label} at {address:#x}: section and loaded bytes differ")
     return int.from_bytes(data, "little")
 
 
 def locate(
-    elf: GoElf, leaf: Leaf, pattern: bytes, wildcard: set[int]
+    elf: GoElf, loads: LoadMap, leaf: Leaf, pattern: bytes, wildcard: set[int]
 ) -> tuple[int, bytes, str]:
     if any(section[1] == SHT_SYMTAB for section in elf.sections):
         entries = elf.find({leaf.symbol})
         symbol = elf.symbol_bytes(entries[leaf.symbol], leaf.symbol, executable=True)
-        return symbol.address, symbol.data, "symbol table"
+        loaded = loads.read(symbol.address, len(symbol.data), leaf.function, executable=True)
+        if loaded != symbol.data:
+            fail(f"{leaf.function}: section and loaded bytes differ")
+        return symbol.address, loaded, "symbol table"
     fixed = [index for index in range(len(pattern)) if index not in wildcard]
     anchor = pattern[: min(wildcard)]
     matches = []
-    for section in elf.sections:
-        if section[1] != SHT_PROGBITS or not section[2] & SHF_EXECINSTR:
-            continue
-        text = elf.slice(section[4], section[5], "executable section")
+    for segment_address, text in loads.executable_ranges():
         start = text.find(anchor)
         while start >= 0:
             window = text[start : start + len(pattern)]
             if len(window) == len(pattern) and all(
                 window[index] == pattern[index] for index in fixed
             ):
-                matches.append((section[3] + start, window))
+                matches.append((segment_address + start, window))
             start = text.find(anchor, start + 1)
     if len(matches) != 1:
-        fail(f"byte search found {len(matches)} candidate symbols, expected 1")
-    return matches[0][0], matches[0][1], "byte search"
+        fail(f"byte search found {len(matches)} loaded candidate symbols, expected 1")
+    address = matches[0][0]
+    loaded = loads.read(address, len(pattern), leaf.function, executable=True)
+    return address, loaded, "byte search"
 
 
 def check(leaf: Leaf, image: bytes) -> None:
@@ -159,8 +256,13 @@ def check(leaf: Leaf, image: bytes) -> None:
     if len(wildcard) != 8:
         fail("reference displacement fields overlap")
 
+    for site in (fold_site, mask_site):
+        if struct.unpack_from("<i", reference, site)[0] < 0:
+            fail("reference has a negative displacement")
+
     elf = GoElf(image)
-    address, code, method = locate(elf, leaf, reference, wildcard)
+    loads = LoadMap(image)
+    address, code, method = locate(elf, loads, leaf, reference, wildcard)
     if len(code) != len(reference):
         fail(f"{leaf.function} is {len(code)} bytes, reference is {len(reference)}")
     differing = [
@@ -175,16 +277,28 @@ def check(leaf: Leaf, image: bytes) -> None:
             f"first at offset {differing[0]}"
         )
 
-    def target(site: int) -> int:
-        return address + site + 4 + struct.unpack_from("<i", code, site)[0]
+    def target(site: int, label: str) -> int:
+        displacement = struct.unpack_from("<i", code, site)[0]
+        # X86Decoder.decodeBroadcast admits only a nonnegative signed disp32.
+        if displacement < 0:
+            fail(f"{label} has a negative displacement, which the Lean decoder rejects")
+        return address + site + 4 + displacement
 
-    fold_address, mask_address = target(fold_site), target(mask_site)
+    fold_address, mask_address = target(fold_site, "fold19"), target(mask_site, "mask51")
     if fold_address == mask_address:
         fail("both displacement fields resolve to the same address")
-    if read_constant(elf, fold_address, "fold19") != FOLD19_VALUE:
+    if read_constant(elf, loads, fold_address, "fold19") != FOLD19_VALUE:
         fail(f"qword at {fold_address:#x} is not 19")
-    if read_constant(elf, mask_address, "mask51") != MASK51_VALUE:
+    if read_constant(elf, loads, mask_address, "mask51") != MASK51_VALUE:
         fail(f"qword at {mask_address:#x} is not 2^51-1")
+    reject_relocations(
+        elf,
+        [
+            (address, len(code), leaf.function),
+            (fold_address, 8, "fold19"),
+            (mask_address, 8, "mask51"),
+        ],
+    )
     if any(section[1] == SHT_SYMTAB for section in elf.sections):
         named = elf.find({FOLD19, MASK51})
         if named[FOLD19][2] != fold_address or named[MASK51][2] != mask_address:
