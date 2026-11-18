@@ -9,8 +9,8 @@ registers, constant addresses, and entry prelude, so a theorem about one says
 nothing about the bytes of the other.
 
 This note describes the theorems about Go-linked bytes and the check that a
-given binary contains them. Two leaves are covered: the x8 multiplier and the
-x8 product normalizer. The [coverage](#coverage) section lists what a validator
+given binary contains them. Five leaves are covered: the x8 multiplier,
+product normalizer, adder, subtractor, and negator. The [coverage](#coverage) section lists what a validator
 binary links and what remains.
 
 ## What is proved: multiplier
@@ -93,6 +93,39 @@ The leaf-specific proof text is one lemma, `outputs_are_normalized`. The
 existing pure theorem `parallel_carry_preserves_mod` supplies the value
 statement.
 
+## What is proved: add, subtract, negate
+
+`X86GoR51AddReflective.lean`, `X86GoR51SubtractReflective.lean`, and
+`X86GoR51NegateReflective.lean` cover the three linear x8 field leaves. They
+share `X86GoLeaf.lean`, which holds everything that does not depend on the
+leaf: the symbol decoder for a given argument count, the two prelude shapes,
+the composition of an accepted body with the prelude and return sequence, the
+read-back of the five output rows, and a satisfiability witness built from a
+leaf specification. Each leaf file is then its bytes, its specification,
+kernel evaluations, and one arithmetic lemma.
+
+These leaves read their second operand directly from memory
+(`VPADDQ`/`VPSUBQ zmm, zmm, m512`) and the negator copies a register
+(`VMOVDQA64`). The checker and its soundness theorem were extended for those
+forms. A subtraction is accepted only when the subtrahend's bound is at most a
+lower bound the checker reads off the minuend's syntax (constants and sums of
+constants), so it never relies on an assumption and cannot borrow.
+
+| Leaf | Bytes | Result for the selected lane | Limb bounds |
+| --- | --- | --- | --- |
+| `go_r51_add_refines` | 236 | `out` is the parallel carry of `x + y`, so `out = x + y` modulo `2^255 - 19` | `2^51 + 76`, then `2^51 + 4` |
+| `go_r51_subtract_refines` | 286 | `out` is the parallel carry of `x + 4p - y`, so `out + y = x` modulo `2^255 - 19` | `2^51 + 114`, then `2^51 + 6` |
+| `go_r51_negate_refines` | 235 | `out` is the parallel carry of `4p - x`, so `out + x = 0` modulo `2^255 - 19` | `2^51 + 76`, then `2^51 + 4` |
+
+Inputs are u52 limbs (`2^52 - 1` per selected lane). Each leaf also has a
+`..._refines_relocated` theorem for any distinct constant addresses, a
+`leaf_contract_satisfiable` witness, and a fail-closed theorem: the adder body
+is rejected if the memory operand could wrap the addition, and the subtractor
+and negator bodies are rejected if the subtrahend could exceed the bias.
+
+`linked_constants` and `bias_value` show the two bias constants are
+`4 * (2^51 - 19)` and `4 * (2^51 - 1)` and together represent `4p`.
+
 ## Reference bytes
 
 The committed bytes come from the module's own package test binary, built
@@ -117,18 +150,43 @@ ifmaNormalizeProductUncheckedX8
 symbol size         197 bytes
 symbol SHA-256      b476a843cf9793962d24fed1f964690a7c36aa456c162e918340761fdf78ab8f
 normalized SHA-256  aef66b8902a78fee79f1140d0a7920ad8a586e8aa36ec6ffdf76913b9397f12f
+
+ifmaAddNormalizedUncheckedX8
+symbol size         236 bytes
+symbol SHA-256      5427cdfa3832936d6d0cbb5579b4f3fbcdef10511eff97b850ea73bd4c105c55
+normalized SHA-256  5664938dde391153daee7b0a5c52c5e26a231b1364f9a9f1169b6216e6f5c5fd
+
+ifmaSubtractNormalizedUncheckedX8
+symbol size         286 bytes
+symbol SHA-256      777b5e0bff4b87b3d5245d6f0383e894f978cf7d6f92a1cdad77f2910011ea3b
+normalized SHA-256  767de837ad22c9defc1dd5fbfc16abecfff49015b29a57acd4178b0f64d86666
+
+ifmaNegateNormalizedUncheckedX8
+symbol size         235 bytes
+symbol SHA-256      e47b3d15485b2a78f2c4f454082b17465a6820796b53c5ad2935af48f3549380
+normalized SHA-256  e7bed921b93dadc5fafd5ad42dae94cbc043ff874c20f62f24151a298e4d90a4
 ```
 
-The normalized hash zeroes the two four-byte displacement fields that address
-the constants (symbol offsets 608 and 678 in the multiplier, 60 and 50 in the
-normalizer). It is the same for every link of the same code.
+The normalized hash zeroes the four-byte displacement fields that address
+the constants: two in the multiplier (symbol offsets 608 and 678), the
+normalizer (60 and 50), and the adder, and four in the subtractor and the
+negator. It is the same for every link of the same code.
 
 ```sh
 make GO_R51_ELF=/path/to/r51x5.test check-go-r51-object-bytes
 ```
 
-regenerates both Lean inputs from that image and requires them to equal the
+regenerates all five Lean inputs from that image and requires them to equal the
 committed files.
+
+`make check-go-r51-reference` does the whole round trip from source:
+`tools/build_go_r51_reference.sh` fetches the module at the pinned commit,
+builds the test binary twice with the pinned toolchain (requiring identical
+output) plus a stripped build, and the target then runs
+`check-go-r51-object-bytes`, `check-go-r51-symbol`, and
+`test-go-r51-symbol-mutations` on the image and `check-go-r51-symbol` on the
+stripped build. The `Go-linked leaf bytes` CI job runs it on every pull
+request.
 
 ## Checking a binary
 
@@ -140,11 +198,14 @@ make GO_R51_ELF=/path/to/binary check-go-r51-symbol
 requires, for every covered leaf (or the one named with `--leaf`), that:
 
 1. the leaf symbol has the reference length and the reference bytes
-   everywhere outside the two displacement fields;
+   everywhere outside its constant displacement fields: two in the
+   multiplier, normalizer, and adder (`fold19` and `mask51`), four in the
+   subtractor and negator (`subBias0`, `subBiasN`, `fold19`, `mask51`);
 2. each displacement field holds a nonnegative signed disp32 (the only form
    `X86Decoder.decodeBroadcast` accepts) and resolves to a qword in allocated,
    non-writable, non-executable memory;
-3. those qwords hold 19 and `2^51 - 1`.
+3. those qwords hold the declared values: 19, `2^51 - 1`,
+   `4 * (2^51 - 19)`, and `4 * (2^51 - 1)` respectively.
 
 Every checked byte, code and constants, is read the way the loader maps it:
 it must lie in the file-backed part of exactly one `PT_LOAD` segment that is
@@ -153,8 +214,8 @@ constants, and no other `PT_LOAD` segment may share its pages. Where section
 headers exist, the section bytes must agree with the loaded bytes, and no
 `REL` or `RELA` section may relocate a checked byte.
 
-It prints the two constant addresses, which are the `fold19` and `mask51`
-arguments of the leaf's `..._refines_relocated` theorem for that image. If the
+It prints each constant address. These are the address arguments of the
+leaf's `..._refines_relocated` theorem for that image. If the
 image has no symbol table, the symbol is found by a byte search over the
 file-backed bytes of executable `PT_LOAD` segments that must match exactly
 once.
@@ -162,15 +223,18 @@ once.
 A loaded match shows that the proved bytes are mapped executable in the image.
 It does not show that anything calls them.
 
-`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires nineteen mutations
-of a linked image to be rejected, and the image with its symbol table hidden
-to pass. In the multiplier: argument slot and register, a source-load base
-register, an IFMA opcode, a product source register, a store displacement, the
-`RET`, each constant's value, and each displacement target. In the normalizer:
-an argument slot, the carry shift count, and a store displacement. Five more
-must fail at a named check: the code segment made writable, the constant
-segment made executable, the code moved outside the file-backed part of its
-segment (with and without a symbol table), and a negative displacement.
+`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires twenty-two
+mutations of a linked image to be rejected, and the image with its symbol
+table hidden to pass. In the multiplier: argument slot and register, a
+source-load base register, an IFMA opcode, a product source register, a store
+displacement, the `RET`, each constant's value, and each displacement target.
+In the adder, subtractor, and negator: the memory-operand opcode swapped
+between add and subtract, and a bias displacement retargeted to the other
+bias. In the normalizer: an argument slot, the carry shift count, and a store
+displacement. Five more must fail at a named check: the code segment made
+writable, the constant segment made executable, the code moved outside the
+file-backed part of its segment (with and without a symbol table), and a
+negative displacement.
 
 ### Evidence recorded with this change
 
@@ -182,14 +246,13 @@ segment (with and without a symbol table), and a negative displacement.
 
 ## Coverage
 
-The validator binary above links 53 assembly symbols from the module. Two are
+The validator binary above links 53 assembly symbols from the module. Five are
 covered here. The rest, by what the reflective checker still needs:
 
 | Group | Symbols in the binary | Likely needs |
 | --- | --- | --- |
-| Covered | `ifmaMulNormalizedUncheckedX8`, `ifmaNormalizeProductUncheckedX8` | nothing |
-| x8 add | `ifmaAddNormalizedUncheckedX8` | `VPADDQ` with a memory operand |
-| x8 subtract, negate, conditional negate | 3 | `VPSUBQ` with a non-underflow rule, memory operands, opmask blend |
+| Covered | x8 multiply, product normalize, add, subtract, negate (5) | nothing |
+| x8 conditional negate | `ifmaConditionalNegateNormalizedUncheckedX8` | opmask load and a masked blend |
 | Raw multiply and square, repeated square | `ifmaMulRawX8`, `ifmaSquareRawExperimentX8`, `ifmaRepeatedSquareNormalizedX8` | ten-row output, a loop invariant for the square chain |
 | Fused x8 point formulas (double, Niels, final products, multi-product) | 15 | subtraction, several output objects, workspace read-back |
 | x4 (YMM) variants of the field and point leaves | 15 | 256-bit forms in the decoder and machine model |

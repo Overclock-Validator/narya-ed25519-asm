@@ -32,6 +32,9 @@ The reflective route proves the machine reasoning once.
      admit 64-bit wraparound;
    - an IFMA multiply operand whose bound is not below `2^52`;
    - `vpandq` with anything other than a constant mask `2^bits - 1`;
+   - a subtraction whose subtrahend bound exceeds the minuend's syntactic
+     floor (`Expr.floor`: constants and sums of constants, zero for anything
+     that depends on an input), so an accepted subtraction cannot borrow;
    - a load from a row that is not a declared input, a broadcast from an
      address that is not a declared constant, and any load or broadcast after
      the first store;
@@ -112,8 +115,9 @@ decision.
 - No load after the first store, so a leaf that reads back its own workspace
   is rejected.
 - One output object addressed from one register.
-- No subtraction. The add, subtract, and negate leaves and every fused point
-  formula need `vpsubq` with a non-underflow rule.
+- Subtraction and addition with a memory operand are supported, and a
+  register copy. Register-register `vpsubq`, opmask blends, and the fused
+  point formulas are not.
 - One selected lane. All supported instructions act lane-wise, so the theorem
   holds for every lane separately, but a half-register packed layout needs
   per-lane-group tracking.

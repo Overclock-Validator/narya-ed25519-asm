@@ -44,6 +44,9 @@ def instructionDependencies : Instruction → List ZReg
   | .vpandq _ source1 source2 => [source1, source2]
   | .vpsllq _ source _
   | .vpsrlq _ source _ => [source]
+  | .vpaddqLoad _ source _ _
+  | .vpsubqLoad _ source _ _
+  | .vmovdqa64 _ source => [source]
   | .vpbroadcastq .. => []
   | .vzeroUpper => []
   | .ret => []
@@ -58,6 +61,9 @@ def instructionWrites : Instruction → List ZReg
   | .vpandq destination ..
   | .vpsllq destination ..
   | .vpsrlq destination ..
+  | .vpaddqLoad destination ..
+  | .vpsubqLoad destination ..
+  | .vmovdqa64 destination ..
   | .vpbroadcastq destination .. => [destination]
   | .vmovdqu64Store .. | .vzeroUpper | .ret => []
 

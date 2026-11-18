@@ -69,6 +69,22 @@ def executeInstruction {Other : Type} (instruction : Instruction)
         (vpsrlq (state.zmm source) amount)))
   | .vpbroadcastq destination absoluteAddress =>
       (execBroadcast state destination absoluteAddress).map .next
+  | .vpaddqLoad destination source base displacement =>
+      let address := addressAdd (state.gpr base) displacement
+      if readableBytes state.mem address 64 then
+        .ok (.next (writeZmm state destination
+          (vpaddq (state.zmm source) (loadZmm state.mem address))))
+      else
+        .error (.readFault address)
+  | .vpsubqLoad destination source base displacement =>
+      let address := addressAdd (state.gpr base) displacement
+      if readableBytes state.mem address 64 then
+        .ok (.next (writeZmm state destination
+          (vpsubq (state.zmm source) (loadZmm state.mem address))))
+      else
+        .error (.readFault address)
+  | .vmovdqa64 destination source =>
+      .ok (.next (writeZmm state destination (state.zmm source)))
   | .vzeroUpper => .ok (.next (execVzeroUpper state))
   | .ret => execRet state
 

@@ -34,6 +34,9 @@ inductive Expr
   | shiftLeft (operand : Expr) (amount : Nat)
   | shiftRight (operand : Expr) (amount : Nat)
   | modPow2 (operand : Expr) (bits : Nat)
+  /-- Truncated natural subtraction. The checker only produces it when the
+  subtrahend's bound is at most the minuend's syntactic floor, so it is exact. -/
+  | sub (left right : Expr)
   deriving DecidableEq, Repr
 
 def Expr.eval (inputs : Gpr → Nat → Nat) : Expr → Nat
@@ -46,6 +49,22 @@ def Expr.eval (inputs : Gpr → Nat → Nat) : Expr → Nat
   | .shiftLeft operand amount => operand.eval inputs * 2 ^ amount
   | .shiftRight operand amount => operand.eval inputs / 2 ^ amount
   | .modPow2 operand bits => operand.eval inputs % 2 ^ bits
+  | .sub left right => left.eval inputs - right.eval inputs
+
+/-- A lower bound read off the syntax: constants and sums of them. It is zero
+for anything that depends on an input, so it never relies on an assumption. -/
+def Expr.floor : Expr → Nat
+  | .const value => value
+  | .add left right => left.floor + right.floor
+  | _ => 0
+
+theorem Expr.floor_le_eval (inputs : Gpr → Nat → Nat) :
+    ∀ expr : Expr, expr.floor ≤ expr.eval inputs
+  | .const _ => Nat.le_refl _
+  | .add left right =>
+      Nat.add_le_add (floor_le_eval inputs left) (floor_le_eval inputs right)
+  | .input _ _ | .mul _ _ | .mulLo52 _ _ | .mulHi52 _ _ | .shiftLeft _ _
+  | .shiftRight _ _ | .modPow2 _ _ | .sub _ _ => Nat.zero_le _
 
 /-- An expression with an inclusive upper bound on its value. -/
 structure SymVal where
@@ -215,6 +234,33 @@ def executeSym (spec : LeafSpec) (instruction : Instruction)
               ⟨.const constant.value, constant.value⟩)
         | none => none
       else none
+  | .vpaddqLoad destination source base displacement =>
+      if state.stored = false then
+        match state.zmm source, findInput spec base displacement with
+        | some left, some row =>
+            if left.bound + row.bound < 2 ^ 64 then
+              some (writeSym state destination
+                ⟨.add left.expr (.input base displacement),
+                  left.bound + row.bound⟩)
+            else none
+        | _, _ => none
+      else none
+  | .vpsubqLoad destination source base displacement =>
+      -- Accepted only when the minuend is syntactically at least the row's
+      -- bound, so the 64-bit subtraction cannot borrow.
+      if state.stored = false then
+        match state.zmm source, findInput spec base displacement with
+        | some left, some row =>
+            if row.bound ≤ left.expr.floor then
+              some (writeSym state destination
+                ⟨.sub left.expr (.input base displacement), left.bound⟩)
+            else none
+        | _, _ => none
+      else none
+  | .vmovdqa64 destination source =>
+      match state.zmm source with
+      | some value => some (writeSym state destination value)
+      | none => none
   | .vzeroUpper => none
   | .ret => none
 

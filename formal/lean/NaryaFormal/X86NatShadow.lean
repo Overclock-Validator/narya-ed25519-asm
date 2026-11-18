@@ -97,6 +97,8 @@ def executeNatShadow (environment : NatShadowEnvironment)
   | .vpbroadcastq destination absoluteAddress => do
       let value ← shadowConstant absoluteAddress
       some (.next (writeNatZmm state destination value))
+  -- Forms outside the multiplier leaf are not modelled by this shadow.
+  | .vpaddqLoad .. | .vpsubqLoad .. | .vmovdqa64 .. => none
   | .vzeroUpper => some (.next state)
   | .ret => some (.returned state)
 

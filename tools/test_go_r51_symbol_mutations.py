@@ -32,6 +32,9 @@ PF_X, PF_W = 1, 2
 
 FUNCTION = LEAVES["mul"].symbol
 NORMALIZE = LEAVES["normalize"].symbol
+ADD = LEAVES["add"].symbol
+SUBTRACT = LEAVES["subtract"].symbol
+NEGATE = LEAVES["negate"].symbol
 
 CHECK = Path(__file__).resolve().parent / "check_go_r51_symbol.py"
 
@@ -65,6 +68,9 @@ def main() -> None:
     elf = GoElf(original)
     code, code_address, code_size = file_offset(elf, FUNCTION)
     norm, _norm_address, norm_size = file_offset(elf, NORMALIZE)
+    add, _, _ = file_offset(elf, ADD)
+    subtract, _, _ = file_offset(elf, SUBTRACT)
+    negate, _, _ = file_offset(elf, NEGATE)
     fold, fold_address, _ = file_offset(elf, FOLD19)
     mask, mask_address, _ = file_offset(elf, MASK51)
 
@@ -72,7 +78,7 @@ def main() -> None:
     if status != 0:
         raise SystemExit("unmodified image was rejected")
 
-    # Locate the two displacement fields from the image itself.
+    # Locate the multiplier's two displacement fields from the image itself.
     def site(target: int) -> int:
         sites = [
             offset
@@ -156,6 +162,13 @@ def main() -> None:
         norm + 9: 0x10,  # disp8 of MOVQ 16(SP), CX
         norm + 10 + 34 + 20 + 6: 51,  # carry shift count
         norm + norm_size - 5: 0x04,  # compressed disp8 of the last store
+        # Adder: 15-byte prelude, five loads, then VPADDQ 0(BX), Z0, Z0.
+        add + 15 + 34 + 4: 0xD4,
+        # Subtractor: prelude, five loads, two broadcasts, five register
+        # adds, then VPSUBQ 0(BX), Z0, Z0.
+        subtract + 15 + 34 + 20 + 30 + 4: 0xFB,
+        # Negator: 10-byte prelude, then VPBROADCASTQ ifmaSubBias0, Z0.
+        negate + 10 + 4: 0x59,
     }
     for offset, value in expected.items():
         if original[offset] != value:
@@ -202,6 +215,16 @@ def main() -> None:
         "normalizer argument stack slot": flipped(norm + 9),
         "normalizer carry shift count": flipped(norm + 10 + 34 + 20 + 6),
         "normalizer final store displacement": flipped(norm + norm_size - 5),
+        "adder memory add to subtract": patched(add + 15 + 34 + 4, b"\xfb"),
+        "subtractor memory subtract to add": patched(
+            subtract + 15 + 34 + 20 + 30 + 4, b"\xd4"
+        ),
+        "negator limb-zero bias retargeted to the other bias": patched(
+            negate + 16,
+            struct.pack(
+                "<i", struct.unpack_from("<i", original, negate + 16)[0] + 8
+            ),
+        ),
     }
     failures = []
     for name, image in cases.items():

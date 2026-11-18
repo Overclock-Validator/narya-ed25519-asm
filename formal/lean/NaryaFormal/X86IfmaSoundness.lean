@@ -88,6 +88,15 @@ theorem add_lane (left right : QWord) (leftNat rightNat leftBound rightBound : N
     exact lt_of_le_of_lt hbound hsum), hbound⟩
 
 
+theorem sub_lane (left right : QWord) (leftNat rightNat leftBound : Nat)
+    (hleft : left.toNat = leftNat) (hright : right.toNat = rightNat)
+    (hleftBound : leftNat ≤ leftBound) (hle : rightNat ≤ leftNat) :
+    (qwordSub left right).toNat = leftNat - rightNat ∧
+      leftNat - rightNat ≤ leftBound := by
+  subst hleft hright
+  exact ⟨qwordSub_toNat_of_noBorrow _ _ hle, (Nat.sub_le _ _).trans hleftBound⟩
+
+
 theorem mul_lane (left right : QWord) (leftNat rightNat leftBound rightBound : Nat)
     (hleft : left.toNat = leftNat) (hright : right.toNat = rightNat)
     (hleftBound : leftNat ≤ leftBound) (hrightBound : rightNat ≤ rightBound)
@@ -523,6 +532,91 @@ theorem executeSym_sound (spec : LeafSpec) (lane : Fin 8)
             rw [hpre.constantValue constant hmember, BitVec.toNat_ofNat]
             exact Nat.mod_eq_of_lt hvalueRange
         · cases hstep
+      · cases hstep
+  | vpaddqLoad destination source base displacement =>
+      simp only [executeSym] at hstep
+      split at hstep
+      · rename_i hstored
+        split at hstep
+        · rename_i left row hleft hrow
+          split at hstep
+          · rename_i hsum
+            simp only [Option.some.injEq] at hstep
+            subst hstep
+            unfold findInput at hrow
+            have hmember : row ∈ spec.inputs := List.mem_of_find?_eq_some hrow
+            have hmatch := List.find?_some hrow
+            simp only [decide_eq_true_eq] at hmatch
+            obtain ⟨hbase, hdisplacement⟩ := hmatch
+            subst hbase hdisplacement
+            have hmem := hsim.prestore hstored
+            have hread : readableBytes state.mem
+                (addressAdd (state.gpr row.base) row.displacement) 64 = true := by
+              rw [hmem, hsim.gpr]
+              exact hpre.inputReadable row hmember
+            obtain ⟨hleftValue, hleftBound⟩ := hsim.zmm source left hleft
+            have hrowValue : (loadZmm state.mem
+                (addressAdd (state.gpr row.base) row.displacement) lane).toNat =
+                entryInputs lane entry row.base row.displacement := by
+              rw [hmem, hsim.gpr]
+              rfl
+            have hrowBound := hpre.inputBound row hmember
+            refine ⟨writeZmm state destination
+              (vpaddq (state.zmm source) (loadZmm state.mem
+                (addressAdd (state.gpr row.base) row.displacement))), ?_, ?_⟩
+            · simp [executeInstruction, hread]
+            · exact hsim.writeStep destination _ _
+                (add_lane _ _ _ _ _ _ hleftValue hrowValue hleftBound hrowBound hsum)
+          · cases hstep
+        · cases hstep
+      · cases hstep
+  | vpsubqLoad destination source base displacement =>
+      simp only [executeSym] at hstep
+      split at hstep
+      · rename_i hstored
+        split at hstep
+        · rename_i left row hleft hrow
+          split at hstep
+          · rename_i hfloor
+            simp only [Option.some.injEq] at hstep
+            subst hstep
+            unfold findInput at hrow
+            have hmember : row ∈ spec.inputs := List.mem_of_find?_eq_some hrow
+            have hmatch := List.find?_some hrow
+            simp only [decide_eq_true_eq] at hmatch
+            obtain ⟨hbase, hdisplacement⟩ := hmatch
+            subst hbase hdisplacement
+            have hmem := hsim.prestore hstored
+            have hread : readableBytes state.mem
+                (addressAdd (state.gpr row.base) row.displacement) 64 = true := by
+              rw [hmem, hsim.gpr]
+              exact hpre.inputReadable row hmember
+            obtain ⟨hleftValue, hleftBound⟩ := hsim.zmm source left hleft
+            have hrowValue : (loadZmm state.mem
+                (addressAdd (state.gpr row.base) row.displacement) lane).toNat =
+                entryInputs lane entry row.base row.displacement := by
+              rw [hmem, hsim.gpr]
+              rfl
+            have hrowBound := hpre.inputBound row hmember
+            refine ⟨writeZmm state destination
+              (vpsubq (state.zmm source) (loadZmm state.mem
+                (addressAdd (state.gpr row.base) row.displacement))), ?_, ?_⟩
+            · simp [executeInstruction, hread]
+            · exact hsim.writeStep destination _ _
+                (sub_lane _ _ _ _ _ hleftValue hrowValue hleftBound
+                  (hrowBound.trans (hfloor.trans
+                    (Expr.floor_le_eval (entryInputs lane entry) left.expr))))
+          · cases hstep
+        · cases hstep
+      · cases hstep
+  | vmovdqa64 destination source =>
+      simp only [executeSym] at hstep
+      split at hstep
+      · rename_i value hvalue
+        simp only [Option.some.injEq] at hstep
+        subst hstep
+        exact ⟨_, rfl, hsim.writeStep destination _ _
+          (hsim.zmm source value hvalue)⟩
       · cases hstep
   | vzeroUpper =>
       simp only [executeSym] at hstep

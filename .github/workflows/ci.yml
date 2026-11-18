@@ -55,3 +55,14 @@ jobs:
         uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
         with:
           lake-package-directory: formal/lean
+
+  go-production-bytes:
+    name: Go-linked leaf bytes
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Record bootstrap Go toolchain
+        run: go version
+      - name: Rebuild the pinned Go reference and run the byte gates
+        run: make check-go-r51-reference
