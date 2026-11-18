@@ -72,7 +72,7 @@ reconstruct(uint64_t out[5], const narya_radix32_digits_x8 *digits, size_t lane)
             carry = next;
         }
         const narya_radix32_round_x8 *record = &digits->round[round];
-        const uint8_t lane_mask = UINT8_C(1) << lane;
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
         uint64_t magnitude = record->magnitude[lane];
         if ((record->negative_mask & lane_mask) == 0) {
             for (size_t word = 0; word < 5 && magnitude != 0; word++) {
@@ -125,7 +125,7 @@ check_digits(uint8_t scalars[8][32], uint8_t active, uint8_t signs)
         &digits, &scalars[0][0], signs, active);
     uint8_t want_valid = 0;
     for (size_t lane = 0; lane < 8; lane++) {
-        const uint8_t lane_mask = UINT8_C(1) << lane;
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
         if ((active & lane_mask) != 0 && canonical(scalars[lane]))
             want_valid |= lane_mask;
     }
@@ -135,7 +135,7 @@ check_digits(uint8_t scalars[8][32], uint8_t active, uint8_t signs)
     for (size_t round = 0; round < NARYA_RADIX32_ROUNDS; round++) {
         const narya_radix32_round_x8 *record = &digits.round[round];
         for (size_t lane = 0; lane < 8; lane++) {
-            const uint8_t lane_mask = UINT8_C(1) << lane;
+            const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
             const uint8_t magnitude = record->magnitude[lane];
             if (magnitude > 16)
                 return 0;
@@ -150,7 +150,7 @@ check_digits(uint8_t scalars[8][32], uint8_t active, uint8_t signs)
         }
     }
     for (size_t lane = 0; lane < 8; lane++) {
-        const uint8_t lane_mask = UINT8_C(1) << lane;
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
         if ((want_valid & lane_mask) == 0)
             continue;
         uint64_t got[5];

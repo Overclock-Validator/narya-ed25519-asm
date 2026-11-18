@@ -62,10 +62,44 @@ The selector transpose's source-level lane map is now machine checked in
 assembly macros, pointer assignments, limb invocations, and output offsets.
 The exact relocation-free assembled bytes for both symbols are also committed
 as generated Lean input. Every assembled eight-instruction shuffle block now
-decodes in Lean to the proved 4×4 register transpose. The remaining transpose
-obligation is the surrounding GPR, masked/unmasked load, store, epilogue, and
-byte-memory execution needed for a whole-leaf ABI theorem. See
-[`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md).
+decodes in Lean to the proved 4×4 register transpose. The whole-leaf ABI
+theorem is now closed for both symbols: the surrounding GPR setup, masked and
+unmasked loads, stores, epilogue, and byte-memory execution are proved against
+the machine model in `TransposeX86WholeSoundness.lean`. The proof is
+reflective: `executeSym_sound` shows once that the value-parametric symbolic
+executor is simulated by the byte-addressed machine, and each program is then
+discharged by kernel evaluation. See
+[`TRANSPOSE_LANE_MAP.md`](TRANSPOSE_LANE_MAP.md) and
+[`TRANSPOSE_WHOLE_LEAF_REFINEMENT.md`](TRANSPOSE_WHOLE_LEAF_REFINEMENT.md).
+The remaining transpose obligation is on the caller side: the C selectors must
+be shown to establish the leaf contract (exact-length sources, a pointer table
+of eight entries, and an output object that overlaps none of them).
+
+The same reflective pattern now exists for field leaves. `X86IfmaSymbolic.lean`
+defines a partial symbolic executor over the multiplier's instruction subset
+that tracks an exact natural-number expression and an upper bound per register,
+and `X86IfmaSoundness.lean` proves it sound against the machine model once.
+`X86R51MulReflective.lean` re-derives the multiplier leaf theorem through it
+as a known-answer test. See
+[`IFMA_REFLECTIVE_CHECKER.md`](IFMA_REFLECTIVE_CHECKER.md).
+
+New field leaves should be proved this way rather than with another
+hand-composed phase proof. In order of increasing checker work:
+
+1. the add, subtract, and negate leaves need `vpsubq` with a non-underflow
+   check (a lower bound per value, or the biased-subtract idiom) and their
+   symbols decoded;
+2. the fused doubling and fused Niels leaves additionally read back workspace
+   rows after storing them, so the memory rule must allow loads from rows the
+   leaf itself stored;
+3. the register-resident repeated-square leaf has a loop. The checker needs a
+   bounds-only loop invariant: show one iteration maps the per-limb input
+   bounds into themselves, then treat the value abstractly as a field element;
+4. the packed half-register path needs per-lane-group tracking instead of one
+   selected lane.
+
+Each extension is a change to the checker and its single soundness theorem,
+not a per-leaf proof.
 
 The decoder now uses the symmetry-reduced
 `narya_r51x8_repeated_square_ifma` leaf. Its native differential, alias, and

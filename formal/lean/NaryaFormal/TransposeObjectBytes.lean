@@ -11,20 +11,16 @@ import NaryaFormal.GeneratedTransposeObjectBytes
 
 namespace NaryaFormal.TransposeObject
 
-set_option maxRecDepth 16384 in
 theorem projective_symbol_extent_exact :
-    projectiveSymbolBytes.length = projectiveSymbolSize := by decide
+    projectiveSymbolBytes.length = projectiveSymbolSize := by decide +kernel
 
-set_option maxRecDepth 16384 in
 theorem projective_symbol_bytes_are_octets :
-    ∀ byte ∈ projectiveSymbolBytes, byte < 256 := by decide
+    ∀ byte ∈ projectiveSymbolBytes, byte < 256 := by decide +kernel
 
-set_option maxRecDepth 16384 in
 theorem affine_symbol_extent_exact :
-    affineSymbolBytes.length = affineSymbolSize := by decide
+    affineSymbolBytes.length = affineSymbolSize := by decide +kernel
 
-set_option maxRecDepth 16384 in
 theorem affine_symbol_bytes_are_octets :
-    ∀ byte ∈ affineSymbolBytes, byte < 256 := by decide
+    ∀ byte ∈ affineSymbolBytes, byte < 256 := by decide +kernel
 
 end NaryaFormal.TransposeObject

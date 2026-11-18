@@ -68,7 +68,7 @@ narya_projective_niels_table_select_x8(
     const uint8_t negative = round->negative_mask & lookup;
     const narya_projective_niels_micro_entry_x8 *source[8];
     for (size_t lane = 0; lane < 8; lane++) {
-        const uint8_t lane_mask = UINT8_C(1) << lane;
+        const uint8_t lane_mask = (uint8_t)(UINT8_C(1) << lane);
         source[lane] = &identity_entry;
         if ((lookup & lane_mask) != 0) {
             const size_t sign = (negative >> lane) & 1u;

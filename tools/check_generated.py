@@ -52,6 +52,10 @@ def main() -> None:
         ROOT / "formal/lean/NaryaFormal/GeneratedR51InstructionTrace.lean",
         run("tools/generate_r51_instruction_trace.py"),
     )
+    require_equal(
+        ROOT / "formal/lean/NaryaFormal/GeneratedTransposeWholeTrace.lean",
+        run("tools/generate_transpose_whole_trace.py"),
+    )
 
     external = ROOT / "tests/vectors/narya_external_strict_v1.jsonl"
     external_sha256 = hashlib.sha256(external.read_bytes()).hexdigest()
