@@ -159,8 +159,8 @@ def decodeEvex (bytes : List Nat) (offset : Nat) : Option (Instruction × Nat) :
       let source1 ← zregOfEncoding
         ((15 - bitField p1 3 4) + 16 * invertedBit (bit p2 3))
       let source2 ← zregOfEncoding
-        (bitField modrm 0 3 + 8 * invertedBit (bit p0 6) +
-          16 * invertedBit (bit p0 5))
+        (bitField modrm 0 3 + 8 * invertedBit (bit p0 5) +
+          16 * invertedBit (bit p0 6))
       let immediate ← byteAt bytes (offset + 6)
       some (.shuffleI64x2 destination source1 source2 immediate, offset + 7)
   else if opcode = 0x6f then do
@@ -168,6 +168,9 @@ def decodeEvex (bytes : List Nat) (offset : Nat) : Option (Instruction × Nat) :
         bit p1 7 ≠ 1 ∨ p1 % 8 ≠ 6 ∨
         bitField p1 3 4 ≠ 15 ∨ bit p2 3 ≠ 1 ∨ bitField p2 5 2 ≠ 1 ∨
         bit p2 4 ≠ 0 ∨ mode = 3 then none else
+    -- aaa = 0 means "no mask" on hardware, and z = 1 with aaa = 0 is
+    -- invalid. This decoder covers only the masked form, so it rejects both.
+    if bitField p2 0 3 = 0 then none else
     let mask ← kregOfEncoding (bitField p2 0 3)
     let zeroing := bit p2 7 = 1
     let (base, displacement, nextOffset) ←
@@ -227,9 +230,48 @@ theorem affine_whole_symbol_decodes :
   decide
 
 
-theorem changed_affine_mask_fields_change_trace :
-    decodeOne [0x62, 0xf1, 0xfe, 0x28, 0x6f, 0x02] 0 =
-      some (.ymmMaskedLoad 0 .rdx 0 0 false, 6) := by
+/-! Independent fixtures, encoded by Clang from Intel syntax. The register
+r/m operand of an EVEX instruction is extended by 8 * inverted P0 bit 5 (B)
+and 16 * inverted P0 bit 6 (X). -/
+
+-- vshufi64x2 ymm0, ymm4, ymm8, 0
+theorem decodes_shuffle_rm_ymm8 :
+    decodeOne [0x62, 0xd3, 0xdd, 0x28, 0x43, 0xc0, 0x00] 0 =
+      some (.shuffleI64x2 0 4 8 0, 7) := by
+  decide
+
+-- vshufi64x2 ymm0, ymm4, ymm16, 0
+theorem decodes_shuffle_rm_ymm16 :
+    decodeOne [0x62, 0xb3, 0xdd, 0x28, 0x43, 0xc0, 0x00] 0 =
+      some (.shuffleI64x2 0 4 16 0, 7) := by
+  decide
+
+-- vshufi64x2 ymm0, ymm4, ymm24, 0
+theorem decodes_shuffle_rm_ymm24 :
+    decodeOne [0x62, 0x93, 0xdd, 0x28, 0x43, 0xc0, 0x00] 0 =
+      some (.shuffleI64x2 0 4 24 0, 7) := by
+  decide
+
+-- vmovdqu64 ymm0 {k1} {z}, [rdx]
+theorem decodes_zeroing_masked_load :
+    decodeOne [0x62, 0xf1, 0xfe, 0xa9, 0x6f, 0x02] 0 =
+      some (.ymmMaskedLoad 0 .rdx 0 1 true, 6) := by
+  decide
+
+-- vmovdqu64 ymm0 {k1}, [rdx]
+theorem decodes_merging_masked_load :
+    decodeOne [0x62, 0xf1, 0xfe, 0x29, 0x6f, 0x02] 0 =
+      some (.ymmMaskedLoad 0 .rdx 0 1 false, 6) := by
+  decide
+
+-- vmovdqu64 ymm0, [rdx]: aaa = 0 is the unmasked form, not a load masked by k0.
+theorem rejects_unmasked_load :
+    decodeOne [0x62, 0xf1, 0xfe, 0x28, 0x6f, 0x02] 0 = none := by
+  decide
+
+-- aaa = 0 with z = 1 is an invalid encoding.
+theorem rejects_zeroing_without_mask :
+    decodeOne [0x62, 0xf1, 0xfe, 0xa8, 0x6f, 0x02] 0 = none := by
   decide
 
 

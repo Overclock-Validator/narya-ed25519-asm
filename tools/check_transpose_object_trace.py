@@ -341,7 +341,7 @@ def decode_one(reader: Reader) -> Decoded:
             if (mode != 3 or map_select != 3 or bits(p0, 3, 1) != 0 or
                     w != 1 or pp != 1 or vl != 1 or zeroing or broadcast or mask != 0):
                 raise CheckError("invalid unmasked EVEX.256 VSHUFI64X2")
-            source2 = bits(modrm, 0, 3) + 8 * invbit(p0, 6) + 16 * invbit(p0, 5)
+            source2 = bits(modrm, 0, 3) + 8 * invbit(p0, 5) + 16 * invbit(p0, 6)
             immediate = reader.take()
             return Decoded(Insn("shuffleI64x2", (destination, source1, source2, immediate)), start, reader.offset)
         if opcode == 0x6F:
@@ -352,6 +352,10 @@ def decode_one(reader: Reader) -> Decoded:
                 # Reserved vvvv/V' must encode all ones, which decodes to zero
                 # through the arithmetic above only after inversion.
                 raise CheckError("reserved EVEX vvvv fields are not all ones")
+            if mask == 0:
+                # aaa = 0 is the unmasked form (and invalid with z = 1), not a
+                # load masked by k0. Only the masked form is in the vocabulary.
+                raise CheckError("EVEX VMOVDQU64 load without an opmask")
             base, displacement = decode_address(reader, modrm, b_ext, tuple_scale=32)
             return Decoded(
                 Insn("ymmMaskedLoad", (destination, base, displacement, mask, zeroing)),

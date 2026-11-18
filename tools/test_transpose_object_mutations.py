@@ -224,7 +224,39 @@ def check_special_rejected(name: str, object_path: Path, symbol: str, mutator) -
         raise SystemExit(f"mutation {name!r} was not detected")
 
 
+# Independent decoder fixtures, encoded by Clang from Intel syntax. The same
+# byte strings are fixtures in TransposeX86WholeDecoder.lean.
+DECODE_FIXTURES = (
+    ("62d3dd2843c000", checker.Insn("shuffleI64x2", (0, 4, 8, 0))),
+    ("62b3dd2843c000", checker.Insn("shuffleI64x2", (0, 4, 16, 0))),
+    ("6293dd2843c000", checker.Insn("shuffleI64x2", (0, 4, 24, 0))),
+    ("62f1fea96f02", checker.Insn("ymmMaskedLoad", (0, "rdx", 0, 1, True))),
+    ("62f1fe296f02", checker.Insn("ymmMaskedLoad", (0, "rdx", 0, 1, False))),
+)
+DECODE_REJECTIONS = (
+    ("unmasked-load", "62f1fe286f02"),
+    ("zeroing-without-mask", "62f1fea86f02"),
+)
+
+
+def check_decoder_fixtures() -> int:
+    for encoding, expected in DECODE_FIXTURES:
+        code = bytes.fromhex(encoding)
+        decoded = checker.decode_one(checker.Reader(code))
+        if decoded.insn != expected or decoded.end != len(code):
+            raise SystemExit(f"decoder fixture {encoding} gave {decoded}, expected {expected}")
+    for name, encoding in DECODE_REJECTIONS:
+        try:
+            decoded = checker.decode_one(checker.Reader(bytes.fromhex(encoding)))
+        except checker.CheckError:
+            continue
+        raise SystemExit(f"decoder accepted {name} ({encoding}) as {decoded}")
+    return len(DECODE_FIXTURES) + len(DECODE_REJECTIONS)
+
+
 def main() -> None:
+    fixtures = check_decoder_fixtures()
+    print(f"PASS: {fixtures} decoder fixtures")
     checker.run(PROJECTIVE, AFFINE)
     for mutation in MUTATIONS:
         check_rejected(mutation)
