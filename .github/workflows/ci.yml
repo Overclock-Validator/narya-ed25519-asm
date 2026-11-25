@@ -66,3 +66,64 @@ jobs:
         run: go version
       - name: Rebuild the pinned Go reference and run the byte gates
         run: make check-go-r51-reference
+
+  # The hosted runners have no AVX-512 IFMA, so `make test` above skips every
+  # IFMA test binary. These jobs run the same binaries under Intel SDE, which
+  # emulates an Ice Lake server CPU. Functional coverage only: SDE timings are
+  # not performance evidence, and SDE is not real AMD silicon. The SDE archive
+  # and its SHA-256 are the ones the narya-ed25519 module's CI pins, from
+  # https://www.intel.com/content/www/us/en/download/684897/intel-software-development-emulator.html
+  c-native-sde:
+    name: C native gates under Intel SDE
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SDE_ARCHIVE: sde-external-10.8.0-2026-03-15-lin.tar.xz
+      SDE_SHA256: 50b320cd226acef7a491f5b321fc1be3c3c7984f9e27a456e64894b5b0979dd3
+      SDE_URL: https://downloadmirror.intel.com/915934/sde-external-10.8.0-2026-03-15-lin.tar.xz
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Download pinned Intel SDE
+        run: |
+          curl --fail --location --retry 3 "$SDE_URL" --output "/tmp/$SDE_ARCHIVE"
+          echo "$SDE_SHA256  /tmp/$SDE_ARCHIVE" | sha256sum --check --strict
+          tar --extract --xz --file "/tmp/$SDE_ARCHIVE" --directory /tmp
+          echo "SDE64=/tmp/${SDE_ARCHIVE%.tar.xz}/sde64" >> "$GITHUB_ENV"
+      - name: Permit SDE instrumentation on Ubuntu
+        run: sudo sysctl --write kernel.yama.ptrace_scope=0
+      - name: Run the native suite with warnings as errors
+        run: >-
+          make CC=clang
+          CFLAGS='-O2 -g -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror'
+          RUNNER="$SDE64 -icx --"
+          test-native
+      - name: Run a short libFuzzer smoke over the committed corpus
+        run: |
+          make CLANG=clang fuzz-build
+          timeout 15m "$SDE64" -icx -- ./build/fuzz_verify_strict_x8 \
+            -runs=2000 tests/fuzz/corpus/verify_strict_x8
+
+  c-sanitize-sde:
+    name: C sanitizers under Intel SDE
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SDE_ARCHIVE: sde-external-10.8.0-2026-03-15-lin.tar.xz
+      SDE_SHA256: 50b320cd226acef7a491f5b321fc1be3c3c7984f9e27a456e64894b5b0979dd3
+      SDE_URL: https://downloadmirror.intel.com/915934/sde-external-10.8.0-2026-03-15-lin.tar.xz
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Download pinned Intel SDE
+        run: |
+          curl --fail --location --retry 3 "$SDE_URL" --output "/tmp/$SDE_ARCHIVE"
+          echo "$SDE_SHA256  /tmp/$SDE_ARCHIVE" | sha256sum --check --strict
+          tar --extract --xz --file "/tmp/$SDE_ARCHIVE" --directory /tmp
+          echo "SDE64=/tmp/${SDE_ARCHIVE%.tar.xz}/sde64" >> "$GITHUB_ENV"
+      - name: Permit SDE instrumentation on Ubuntu
+        run: sudo sysctl --write kernel.yama.ptrace_scope=0
+      - name: Run the native suite with ASan and UBSan
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: make CC=clang RUNNER="$SDE64 -icx --" test-sanitize
