@@ -190,7 +190,7 @@ def clearInstruction (target : ZReg) : Instruction :=
 
 theorem generated_clear_phase_exact :
     GeneratedR51InstructionTrace.clearPhase = clearTargets.map clearInstruction := by
-  native_decide
+  decide +kernel
 
 theorem clear_targets_define_below_28 :
     clearTargets.foldl defineRegister (registersBelow 10) =

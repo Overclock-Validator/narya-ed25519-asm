@@ -210,7 +210,7 @@ theorem executeCoreInstruction_noninterference {Other : Type}
 theorem arithmetic_core_instructions_admitted :
     GeneratedR51InstructionTrace.arithmeticCorePhase.all isCoreInstruction =
       true := by
-  native_decide
+  decide +kernel
 
 theorem execBroadcast_gpr_preserved {Other : Type}
     (state next : MachineState Other) (destination : ZReg)

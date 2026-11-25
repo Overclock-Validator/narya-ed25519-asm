@@ -7,8 +7,11 @@ larger claim. Specifications and conditional composition theorems are not
 reported as completed implementation proofs.
 
 `make check-formal-hygiene` requires every named audit anchor below to remain a
-real declaration and rejects `sorry`, `admit`, custom `axiom`, and `sorryAx`
-escapes anywhere in the Lean project. `make formal-check` then builds the pinned
+real declaration and rejects `sorry`, `admit`, custom `axiom`, `sorryAx`,
+`native_decide`, and `bv_decide` anywhere in the Lean project.
+`NaryaFormal/AxiomAudit.lean` pins every capstone to the standard axioms
+`propext`, `Classical.choice`, and `Quot.sound`, so none depends on
+`Lean.ofReduceBool`. `make formal-check` then builds the pinned
 Lean and mathlib project. This protects proof presence; it does not replace
 review of theorem statements, generators, restricted x86 semantics, or the
 trusted Lean toolchain.
@@ -38,7 +41,8 @@ trusted Lean toolchain.
 
 The strongest byte-linked result currently trusts:
 
-- the pinned Lean compiler and mathlib dependency graph;
+- the pinned Lean kernel and mathlib dependency graph (not the Lean compiler:
+  no proof evaluates compiled code);
 - the small Python source extractors and deterministic ELF-byte generator;
 - the restricted decoder and instruction semantics implemented in Lean;
 - the canonical proof link produced by the documented Clang/LLD pipeline; and
