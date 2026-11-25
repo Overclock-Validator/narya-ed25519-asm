@@ -74,6 +74,9 @@ SHT_RELA, SHT_REL, SHT_RELR = 4, 9, 19
 DT_NULL, DT_PLTRELSZ, DT_RELA, DT_RELASZ = 0, 2, 7, 8
 DT_REL, DT_RELSZ, DT_PLTREL, DT_JMPREL = 17, 18, 20, 23
 DT_RELRSZ, DT_RELR = 35, 36
+RELOCATION_TAGS = {
+    DT_RELA, DT_RELASZ, DT_REL, DT_RELSZ, DT_RELR, DT_RELRSZ, DT_JMPREL, DT_PLTRELSZ, DT_PLTREL
+}
 PAGE = 4096
 
 
@@ -231,8 +234,10 @@ def dynamic_targets(loads: LoadMap) -> list[int]:
             tag, value = struct.unpack_from("<QQ", loads.image, offset)
             if tag == DT_NULL:
                 break
-            if tag in tags:
-                fail(f"dynamic table repeats tag {tag}")
+            # Tags such as DT_NEEDED legitimately repeat; the relocation tags
+            # read below must not, or a second table could go unchecked.
+            if tag in RELOCATION_TAGS and tag in tags:
+                fail(f"dynamic table repeats relocation tag {tag}")
             tags[tag] = value
         tables = [
             (DT_RELA, DT_RELASZ, "rela"),

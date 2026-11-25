@@ -31,7 +31,7 @@ PT_LOAD = 1
 PT_DYNAMIC = 2
 PT_GNU_STACK = 0x6474E551
 SHT_RELR = 19
-DT_RELRSZ, DT_RELR = 35, 36
+DT_NEEDED, DT_RELRSZ, DT_RELR = 1, 35, 36
 PF_X, PF_W = 1, 2
 
 FUNCTION = LEAVES["mul"].symbol
@@ -167,12 +167,17 @@ def main() -> None:
                 stack = offset
         if stack is None:
             raise SystemExit("no PT_GNU_STACK header to repurpose")
-        _header, table_offset = unloaded_scratch(64)
+        _header, table_offset = unloaded_scratch(96)
         table_address = norm_address + norm_size  # code padding after a leaf
         table_file = norm + norm_size
         result = bytearray(image)
-        struct.pack_into("<IIQQQQQQ", result, stack, PT_DYNAMIC, 4, table_offset, 0, 0, 48, 48, 8)
-        struct.pack_into("<QQQQQQ", result, table_offset, DT_RELRSZ, 8, DT_RELR, table_address, 0, 0)
+        # Two DT_NEEDED entries first: a dynamically linked binary repeats that
+        # tag, and the checker must still read the relocation table after it.
+        struct.pack_into("<IIQQQQQQ", result, stack, PT_DYNAMIC, 4, table_offset, 0, 0, 80, 80, 8)
+        struct.pack_into(
+            "<10Q", result, table_offset,
+            DT_NEEDED, 1, DT_NEEDED, 2, DT_RELRSZ, 8, DT_RELR, table_address, 0, 0,
+        )
         struct.pack_into("<Q", result, table_file, target)
         return bytes(result)
 
