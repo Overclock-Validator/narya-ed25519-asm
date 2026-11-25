@@ -28,6 +28,10 @@ from generate_go_r51_object_bytes import (
 
 PROGRAM_HEADER = struct.Struct("<IIQQQQQQ")
 PT_LOAD = 1
+PT_DYNAMIC = 2
+PT_GNU_STACK = 0x6474E551
+SHT_RELR = 19
+DT_RELRSZ, DT_RELR = 35, 36
 PF_X, PF_W = 1, 2
 
 FUNCTION = LEAVES["mul"].symbol
@@ -67,7 +71,7 @@ def main() -> None:
     original = arguments.elf.read_bytes()
     elf = GoElf(original)
     code, code_address, code_size = file_offset(elf, FUNCTION)
-    norm, _norm_address, norm_size = file_offset(elf, NORMALIZE)
+    norm, norm_address, norm_size = file_offset(elf, NORMALIZE)
     add, _, _ = file_offset(elf, ADD)
     subtract, _, _ = file_offset(elf, SUBTRACT)
     negate, _, _ = file_offset(elf, NEGATE)
@@ -130,6 +134,46 @@ def main() -> None:
         vaddr = PROGRAM_HEADER.unpack_from(image, offset)[3]
         result = bytearray(image)
         struct.pack_into("<Q", result, offset + 32, address - vaddr)
+        return bytes(result)
+
+    def unloaded_scratch(size: int) -> int:
+        """File offset of `size` bytes in a non-allocated section (debug data
+        the loader never maps), so writing there changes nothing the checker
+        reads unless a mutation points it there."""
+        fields = ELF_HEADER.unpack_from(original)
+        for index in range(fields[12]):
+            header = SECTION_HEADER.unpack_from(original, fields[6] + index * SECTION_HEADER.size)
+            if header[1] == 1 and header[2] & 2 == 0 and header[5] >= size:
+                return fields[6] + index * SECTION_HEADER.size, header[4]
+        raise SystemExit("no unloaded section large enough for a scratch table")
+
+    def with_relr_section(image: bytes, target: int) -> bytes:
+        """Turn an unloaded section into a one-entry RELR table for `target`."""
+        header, offset = unloaded_scratch(8)
+        result = bytearray(image)
+        struct.pack_into("<I", result, header + 4, SHT_RELR)
+        struct.pack_into("<Q", result, header + 32, 8)
+        struct.pack_into("<Q", result, offset, target)
+        return bytes(result)
+
+    def with_dynamic_relr(image: bytes, target: int) -> bytes:
+        """Add a PT_DYNAMIC whose DT_RELR table, at a loaded address the checker
+        does not otherwise read, relocates `target`."""
+        fields = ELF_HEADER.unpack_from(image)
+        stack = None
+        for index in range(fields[10]):
+            offset = fields[5] + index * PROGRAM_HEADER.size
+            if PROGRAM_HEADER.unpack_from(image, offset)[0] == PT_GNU_STACK:
+                stack = offset
+        if stack is None:
+            raise SystemExit("no PT_GNU_STACK header to repurpose")
+        _header, table_offset = unloaded_scratch(64)
+        table_address = norm_address + norm_size  # code padding after a leaf
+        table_file = norm + norm_size
+        result = bytearray(image)
+        struct.pack_into("<IIQQQQQQ", result, stack, PT_DYNAMIC, 4, table_offset, 0, 0, 48, 48, 8)
+        struct.pack_into("<QQQQQQ", result, table_offset, DT_RELRSZ, 8, DT_RELR, table_address, 0, 0)
+        struct.pack_into("<Q", result, table_file, target)
         return bytes(result)
 
     def stripped(image: bytes) -> bytes:
@@ -196,6 +240,12 @@ def main() -> None:
             truncated_before(stripped(original), code_address), "loaded candidate"
         ),
         "fold displacement negative": (negative_target(fold_site), "negative displacement"),
+        "RELR section relocates the code": (
+            with_relr_section(original, code_address + 16), "relocation"
+        ),
+        "PT_DYNAMIC RELR table relocates a constant": (
+            with_dynamic_relr(original, fold_address), "relocation"
+        ),
     }
 
     cases = {

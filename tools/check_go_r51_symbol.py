@@ -21,7 +21,8 @@ Every byte checked (code and constants) is read through the image's program
 headers, not only its sections: it must lie in the file-backed part of
 exactly one PT_LOAD segment, readable and not writable, executable for code
 and not executable for constants, with no other PT_LOAD sharing its pages.
-Where sections exist the section bytes must agree. No REL or RELA section may
+Where sections exist the section bytes must agree. No REL, RELA, or RELR
+relocation, whether listed in a section or in the PT_DYNAMIC table, may
 relocate a checked byte.
 
 It prints the constant addresses, which are the address arguments of the
@@ -33,8 +34,9 @@ those fields as wildcards; exactly one match is required.
 
 Not checked here: that the image's callers reach this symbol (a loaded match
 does not prove runtime dispatch), the Go-compiled wrapper, CPU dispatch, or
-any other leaf. Relocations are found through section headers; an image that
-hides dynamic relocations from its section table is out of scope. The step from "bytes equal outside
+any other leaf. Relocations are read from REL, RELA, and RELR sections and from
+the PT_DYNAMIC table (DT_RELA, DT_REL, DT_RELR, DT_JMPREL); other packed
+formats (for example Android APS2) are not decoded. The step from "bytes equal outside
 the displacement fields" to "the decoded program is the reference program with
 renamed addresses" relies on the decoder treating a displacement uniformly; it
 is closed in Lean for an image by regenerating the Lean input from that image.
@@ -66,8 +68,12 @@ from generate_go_r51_object_bytes import (
 
 PROGRAM_HEADER = struct.Struct("<IIQQQQQQ")
 PT_LOAD = 1
+PT_DYNAMIC = 2
 PF_X, PF_W, PF_R = 1, 2, 4
-SHT_RELA, SHT_REL = 4, 9
+SHT_RELA, SHT_REL, SHT_RELR = 4, 9, 19
+DT_NULL, DT_PLTRELSZ, DT_RELA, DT_RELASZ = 0, 2, 7, 8
+DT_REL, DT_RELSZ, DT_PLTREL, DT_JMPREL = 17, 18, 20, 23
+DT_RELRSZ, DT_RELR = 35, 36
 PAGE = 4096
 
 
@@ -120,10 +126,15 @@ class LoadMap:
         if offset + count * entry_size > len(image):
             fail("program header table extends beyond image")
         self.segments = []
+        self.dynamic: list[tuple[int, int]] = []
         for index in range(count):
             kind, flags, file_offset, vaddr, _paddr, file_size, memory_size, align = (
                 PROGRAM_HEADER.unpack_from(image, offset + index * entry_size)
             )
+            if kind == PT_DYNAMIC:
+                if file_offset + file_size > len(image):
+                    fail("PT_DYNAMIC extends beyond image")
+                self.dynamic.append((file_offset, file_size))
             if kind != PT_LOAD:
                 continue
             if file_size > memory_size or file_offset + file_size > len(image):
@@ -164,24 +175,108 @@ class LoadMap:
         start = file_offset + address - vaddr
         return self.image[start : start + size]
 
+    def mapped(self, address: int, size: int, label: str) -> bytes:
+        """File-backed bytes at a virtual address, whatever the permissions."""
+        for _flags, file_offset, vaddr, file_size, _memory_size in self.segments:
+            if vaddr <= address and address + size <= vaddr + file_size:
+                start = file_offset + address - vaddr
+                return self.image[start : start + size]
+        fail(f"{label} at {address:#x} is not in the file-backed part of a PT_LOAD segment")
+
     def executable_ranges(self):
         for flags, file_offset, vaddr, file_size, _memory_size in self.segments:
             if flags & PF_X and flags & PF_R and not flags & PF_W:
                 yield vaddr, self.image[file_offset : file_offset + file_size]
 
 
-def reject_relocations(elf: GoElf, ranges: list[tuple[int, int, str]]) -> None:
-    """Fail if any REL or RELA entry writes into a checked range."""
-    for section in elf.sections:
-        if section[1] not in (SHT_RELA, SHT_REL):
+def explicit_targets(data: bytes, entry_size: int) -> list[int]:
+    """r_offset of each REL (16-byte) or RELA (24-byte) entry."""
+    if len(data) % entry_size:
+        fail("relocation table size is not a multiple of its entry size")
+    return [
+        struct.unpack_from("<Q", data, offset)[0]
+        for offset in range(0, len(data), entry_size)
+    ]
+
+
+def relr_targets(data: bytes) -> list[int]:
+    """Decode a packed RELR table: an even word is an address, an odd word a
+    bitmap of the following 63 words."""
+    if len(data) % 8:
+        fail("RELR table size is not a multiple of 8")
+    targets: list[int] = []
+    following = None
+    for offset in range(0, len(data), 8):
+        word = struct.unpack_from("<Q", data, offset)[0]
+        if word & 1 == 0:
+            targets.append(word)
+            following = word + 8
             continue
-        entry_size = 24 if section[1] == SHT_RELA else 16
-        data = elf.slice(section[4], section[5], "relocation section")
-        for offset in range(0, len(data) - entry_size + 1, entry_size):
-            target = struct.unpack_from("<Q", data, offset)[0]
-            for start, size, label in ranges:
-                if target < start + size and start < target + 8:
-                    fail(f"a relocation at {target:#x} writes into {label}")
+        if following is None:
+            fail("RELR bitmap without a preceding address")
+        for bit in range(1, 64):
+            if word >> bit & 1:
+                targets.append(following + (bit - 1) * 8)
+        following += 63 * 8
+    return targets
+
+
+def dynamic_targets(loads: LoadMap) -> list[int]:
+    """Relocation targets named by the dynamic table, which the loader uses
+    whether or not section headers describe them."""
+    targets: list[int] = []
+    for file_offset, file_size in loads.dynamic:
+        tags: dict[int, int] = {}
+        for offset in range(file_offset, file_offset + file_size - 15, 16):
+            tag, value = struct.unpack_from("<QQ", loads.image, offset)
+            if tag == DT_NULL:
+                break
+            if tag in tags:
+                fail(f"dynamic table repeats tag {tag}")
+            tags[tag] = value
+        tables = [
+            (DT_RELA, DT_RELASZ, "rela"),
+            (DT_REL, DT_RELSZ, "rel"),
+            (DT_RELR, DT_RELRSZ, "relr"),
+        ]
+        if DT_JMPREL in tags:
+            kind = tags.get(DT_PLTREL)
+            if kind not in (DT_RELA, DT_REL):
+                fail("DT_JMPREL without a valid DT_PLTREL")
+            tables.append((DT_JMPREL, DT_PLTRELSZ, "rela" if kind == DT_RELA else "rel"))
+        for address_tag, size_tag, form in tables:
+            if (address_tag in tags) != (size_tag in tags):
+                fail(f"dynamic table has tag {address_tag} without its size")
+            if address_tag not in tags:
+                continue
+            data = loads.mapped(tags[address_tag], tags[size_tag], "dynamic relocation table")
+            if form == "relr":
+                targets += relr_targets(data)
+            else:
+                targets += explicit_targets(data, 24 if form == "rela" else 16)
+    return targets
+
+
+def reject_relocations(
+    elf: GoElf, loads: LoadMap, ranges: list[tuple[int, int, str]]
+) -> None:
+    """Fail if any REL, RELA, or RELR entry, from a section or from the
+    dynamic table, writes into a checked range."""
+    targets = dynamic_targets(loads)
+    for section in elf.sections:
+        data = None
+        if section[1] in (SHT_RELA, SHT_REL, SHT_RELR):
+            data = elf.slice(section[4], section[5], "relocation section")
+        if section[1] == SHT_RELA:
+            targets += explicit_targets(data, 24)
+        elif section[1] == SHT_REL:
+            targets += explicit_targets(data, 16)
+        elif section[1] == SHT_RELR:
+            targets += relr_targets(data)
+    for target in targets:
+        for start, size, label in ranges:
+            if target < start + size and start < target + 8:
+                fail(f"a relocation at {target:#x} writes into {label}")
 
 
 def section_of(elf: GoElf, address: int, size: int):
@@ -288,6 +383,7 @@ def check(leaf: Leaf, image: bytes) -> None:
             fail(f"qword at {address_of:#x} is not {name} = {CONSTANT_VALUES[name]}")
     reject_relocations(
         elf,
+        loads,
         [(address, len(code), leaf.function)]
         + [(address_of, 8, name) for name, address_of in targets.items()],
     )

@@ -211,8 +211,11 @@ Every checked byte, code and constants, is read the way the loader maps it:
 it must lie in the file-backed part of exactly one `PT_LOAD` segment that is
 readable and not writable, executable for code and not executable for
 constants, and no other `PT_LOAD` segment may share its pages. Where section
-headers exist, the section bytes must agree with the loaded bytes, and no
-`REL` or `RELA` section may relocate a checked byte.
+headers exist, the section bytes must agree with the loaded bytes. No `REL`,
+`RELA`, or packed `RELR` relocation may touch a checked byte, whether it is
+listed in a section or in the `PT_DYNAMIC` table (`DT_RELA`, `DT_REL`,
+`DT_RELR`, `DT_JMPREL`), which the loader uses even when section headers are
+stripped.
 
 It prints each constant address. These are the address arguments of the
 leaf's `..._refines_relocated` theorem for that image. If the
@@ -223,7 +226,7 @@ once.
 A loaded match shows that the proved bytes are mapped executable in the image.
 It does not show that anything calls them.
 
-`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires twenty-two
+`make GO_R51_ELF=... test-go-r51-symbol-mutations` requires twenty-four
 mutations of a linked image to be rejected, and the image with its symbol
 table hidden to pass. In the multiplier: argument slot and register, a
 source-load base register, an IFMA opcode, a product source register, a store
@@ -231,10 +234,11 @@ displacement, the `RET`, each constant's value, and each displacement target.
 In the adder, subtractor, and negator: the memory-operand opcode swapped
 between add and subtract, and a bias displacement retargeted to the other
 bias. In the normalizer: an argument slot, the carry shift count, and a store
-displacement. Five more must fail at a named check: the code segment made
+displacement. Seven more must fail at a named check: the code segment made
 writable, the constant segment made executable, the code moved outside the
-file-backed part of its segment (with and without a symbol table), and a
-negative displacement.
+file-backed part of its segment (with and without a symbol table), a negative
+displacement, a `RELR` section relocating the code, and a `PT_DYNAMIC`
+`DT_RELR` table relocating a constant.
 
 ### Evidence recorded with this change
 
