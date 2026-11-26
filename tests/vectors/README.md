@@ -20,6 +20,7 @@ mathematical profile oracle, not an IFMA helper. Its output SHA-256 is:
 c18c229799ba137dc04377ccdcb173646f8e533d528b5433e40310737605bd38
 ```
 
+The executable Lean specification checks every verdict (`make check-lean-spec`).
 The native C test validates the schema and fixed case count on every machine;
 on IFMA hardware it evaluates the complete strict verifier in heterogeneous
 x8 groups and compares every lane with the committed verdict. Regeneration is

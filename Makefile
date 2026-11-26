@@ -31,7 +31,7 @@ OBJECTS := \
 	$(BUILD)/sha512x8_asm.o \
 	$(BUILD)/verify_strict_x8.o
 
-.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check
+.PHONY: all clean test test-native test-sanitize fuzz-build check audit-portable check-source check-r51-mul-trace test-r51-mul-trace-mutations check-r51-linear-trace test-r51-linear-trace-mutations check-r51-instruction-trace check-r51-object-bytes check-transpose check-transpose-object-bytes test-transpose-mutations check-scalar-bounds test-scalar-bounds-mutations check-sha512-schedule check-generated check-formal-hygiene formal-check check-lean-spec
 
 all: $(LIB)
 
@@ -250,6 +250,11 @@ check-formal-hygiene:
 
 formal-check: check-r51-mul-trace check-r51-linear-trace check-r51-instruction-trace check-formal-hygiene
 	cd formal/lean && $(LAKE) build
+
+# Runs the executable Lean Ed25519 specification against every committed
+# fixture, including the 2,954-record external strict-verification corpus.
+check-lean-spec:
+	cd formal/lean && $(LAKE) build narya-spec-check && ./.lake/build/bin/narya-spec-check ../../tests/vectors
 
 clean:
 	rm -rf $(BUILD)
