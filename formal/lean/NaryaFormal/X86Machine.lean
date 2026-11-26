@@ -220,14 +220,32 @@ theorem qwordOfNat_mul (x y : Nat) :
   apply BitVec.eq_of_toNat_eq
   simp [Nat.mul_mod]
 
-/-- A little-endian qword store is read back exactly at the same address. -/
+/-- Each of the eight bytes of a little-endian qword store reads back. -/
+theorem storeQwordLE_byte_same (memory : Memory) (base : Addr) (word : QWord)
+    (k : Nat) (hk : k < 8) :
+    (storeQwordLE memory base word).byte (addressAdd base k) = qwordByte word k := by
+  interval_cases k <;>
+    simp [storeQwordLE, storeBytes, storeByte, qwordBytes, addressAdd,
+      add_assoc]
+
+/-- A little-endian qword store is read back exactly at the same address.
+The proof is kernel-checked arithmetic (`omega` over the base-256 digits); it
+does not use `bv_decide`, so it adds no `Lean.ofReduceBool` dependency. -/
 theorem loadQwordLE_storeQwordLE_same (memory : Memory) (base : Addr)
     (word : QWord) :
     loadQwordLE (storeQwordLE memory base word) base = word := by
-  simp [loadQwordLE, storeQwordLE, storeBytes, storeByte, qwordBytes,
-    qwordByte, addressAdd, Finset.sum_range_succ]
-  simp only [BitVec.ofNat_add, qwordOfNat_mul, BitVec.ofNat_toNat]
-  bv_decide
+  have hbytes : ∀ k ∈ Finset.range 8,
+      ((storeQwordLE memory base word).byte (addressAdd base k)).toNat * 256 ^ k =
+        (qwordByte word k).toNat * 256 ^ k := by
+    intro k hk
+    rw [storeQwordLE_byte_same memory base word k (Finset.mem_range.mp hk)]
+  unfold loadQwordLE
+  rw [Finset.sum_congr rfl hbytes]
+  apply BitVec.eq_of_toNat_eq
+  have hword := word.isLt
+  simp only [Finset.sum_range_succ, Finset.sum_range_zero, qwordByte,
+    BitVec.extractLsb'_toNat, Nat.shiftRight_eq_div_pow, BitVec.toNat_ofNat]
+  omega
 
 theorem storeZmm_permissions (memory : Memory) (base : Addr) (value : Zmm) :
     (storeZmm memory base value).perm = memory.perm := by

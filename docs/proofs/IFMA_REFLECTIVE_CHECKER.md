@@ -136,6 +136,8 @@ down expression normal forms, and the Python tooling are not trusted: every
 checker result used by a theorem is established by kernel evaluation, and every
 `reduced%` term is paired with a kernel-checked equation.
 
-The capstone depends on `Lean.ofReduceBool` through the `bv_decide` proof of
-`loadQwordLE_storeQwordLE_same` in `X86Machine.lean`, as the original
-multiplier theorem does.
+The capstone depends only on Lean's standard axioms (`propext`,
+`Classical.choice`, `Quot.sound`). No proof in the project uses
+`native_decide` or `bv_decide`, so nothing depends on `Lean.ofReduceBool` or
+trusts compiled code. `NaryaFormal/AxiomAudit.lean` fails the build if a
+capstone's axioms change, and `check_formal_hygiene.py` rejects both tactics.

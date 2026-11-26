@@ -160,9 +160,10 @@ The certificate is relative to:
 - the restricted x86 decoder and the instruction semantics in
   `TransposeX86WholeInstruction.lean` and `X86Machine.lean`, which are
   definitions and must be reviewed against the architecture manuals;
-- Lean, mathlib, and the Lean kernel. The qword store/load read-back lemma
-  inherited from `X86Machine.lean` uses `bv_decide`, so the capstones also
-  depend on `Lean.ofReduceBool`, as the r51 multiplier theorem already does;
+- Lean, mathlib, and the Lean kernel. The capstones use only the standard
+  axioms `propext`, `Classical.choice`, and `Quot.sound`, pinned by
+  `NaryaFormal/AxiomAudit.lean`; no `native_decide`, `bv_decide`, or
+  `Lean.ofReduceBool`;
 - the source and object extraction scripts and the selected compiler
   invocation.
 

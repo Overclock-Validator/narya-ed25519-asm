@@ -189,12 +189,32 @@ field_equal_mask(const narya_r51x8 *a, const narya_r51x8 *b)
     return equal;
 }
 
+static uint8_t
+field_zero_mask(const narya_r51x8 *value)
+{
+    uint8_t zero = 0;
+    for (size_t lane = 0; lane < 8; lane++) {
+        uint64_t canonical[5], combined = 0;
+        narya_r51x8_canonical_lane(canonical, value, lane);
+        for (size_t limb = 0; limb < 5; limb++)
+            combined |= canonical[limb];
+        if (combined == 0)
+            zero |= (uint8_t)(UINT8_C(1) << lane);
+    }
+    return zero;
+}
+
 /*
  * Equality of valid extended points without inversion or serialization.
  * field_equal_mask canonicalizes before comparison: comparing redundant r51
  * limb vectors directly would be wrong. Decoder and point-operation contracts
  * establish nonzero projective Z for every live lane. See
  * docs/architecture/STRICT_PREDICATE.md.
+ *
+ * The cross-multiplied test is vacuous when either Z is zero: (0, 0, 0)
+ * "equals" every point. The contract above rules that out, but a lane with a
+ * zero Z is rejected here as well, so a broken contract fails closed instead
+ * of accepting any R. The other finalizers already check Z the same way.
  */
 static uint8_t
 point_equal_mask(
@@ -206,7 +226,10 @@ point_equal_mask(
     narya_r51x8_mul_ifma(&bxaz, &b->X, &a->Z);
     narya_r51x8_mul_ifma(&aybz, &a->Y, &b->Z);
     narya_r51x8_mul_ifma(&byaz, &b->Y, &a->Z);
-    return field_equal_mask(&axbz, &bxaz) & field_equal_mask(&aybz, &byaz);
+    uint8_t nonzero_z =
+        (uint8_t)~(field_zero_mask(&a->Z) | field_zero_mask(&b->Z));
+    return field_equal_mask(&axbz, &bxaz) & field_equal_mask(&aybz, &byaz) &
+        nonzero_z;
 }
 
 /*
@@ -344,21 +367,6 @@ verify_packed_small(
     *verdict = narya_packed_equal_decoded_lanes_x4(
         &equation, &decoded, r_lane, live) & live;
     return NARYA_OK;
-}
-
-static uint8_t
-field_zero_mask(const narya_r51x8 *value)
-{
-    uint8_t zero = 0;
-    for (size_t lane = 0; lane < 8; lane++) {
-        uint64_t canonical[5], combined = 0;
-        narya_r51x8_canonical_lane(canonical, value, lane);
-        for (size_t limb = 0; limb < 5; limb++)
-            combined |= canonical[limb];
-        if (combined == 0)
-            zero |= (uint8_t)(UINT8_C(1) << lane);
-    }
-    return zero;
 }
 
 static void

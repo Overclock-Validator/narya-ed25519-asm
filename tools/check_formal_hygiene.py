@@ -16,7 +16,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LEAN_ROOT = ROOT / "formal/lean/NaryaFormal"
 
-FORBIDDEN = re.compile(r"\b(?:sorry|admit|axiom|sorryAx)\b")
+# native_decide and bv_decide close goals through Lean.ofReduceBool, which
+# trusts the compiler and native code; NaryaFormal/AxiomAudit.lean pins the
+# capstones' axioms, and this keeps the tactics out of the project entirely.
+FORBIDDEN = re.compile(
+    r"\b(?:sorry|admit|axiom|sorryAx|native_decide|bv_decide|ofReduceBool)\b"
+)
 
 # Stable entry points for an auditor. Renaming or moving one requires an
 # intentional evidence-index update.

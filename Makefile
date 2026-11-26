@@ -1,5 +1,8 @@
 CC ?= cc
 CLANG ?= clang
+# Optional command prefix for native test binaries, for example
+# RUNNER='sde64 -icx --' to run them under Intel SDE on a host without IFMA.
+RUNNER ?=
 AR ?= ar
 LD ?= ld
 LAKE ?= lake
@@ -175,17 +178,17 @@ test: $(BUILD)/test_r51x8 $(BUILD)/test_transpose_whole_leaf $(BUILD)/test_decod
 	$(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
 
 test-native: $(BUILD)/test_r51x8 $(BUILD)/test_transpose_whole_leaf $(BUILD)/test_decode_vectors $(BUILD)/test_sha512x8 $(BUILD)/test_scalar_reduce $(BUILD)/test_scalar_recode $(BUILD)/test_projective_niels_table $(BUILD)/test_scalar_mult_x8 $(BUILD)/test_fixed_base_comb $(BUILD)/test_verify_strict_x8 $(BUILD)/test_external_vectors
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_r51x8
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_transpose_whole_leaf
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_sha512x8
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_reduce
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_recode
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
-	NARYA_REQUIRE_IFMA=1 $(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_r51x8
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_transpose_whole_leaf
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_decode_vectors tests/vectors/narya_permissive_decode_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_sha512x8
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_scalar_reduce
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_scalar_recode
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_projective_niels_table tests/vectors/narya_basepoint_multiples_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_scalar_mult_x8 tests/vectors/narya_basepoint_multiples_v1.txt tests/vectors/narya_variable_scalar_mult_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_fixed_base_comb tests/vectors/narya_fixed_base_scalar_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_verify_strict_x8 tests/vectors/narya_strict_verify_v1.txt
+	NARYA_REQUIRE_IFMA=1 $(RUNNER) $(BUILD)/test_external_vectors tests/vectors/narya_external_strict_v1.jsonl
 
 test-sanitize:
 	$(MAKE) clean
