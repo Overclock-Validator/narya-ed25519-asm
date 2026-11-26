@@ -11,3 +11,12 @@ require mathlib from git
 @[default_target]
 lean_lib NaryaFormal where
   roots := #[`NaryaFormal]
+
+/-- Executable Ed25519 specification. Lean core only, no Mathlib. -/
+@[default_target]
+lean_lib NaryaSpec where
+  roots := #[`NaryaSpec]
+
+/-- Runs the executable specification against the committed fixtures. -/
+lean_exe «narya-spec-check» where
+  root := `NaryaSpecCheck

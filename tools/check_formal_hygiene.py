@@ -18,6 +18,15 @@ LEAN_ROOT = ROOT / "formal/lean/NaryaFormal"
 
 FORBIDDEN = re.compile(r"\b(?:sorry|admit|axiom|sorryAx)\b")
 
+# The executable specification must run exactly the definitions that proofs
+# refer to: no swapped-in implementations, foreign code, partial (opaque)
+# definitions, or compiler-trusting decision procedures.
+SPEC_ROOT = ROOT / "formal/lean/NaryaSpec"
+SPEC_FORBIDDEN = re.compile(
+    r"(?:\bimplemented_by\b|@\[extern\b|\bunsafe\b|\bpartial\b"
+    r"|\bnative_decide\b|\bbv_decide\b|\bofReduceBool\b)"
+)
+
 # Stable entry points for an auditor. Renaming or moving one requires an
 # intentional evidence-index update.
 AUDIT_ANCHORS = {
@@ -124,8 +133,20 @@ def code_without_comments(source: str) -> str:
 def main() -> None:
     failures: list[str] = []
 
+    spec_sources = [SPEC_ROOT.parent / "NaryaSpec.lean"]
+    spec_sources.extend(sorted(SPEC_ROOT.rglob("*.lean")))
+    for path in spec_sources:
+        code = code_without_comments(path.read_text(encoding="utf-8"))
+        for match in SPEC_FORBIDDEN.finditer(code):
+            line = code.count("\n", 0, match.start()) + 1
+            failures.append(
+                f"{path.relative_to(ROOT)}:{line}: executable spec must not use "
+                f"{match.group(0)!r}"
+            )
+
     project_sources = [LEAN_ROOT.parent / "NaryaFormal.lean"]
     project_sources.extend(sorted(LEAN_ROOT.rglob("*.lean")))
+    project_sources.extend(spec_sources)
     for path in project_sources:
         source = path.read_text(encoding="utf-8")
         code = code_without_comments(source)

@@ -55,3 +55,5 @@ jobs:
         uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1
         with:
           lake-package-directory: formal/lean
+      - name: Check the executable Ed25519 specification against the fixtures
+        run: make check-lean-spec

@@ -14,6 +14,12 @@ the stable capstone theorem names to their exact claim boundaries. CI runs
 `make check-formal-hygiene` before the build to reject proof placeholders and
 missing audit anchors.
 
+`NaryaSpec/` is a separate, Mathlib-free executable specification of the
+complete DalekStrict verifier. `make check-lean-spec` runs it against every
+committed fixture; see the
+[executable specification notes](../../docs/proofs/EXECUTABLE_SPEC.md) for its
+evidence and the proof obligations that will connect it to this project.
+
 The first completed target is the five-limb radix-`2^51` field multiplier:
 
 - exact reconstruction of a 52-bit IFMA low/high pair;
